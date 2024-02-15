@@ -2,7 +2,6 @@ package go_immutable_adaptive_radix_tree
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -32,11 +31,9 @@ func TestArtTree_InsertAndSearch(t *testing.T) {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber = 1
 	for _, line := range lines {
-		fmt.Println("searching for line", lineNumber, ":", line)
 		lineNumberFetched := art.Search([]byte(line))
-		fmt.Println(lineNumberFetched)
 		if lineNumberFetched != lineNumber {
-			log.Fatal("lineNumberFetched != lineNumber")
+			t.Fatal("lineNumberFetched != lineNumber")
 		}
 		lineNumber += 1
 	}
