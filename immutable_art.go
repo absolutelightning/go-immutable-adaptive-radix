@@ -176,7 +176,7 @@ func checkPrefix(n ArtNode, key []byte, keyLen, depth int) int {
 	return idx
 }
 
-func leafMatches(n *ArtNodeLeaf, key []byte, keyLen, depth int) int {
+func leafMatches(n *ArtNodeLeaf, key []byte, keyLen int) int {
 	// Ignore the depth parameter in Go
 
 	// Fail if the key lengths are different
@@ -201,7 +201,7 @@ func artSearch(t *ArtTree, key []byte, keyLen int) interface{} {
 				continue
 			}
 			// Check if the expanded path matches
-			if leafMatches(leaf, key, keyLen, depth) == 0 {
+			if leafMatches(leaf, key, keyLen) == 0 {
 				return leaf.value
 			}
 			return nil
@@ -320,6 +320,7 @@ func makeLeaf(key []byte, keyLen int, value interface{}) *ArtNodeLeaf {
 	// Set the value and key length
 	l.value = value
 	l.keyLen = uint32(keyLen)
+	l.setArtNodeType(LEAF)
 
 	// Copy the key
 	copy(l.key[:], key)
@@ -348,19 +349,19 @@ func copyHeader(dest, src ArtNode) {
 }
 
 // addChild256 adds a child node to a node256.
-func addChild256(n *ArtNode256, c byte, child *ArtNode) {
+func addChild256(n *ArtNode256, c byte, child ArtNode) {
 	n.numChildren++
-	n.children[c] = child
+	n.children[c] = &child
 }
 
 // addChild48 adds a child node to a node48.
-func addChild48(n *ArtNode48, c byte, child *ArtNode) {
+func addChild48(n *ArtNode48, c byte, child ArtNode) {
 	if n.numChildren < 48 {
 		pos := 0
 		for n.children[pos] != nil {
 			pos++
 		}
-		n.children[pos] = child
+		n.children[pos] = &child
 		n.keys[c] = byte(pos + 1)
 		n.numChildren++
 	} else {
@@ -416,6 +417,159 @@ func addChild16(n *ArtNode16, c byte, child ArtNode) {
 		}
 
 		copyHeader(new_node, n)
-		addChild48(new_node, c, &child)
+		addChild48(new_node, c, child)
 	}
+}
+
+// addChild4 adds a child node to a node4.
+func addChild4(n *ArtNode4, c byte, child ArtNode) {
+	if n.numChildren < 4 {
+		idx := 0
+		for idx = 0; idx < int(n.numChildren); idx++ {
+			if c < n.keys[idx] {
+				break
+			}
+		}
+
+		// Shift to make room
+		copy(n.keys[idx+1:], n.keys[idx:n.numChildren])
+		copy(n.children[idx+1:], n.children[idx:n.numChildren])
+
+		// Insert element
+		n.keys[idx] = c
+		n.children[idx] = &child
+		n.numChildren++
+
+	} else {
+		new_node := (allocNode(NODE16)).(*ArtNode16)
+
+		// Copy the child pointers and the key map
+		copy(new_node.children[:], n.children[:n.numChildren])
+		copy(new_node.keys[:], n.keys[:n.numChildren])
+		copyHeader(new_node, n)
+		addChild16(new_node, c, child)
+	}
+}
+
+// addChild adds a child node to the parent node.
+func addChild(n ArtNode, c byte, child ArtNode) {
+	switch n.getArtNodeType() {
+	case NODE4:
+		addChild4(n.(*ArtNode4), c, child)
+	case NODE16:
+		addChild16(n.(*ArtNode16), c, child)
+	case NODE48:
+		addChild48(n.(*ArtNode48), c, child)
+	case NODE256:
+		addChild256(n.(*ArtNode256), c, child)
+	default:
+		panic("Unknown node type")
+	}
+}
+
+// prefixMismatch calculates the index at which the prefixes mismatch.
+func prefixMismatch(n ArtNode, key []byte, keyLen, depth int) int {
+	maxCmp := min(min(MaxPrefixLen, int(n.getPartialLen())), keyLen-depth)
+	var idx int
+	for idx = 0; idx < maxCmp; idx++ {
+		if n.getPartial()[idx] != key[depth+idx] {
+			return idx
+		}
+	}
+
+	// If the prefix is short we can avoid finding a leaf
+	if n.getPartialLen() > MaxPrefixLen {
+		// Prefix is longer than what we've checked, find a leaf
+		l := minimum(n)
+		maxCmp = min(int(l.keyLen), keyLen) - depth
+		for ; idx < maxCmp; idx++ {
+			if l.key[idx+depth] != key[depth+idx] {
+				return idx
+			}
+		}
+	}
+	return idx
+}
+
+func recursiveInsert(n *ArtNode, key []byte, keyLen int, value interface{}, depth int, old *int, replace bool) interface{} {
+	// If we are at a nil node, inject a leaf
+	if n == nil {
+		leafNode := makeLeaf(key, keyLen, value)
+		*n = leafNode
+		return nil
+	}
+
+	// If we are at a leaf, we need to replace it with a node
+	node := *n
+	if node.isLeaf() {
+		l := node.(*ArtNodeLeaf)
+
+		// Check if we are updating an existing value
+		if bytes.Equal(l.key, key[:keyLen]) {
+			*old = 1
+			oldVal := l.value
+			if replace {
+				l.value = value
+			}
+			return oldVal
+		}
+
+		// New value, we must split the leaf into a node4
+		newLeaf := makeLeaf(key, keyLen, value)
+
+		// Determine longest prefix
+		longestPrefix := longestCommonPrefix(l, newLeaf, depth)
+		newNode := allocNode(NODE4).(*ArtNode4)
+		newNode.partialLen = uint32(longestPrefix)
+		copy(newNode.partial[:], key[depth:depth+min(MaxPrefixLen, longestPrefix)])
+
+		// Add the leafs to the new node4
+		addChild4(newNode, l.key[depth+longestPrefix], l)
+		addChild4(newNode, newLeaf.key[depth+longestPrefix], newLeaf)
+		return nil
+	}
+
+	// Check if given node has a prefix
+	if node.getPartialLen() > 0 {
+		// Determine if the prefixes differ, since we need to split
+		prefixDiff := prefixMismatch(node, key, keyLen, depth)
+		if prefixDiff >= int(node.getPartialLen()) {
+			depth += int(node.getPartialLen())
+			goto RECURSE_SEARCH
+		}
+
+		// Create a new node
+		newNode := allocNode(NODE4).(*ArtNode4)
+		newNode.partialLen = uint32(prefixDiff)
+		copy(newNode.partial[:], node.getPartial()[:min(MaxPrefixLen, prefixDiff)])
+
+		// Adjust the prefix of the old node
+		if node.getPartialLen() <= MaxPrefixLen {
+			addChild4(newNode, newNode.keys[node.getPartial()[prefixDiff]], node)
+			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
+			copy(node.getPartial()[:], node.getPartial()[prefixDiff+1:min(MaxPrefixLen, int(node.getPartialLen())+prefixDiff+1)])
+		} else {
+			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
+			l := minimum(node)
+			addChild4(newNode, newNode.keys[l.key[depth+prefixDiff]], node)
+			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:min(MaxPrefixLen, int(node.getPartialLen()))])
+		}
+
+		// Insert the new leaf
+		newLeaf := makeLeaf(key, keyLen, value)
+		addChild4(newNode, newNode.keys[key[depth+prefixDiff]], newLeaf)
+		return nil
+	}
+
+RECURSE_SEARCH:
+	// Find a child to recurse to
+	child := findChild(node, key[depth])
+	if child != nil {
+		return recursiveInsert(*child, key, keyLen, value, depth+1, old, replace)
+	}
+
+	// No child, node goes within us
+	newLeaf := makeLeaf(key, keyLen, value)
+	addChild(node, key[depth], newLeaf)
+	return nil
 }
