@@ -5,8 +5,8 @@ type ArtNode256 struct {
 	artNodeType uint8
 	numChildren uint8
 	partial     []byte
-	keys        [16]byte
-	children    [16]*ArtNode
+	keys        [256]byte
+	children    [256]*ArtNode
 }
 
 func (n *ArtNode256) getPartialLen() uint32 {
