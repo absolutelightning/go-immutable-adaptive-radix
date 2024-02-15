@@ -32,14 +32,6 @@ func (n *ArtNodeLeaf) setNumChildren(numChildren uint8) {
 	// no-op
 }
 
-func (n *ArtNodeLeaf) getPartial() []byte {
-	return []byte{}
-}
-
-func (n *ArtNodeLeaf) setPartial(partial []byte) {
-	// no op
-}
-
 func (n *ArtNodeLeaf) isLeaf() bool {
 	return true
 }
@@ -66,4 +58,13 @@ func (n *ArtNodeLeaf) getKey() []byte {
 
 func (n *ArtNodeLeaf) setKey(key []byte) {
 	n.key = key
+}
+
+func (n *ArtNodeLeaf) getPartial() []byte {
+	//no-op
+	return []byte{}
+}
+
+func (n *ArtNodeLeaf) setPartial(partial []byte) {
+	// no-op
 }

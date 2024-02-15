@@ -29,6 +29,8 @@ func allocNode(nodeType uint8) ArtNode {
 		panic("Unknown node type")
 	}
 	n.setArtNodeType(nodeType)
+	n.setPartial(make([]byte, MaxPrefixLen))
+	n.setPartialLen(MaxPrefixLen)
 	return n
 }
 
@@ -182,7 +184,8 @@ func leafMatches(n *ArtNodeLeaf, key []byte, keyLen int) int {
 	return bytes.Compare(n.key, key)
 }
 
-func artSearch(t *ArtTree, key []byte, keyLen int) interface{} {
+func artSearch(t *ArtTree, key []byte) interface{} {
+	keyLen := len(key)
 	var child **ArtNode
 	n := *t.root
 	depth := 0
@@ -304,7 +307,7 @@ func maximum(n ArtNode) *ArtNodeLeaf {
 }
 
 // makeLeaf creates a new leaf node.
-func makeLeaf(key []byte, keyLen int, value interface{}) *ArtNodeLeaf {
+func makeLeaf(key []byte, value interface{}) ArtNode {
 	// Allocate memory for the leaf node
 	l := allocNode(LEAF).(*ArtNodeLeaf)
 	if l == nil {
@@ -313,12 +316,13 @@ func makeLeaf(key []byte, keyLen int, value interface{}) *ArtNodeLeaf {
 
 	// Set the value and key length
 	l.value = value
-	l.keyLen = uint32(keyLen)
+	l.keyLen = uint32(len(key))
+	l.key = make([]byte, l.keyLen)
 
 	// Copy the key
 	copy(l.key[:], key)
 
-	return l
+	return ArtNode(l)
 }
 
 // longestCommonPrefix finds the length of the longest common prefix between two leaf nodes.
@@ -342,13 +346,13 @@ func copyHeader(dest, src ArtNode) {
 }
 
 // addChild256 adds a child node to a node256.
-func addChild256(n *ArtNode256, c byte, child ArtNode) {
+func addChild256(n *ArtNode256, ref **ArtNode, c byte, child ArtNode) {
 	n.numChildren++
 	n.children[c] = &child
 }
 
 // addChild48 adds a child node to a node48.
-func addChild48(n *ArtNode48, c byte, child ArtNode) {
+func addChild48(n *ArtNode48, ref **ArtNode, c byte, child ArtNode) {
 	if n.numChildren < 48 {
 		pos := 0
 		for n.children[pos] != nil {
@@ -358,19 +362,21 @@ func addChild48(n *ArtNode48, c byte, child ArtNode) {
 		n.keys[c] = byte(pos + 1)
 		n.numChildren++
 	} else {
-		new_node := (allocNode(NODE256)).(*ArtNode256)
+		new_node := allocNode(NODE256)
+		*ref = &new_node
+		node256 := new_node.(*ArtNode256)
 		for i := 0; i < 256; i++ {
 			if n.keys[i] != 0 {
-				new_node.children[i] = n.children[int(n.keys[i])-1]
+				node256.children[i] = n.children[int(n.keys[i])-1]
 			}
 		}
 		copyHeader(new_node, n)
-		addChild256(new_node, c, child)
+		addChild256(node256, ref, c, child)
 	}
 }
 
 // addChild16 adds a child node to a node16.
-func addChild16(n *ArtNode16, c byte, child ArtNode) {
+func addChild16(n *ArtNode16, ref **ArtNode, c byte, child ArtNode) {
 	if n.numChildren < 16 {
 		var mask uint32 = (1 << n.numChildren) - 1
 		var bitfield uint32
@@ -401,21 +407,23 @@ func addChild16(n *ArtNode16, c byte, child ArtNode) {
 		n.numChildren++
 
 	} else {
-		new_node := allocNode(NODE48).(*ArtNode48)
+		new_node := allocNode(NODE48)
+		*ref = &new_node
 
+		node48 := new_node.(*ArtNode48)
 		// Copy the child pointers and populate the key map
-		copy(new_node.children[:], n.children[:n.numChildren])
+		copy(node48.children[:], n.children[:n.numChildren])
 		for i := 0; i < int(n.numChildren); i++ {
-			new_node.keys[n.keys[i]] = byte(i + 1)
+			node48.keys[n.keys[i]] = byte(i + 1)
 		}
 
 		copyHeader(new_node, n)
-		addChild48(new_node, c, child)
+		addChild48(node48, ref, c, child)
 	}
 }
 
 // addChild4 adds a child node to a node4.
-func addChild4(n *ArtNode4, c byte, child ArtNode) {
+func addChild4(n *ArtNode4, ref **ArtNode, c byte, child ArtNode) {
 	if n.numChildren < 4 {
 		idx := 0
 		for idx = 0; idx < int(n.numChildren); idx++ {
@@ -434,27 +442,28 @@ func addChild4(n *ArtNode4, c byte, child ArtNode) {
 		n.numChildren++
 
 	} else {
-		new_node := (allocNode(NODE16)).(*ArtNode16)
-
+		new_node := (allocNode(NODE16))
+		*ref = &new_node
+		node16 := new_node.(*ArtNode16)
 		// Copy the child pointers and the key map
-		copy(new_node.children[:], n.children[:n.numChildren])
-		copy(new_node.keys[:], n.keys[:n.numChildren])
+		copy(node16.children[:], n.children[:n.numChildren])
+		copy(node16.keys[:], n.keys[:n.numChildren])
 		copyHeader(new_node, n)
-		addChild16(new_node, c, child)
+		addChild16(node16, ref, c, child)
 	}
 }
 
 // addChild adds a child node to the parent node.
-func addChild(n ArtNode, c byte, child ArtNode) {
+func addChild(n ArtNode, ref **ArtNode, c byte, child ArtNode) {
 	switch n.getArtNodeType() {
 	case NODE4:
-		addChild4(n.(*ArtNode4), c, child)
+		addChild4(n.(*ArtNode4), ref, c, child)
 	case NODE16:
-		addChild16(n.(*ArtNode16), c, child)
+		addChild16(n.(*ArtNode16), ref, c, child)
 	case NODE48:
-		addChild48(n.(*ArtNode48), c, child)
+		addChild48(n.(*ArtNode48), ref, c, child)
 	case NODE256:
-		addChild256(n.(*ArtNode256), c, child)
+		addChild256(n.(*ArtNode256), ref, c, child)
 	default:
 		panic("Unknown node type")
 	}
@@ -484,40 +493,42 @@ func prefixMismatch(n ArtNode, key []byte, keyLen, depth int) int {
 	return idx
 }
 
-func recursiveInsert(n *ArtNode, key []byte, keyLen int, value interface{}, depth int, old *int) interface{} {
+func recursiveInsert(n *ArtNode, ref **ArtNode, key []byte, value interface{}, depth int, old *int) interface{} {
+	keyLen := len(key)
 	// If we are at a nil node, inject a leaf
 	if n == nil {
-		leafNode := makeLeaf(key, keyLen, value)
-		*n = leafNode
+		leafNode := makeLeaf(key, value)
+		*ref = &leafNode
 		return nil
 	}
 
 	// If we are at a leaf, we need to replace it with a node
 	node := *n
 	if node.isLeaf() {
-		l := node.(*ArtNodeLeaf)
+		nodeLeaf := node.(*ArtNodeLeaf)
 
 		// Check if we are updating an existing value
-		if bytes.Equal(l.key, key[:keyLen]) {
+		if bytes.Equal(nodeLeaf.key, key[:keyLen]) {
 			*old = 1
-			oldVal := l.value
-			l.value = value
+			oldVal := nodeLeaf.value
+			nodeLeaf.value = value
 			return oldVal
 		}
 
 		// New value, we must split the leaf into a node4
-		newLeaf := makeLeaf(key, keyLen, value)
+		newLeaf2 := makeLeaf(key, value).(*ArtNodeLeaf)
 
 		// Determine longest prefix
-		longestPrefix := longestCommonPrefix(l, newLeaf, depth)
-		newNode := allocNode(NODE4).(*ArtNode4)
-		newNode.partialLen = uint32(longestPrefix)
-		copy(newNode.partial[:], key[depth:depth+min(MaxPrefixLen, longestPrefix)])
+		longestPrefix := longestCommonPrefix(nodeLeaf, newLeaf2, depth)
+		newNode := allocNode(NODE4)
+		newNode4 := newNode.(*ArtNode4)
+		newNode4.partialLen = uint32(longestPrefix)
+		copy(newNode4.partial[:], key[depth:depth+min(MaxPrefixLen, longestPrefix)])
 
 		// Add the leafs to the new node4
-		addChild4(newNode, l.key[depth+longestPrefix], l)
-		addChild4(newNode, newLeaf.key[depth+longestPrefix], newLeaf)
-		node = newNode
+		addChild4(newNode4, ref, nodeLeaf.key[depth+longestPrefix], nodeLeaf)
+		addChild4(newNode4, ref, newLeaf2.key[depth+longestPrefix], newLeaf2)
+		*ref = &newNode
 		return nil
 	}
 
@@ -531,25 +542,26 @@ func recursiveInsert(n *ArtNode, key []byte, keyLen int, value interface{}, dept
 		}
 
 		// Create a new node
-		newNode := allocNode(NODE4).(*ArtNode4)
-		newNode.partialLen = uint32(prefixDiff)
-		copy(newNode.partial[:], node.getPartial()[:min(MaxPrefixLen, prefixDiff)])
+		newNode := allocNode(NODE4)
+		*ref = &newNode
+		newNode4 := newNode.(*ArtNode4)
+		newNode4.partialLen = uint32(prefixDiff)
+		copy(newNode4.partial[:], node.getPartial()[:min(MaxPrefixLen, prefixDiff)])
 
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= MaxPrefixLen {
-			addChild4(newNode, newNode.keys[node.getPartial()[prefixDiff]], node)
+			addChild4(newNode4, ref, node.getPartial()[prefixDiff], node)
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
 			copy(node.getPartial()[:], node.getPartial()[prefixDiff+1:min(MaxPrefixLen, int(node.getPartialLen())+prefixDiff+1)])
 		} else {
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
 			l := minimum(node)
-			addChild4(newNode, newNode.keys[l.key[depth+prefixDiff]], node)
-			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:min(MaxPrefixLen, int(node.getPartialLen()))])
+			addChild4(newNode4, ref, l.key[depth+prefixDiff], node)
+			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:depth+prefixDiff+1+min(MaxPrefixLen, int(node.getPartialLen()))])
 		}
-
 		// Insert the new leaf
-		newLeaf := makeLeaf(key, keyLen, value)
-		addChild4(newNode, newNode.keys[key[depth+prefixDiff]], newLeaf)
+		newLeaf := makeLeaf(key, value)
+		addChild4(newNode4, ref, key[depth+prefixDiff], newLeaf)
 		return nil
 	}
 
@@ -557,18 +569,18 @@ RECURSE_SEARCH:
 	// Find a child to recurse to
 	child := findChild(node, key[depth])
 	if child != nil {
-		return recursiveInsert(*child, key, keyLen, value, depth+1, old)
+		return recursiveInsert(*child, child, key, value, depth+1, old)
 	}
 
 	// No child, node goes within us
-	newLeaf := makeLeaf(key, keyLen, value)
-	addChild(node, key[depth], newLeaf)
+	newLeaf := makeLeaf(key, value)
+	addChild(node, ref, key[depth], newLeaf)
 	return nil
 }
 
-func artInsert(t *ArtTree, key []byte, keyLen int, value interface{}) interface{} {
+func artInsert(t *ArtTree, key []byte, value interface{}) interface{} {
 	var oldVal int
-	old := recursiveInsert(t.root, key, keyLen, value, 0, &oldVal)
+	old := recursiveInsert(t.root, &t.root, key, value, 0, &oldVal)
 	if oldVal == 0 {
 		t.size++
 	}
