@@ -246,11 +246,9 @@ func (t *RadixTree[T]) recursiveDelete(node Node[T], key []byte, depth int) (Nod
 
 	// If the child is a leaf, delete from this node
 	if isLeaf[T](child) {
-		nodeChild := child
-		l := nodeChild.(*NodeLeaf[T])
-		if leafMatches(l.getKey(), key) == 0 {
+		if leafMatches(child.getKey(), key) == 0 {
 			node = t.removeChild(node.Clone(), key[depth])
-			return node, l
+			return node, child
 		}
 		return node, nil
 	}
