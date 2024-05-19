@@ -129,3 +129,10 @@ func (n *Node256[T]) getMutateCh() chan struct{} {
 func (n *Node256[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh = ch
 }
+
+func (n *Node256[T]) setValue(T) {
+
+}
+
+func (n *Node256[T]) setKey(key []byte) {
+}

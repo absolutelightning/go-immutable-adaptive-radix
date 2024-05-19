@@ -30,18 +30,16 @@ func leafMatches(nodeKey []byte, key []byte) int {
 
 func (t *RadixTree[T]) makeLeaf(key []byte, value T) Node[T] {
 	// Allocate memory for the leaf node
-	l := t.allocNode(leafType).(*NodeLeaf[T])
+	l := t.allocNode(leafType)
+
 	if l == nil {
 		return nil
 	}
 
 	// Set the value and key length
-	l.value = value
-	l.keyLen = uint32(len(key))
-	l.key = make([]byte, l.keyLen)
-
-	// Copy the key
-	copy(l.key[:], key)
+	l.setValue(value)
+	l.setKeyLen(uint32(len(key)))
+	l.setKey(key)
 	return l
 }
 

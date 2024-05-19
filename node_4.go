@@ -133,3 +133,10 @@ func (n *Node4[T]) getMutateCh() chan struct{} {
 func (n *Node4[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh = ch
 }
+
+func (n *Node4[T]) setValue(T) {
+
+}
+
+func (n *Node4[T]) setKey(key []byte) {
+}
