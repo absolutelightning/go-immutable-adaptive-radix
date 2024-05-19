@@ -3,6 +3,8 @@
 
 package adaptive
 
+import "strings"
+
 const defaultModifiedCache = 8192
 
 type Txn[T any] struct {
@@ -10,9 +12,9 @@ type Txn[T any] struct {
 
 	size uint64
 
-	// snap is a snapshot of the root node for use if we have to run the
+	// snap is a snapshot of the node node for use if we have to run the
 	// slow notify algorithm.
-	snap *Node[T]
+	snap Node[T]
 
 	// trackChannels is used to hold channels that need to be notified to
 	// signal mutation of the tree. This will only hold up to
@@ -29,7 +31,7 @@ type Txn[T any] struct {
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
-		snap: &t.root,
+		snap: t.root,
 		tree: t,
 	}
 	return txn
@@ -135,13 +137,104 @@ func (t *Txn[T]) Root() Node[T] {
 	return t.tree.root
 }
 
-func (t *Txn[T]) Commit() *RadixTree[T] {
-	return t.tree
-}
-
 // GetWatch is used to lookup a specific key, returning
 // the watch channel, value and if it was found
 func (t *Txn[T]) GetWatch(k []byte) (<-chan struct{}, T, bool) {
 	res, found, watch := t.tree.Get(k)
 	return watch, res, found
+}
+
+// Notify is used along with TrackMutate to trigger notifications. This must
+// only be done once a transaction is committed via CommitOnly, and it is called
+// automatically by Commit.
+func (t *Txn[T]) Notify() {
+	if !t.trackMutate {
+		return
+	}
+
+	// If we've overflowed the tracking state we can't use it in any way and
+	// need to do a full tree compare.
+	if t.trackOverflow {
+		t.slowNotify()
+	} else {
+		for ch := range t.trackChannels {
+			close(ch)
+		}
+	}
+
+	// Clean up the tracking state so that a re-notify is safe (will trigger
+	// the else clause above which will be a no-op).
+	t.trackChannels = nil
+	t.trackOverflow = false
+}
+
+// Commit is used to finalize the transaction and return a new tree. If mutation
+// tracking is turned on then notifications will also be issued.
+func (t *Txn[T]) Commit() *RadixTree[T] {
+	nt := t.CommitOnly()
+	if t.trackMutate {
+		t.Notify()
+	}
+	return nt
+}
+
+// CommitOnly is used to finalize the transaction and return a new tree, but
+// does not issue any notifications until Notify is called.
+func (t *Txn[T]) CommitOnly() *RadixTree[T] {
+	nt := &RadixTree[T]{t.tree.root, t.size}
+	return nt
+}
+
+// slowNotify does a complete comparison of the before and after trees in order
+// to trigger notifications. This doesn't require any additional state but it
+// is very expensive to compute.
+func (t *Txn[T]) slowNotify() {
+	snapIter := t.snap.iterator()
+	rootIter := t.Root().iterator()
+	for snapIter.Front() != nil || rootIter.Front() != nil {
+		// If we've exhausted the nodes in the old snapshot, we know
+		// there's nothing remaining to notify.
+		if snapIter.Front() == nil {
+			return
+		}
+		snapElem := snapIter.Front()
+
+		// If we've exhausted the nodes in the new node, we know we need
+		// to invalidate everything that remains in the old snapshot. We
+		// know from the loop condition there's something in the old
+		// snapshot.
+		if rootIter.Front() == nil {
+			close(snapElem.getMutateCh())
+			snapIter.Next()
+			continue
+		}
+
+		// Do one string compare so we can check the various conditions
+		// below without repeating the compare.
+		cmp := strings.Compare(snapIter.Path(), rootIter.Path())
+
+		// If the snapshot is behind the node, then we must have deleted
+		// this node during the transaction.
+		if cmp < 0 {
+			close(snapElem.getMutateCh())
+			snapIter.Next()
+			continue
+		}
+
+		// If the snapshot is ahead of the node, then we must have added
+		// this node during the transaction.
+		if cmp > 0 {
+			rootIter.Next()
+			continue
+		}
+
+		// If we have the same path, then we need to see if we mutated a
+		// node and possibly the leaf.
+		rootElem := rootIter.Front()
+		if snapElem != rootElem {
+			close(snapElem.getMutateCh())
+		}
+		snapIter.Next()
+		rootIter.Next()
+	}
 }

@@ -3,17 +3,24 @@
 
 package adaptive
 
-import "sync"
-
-// Iterator is used to iterate over a set of nodes from the root
+// Iterator is used to iterate over a set of nodes from the node
 // down to a specified path. This will iterate over the same values that
 // the Node.WalkPath method will.
 type Iterator[T any] struct {
 	path  []byte
-	root  *Node[T]
+	node  Node[T]
 	stack []Node[T]
 	depth int
-	mu    *sync.RWMutex
+	pos   Node[T]
+}
+
+// Front returns the current node that has been iterated to.
+func (i *Iterator[T]) Front() Node[T] {
+	return i.pos
+}
+
+func (i *Iterator[T]) Path() string {
+	return string(i.path)
 }
 
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
@@ -98,8 +105,8 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 }
 
 func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
-	// Start from the root node
-	node := *i.root
+	// Start from the node node
+	node := i.node
 
 	prefix := getTreeKey(prefixKey)
 
@@ -111,7 +118,7 @@ func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
 	for node != nil {
 		// Check if the node matches the prefix
 		i.stack = []Node[T]{node}
-		i.root = &node
+		i.node = node
 
 		if node.isLeaf() {
 			return

@@ -57,16 +57,16 @@ func (n *Node48[T]) iterator() *Iterator[T] {
 	nodeT := Node[T](n)
 	return &Iterator[T]{
 		stack: stack,
-		root:  &nodeT,
+		node:  nodeT,
 	}
 }
 
 func (n *Node48[T]) pathIterator(path []byte) *PathIterator[T] {
 	nodeT := Node[T](n)
 	return &PathIterator[T]{
-		parent: &nodeT,
-		path:   getTreeKey(path),
-		stack:  []Node[T]{nodeT},
+		node:  &nodeT,
+		path:  getTreeKey(path),
+		stack: []Node[T]{nodeT},
 	}
 }
 
