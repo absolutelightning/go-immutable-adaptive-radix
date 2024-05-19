@@ -137,7 +137,8 @@ func (t *RadixTree[T]) recursiveInsert(node Node[T], key []byte, value T, depth 
 	// If we are at a leaf, we need to replace it with a node
 	if node.isLeaf() {
 		// Check if we are updating an existing value
-		if len(key) == len(node.getKey()) && bytes.Equal(node.getKey(), key) {
+		nodeKey := node.getKey()
+		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
 			return t.makeLeaf(key, value), node.getValue()
 		}

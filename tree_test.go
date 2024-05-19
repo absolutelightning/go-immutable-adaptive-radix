@@ -135,7 +135,7 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 }
 
 func setup(r *RadixTree[int]) (int, []string) {
-	maxV := 100000
+	maxV := 500000
 	for i := 0; i < maxV; i++ {
 		uuid1, _ := uuid.GenerateUUID()
 		for j := 0; j < 10; j++ {
