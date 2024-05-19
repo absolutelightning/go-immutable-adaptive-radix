@@ -181,7 +181,7 @@ func (t *RadixTree[T]) recursiveInsert(node Node[T], key []byte, value T, depth 
 
 	if node.isLeaf() {
 		// This means node is nil
-		if len(node.getKey()) == 0 {
+		if node.getKeyLen() == 0 {
 			return t.makeLeaf(key, value), zero
 		}
 	}
