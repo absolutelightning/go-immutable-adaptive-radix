@@ -23,6 +23,9 @@ func (i *Iterator[T]) Path() string {
 	return string(i.path)
 }
 
+// Next
+// TODO - Update the i.pos to the current node
+// TODO - Update the i.path to the current path
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
