@@ -134,8 +134,7 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 	}
 }
 
-func BenchmarkInsertART(b *testing.B) {
-	r := NewRadixTree[int]()
+func setup(r *RadixTree[int]) (int, []string) {
 	maxV := 100000
 	for i := 0; i < maxV; i++ {
 		uuid1, _ := uuid.GenerateUUID()
@@ -154,6 +153,12 @@ func BenchmarkInsertART(b *testing.B) {
 		}
 		keys[i] = uuid1
 	}
+	return maxV, keys
+}
+
+func BenchmarkInsertIRadix(b *testing.B) {
+	r := NewRadixTree[int]()
+	maxV, keys := setup(r)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		uuid1 := keys[n%maxV]
@@ -161,26 +166,9 @@ func BenchmarkInsertART(b *testing.B) {
 	}
 }
 
-func BenchmarkSearchART(b *testing.B) {
+func BenchmarkSearchIRadix(b *testing.B) {
 	r := NewRadixTree[int]()
-	maxV := 100000
-	for i := 0; i < maxV; i++ {
-		uuid1, _ := uuid.GenerateUUID()
-		for j := 0; j < 10; j++ {
-			uuidx, _ := uuid.GenerateUUID()
-			uuid1 += uuidx
-		}
-		r.Insert([]byte(uuid1), i)
-	}
-	keys := make([]string, maxV)
-	for i := 0; i < maxV; i++ {
-		uuid1, _ := uuid.GenerateUUID()
-		for j := 0; j < 10; j++ {
-			uuidx, _ := uuid.GenerateUUID()
-			uuid1 += uuidx
-		}
-		keys[i] = uuid1
-	}
+	maxV, keys := setup(r)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		uuid1 := keys[n%maxV]
@@ -188,26 +176,9 @@ func BenchmarkSearchART(b *testing.B) {
 	}
 }
 
-func BenchmarkDeleteART(b *testing.B) {
+func BenchmarkDeleteIRadix(b *testing.B) {
 	r := NewRadixTree[int]()
-	maxV := 100000
-	for i := 0; i < maxV; i++ {
-		uuid1, _ := uuid.GenerateUUID()
-		for j := 0; j < 10; j++ {
-			uuidx, _ := uuid.GenerateUUID()
-			uuid1 += uuidx
-		}
-		r.Insert([]byte(uuid1), i)
-	}
-	keys := make([]string, maxV)
-	for i := 0; i < maxV; i++ {
-		uuid1, _ := uuid.GenerateUUID()
-		for j := 0; j < 10; j++ {
-			uuidx, _ := uuid.GenerateUUID()
-			uuid1 += uuidx
-		}
-		keys[i] = uuid1
-	}
+	maxV, keys := setup(r)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		uuid1 := keys[n%maxV]
