@@ -110,11 +110,10 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
-		if child != nil {
-			n = child
-		} else {
-			n = nil
+		if child == nil {
+			return zero, false
 		}
+		n = child
 		depth++
 	}
 	return zero, false
