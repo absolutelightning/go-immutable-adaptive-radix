@@ -42,8 +42,7 @@ func (t *RadixTree[T]) makeLeaf(key []byte, value T) Node[T] {
 
 	// Copy the key
 	copy(l.key[:], key)
-
-	return Node[T](l)
+	return l
 }
 
 func (t *RadixTree[T]) allocNode(ntype nodeType) Node[T] {
