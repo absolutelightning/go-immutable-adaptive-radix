@@ -37,7 +37,7 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber = 1
 	for _, line := range lines {
-		lineNumberFetched, f := art.Get([]byte(line))
+		lineNumberFetched, f, _ := art.Get([]byte(line))
 		require.True(t, f)
 		require.Equal(t, lineNumberFetched, lineNumber)
 		lineNumber += 1
@@ -124,7 +124,7 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber = 1
 	for _, line := range lines {
-		lineNumberFetched, f := art.Get([]byte(line))
+		lineNumberFetched, f, _ := art.Get([]byte(line))
 		require.True(t, f)
 		require.Equal(t, lineNumberFetched, lineNumber)
 		val := art.Delete([]byte(line))

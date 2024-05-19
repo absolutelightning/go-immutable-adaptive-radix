@@ -13,6 +13,7 @@ type Node16[T any] struct {
 	partial     []byte
 	keys        [16]byte
 	children    [16]Node[T]
+	mutateCh    chan struct{}
 }
 
 func (n *Node16[T]) getPartialLen() uint32 {
@@ -49,7 +50,7 @@ func (n *Node16[T]) isLeaf() bool {
 
 // Iterator is used to return an iterator at
 // the given node to walk the tree
-func (n *Node16[T]) Iterator() *Iterator[T] {
+func (n *Node16[T]) iterator() *Iterator[T] {
 	stack := make([]Node[T], 0)
 	stack = append(stack, n)
 	nodeT := Node[T](n)
@@ -59,7 +60,7 @@ func (n *Node16[T]) Iterator() *Iterator[T] {
 	}
 }
 
-func (n *Node16[T]) PathIterator(path []byte) *PathIterator[T] {
+func (n *Node16[T]) pathIterator(path []byte) *PathIterator[T] {
 	nodeT := Node[T](n)
 	return &PathIterator[T]{
 		parent: &nodeT,
@@ -76,7 +77,7 @@ func (n *Node16[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node16[T]) Clone() Node[T] {
+func (n *Node16[T]) clone() Node[T] {
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
@@ -124,4 +125,12 @@ func (n *Node16[T]) getChildren() []Node[T] {
 
 func (n *Node16[T]) getKeys() []byte {
 	return n.keys[:]
+}
+
+func (n *Node16[T]) getMutateCh() chan struct{} {
+	return n.mutateCh
+}
+
+func (n *Node16[T]) setMutateCh(ch chan struct{}) {
+	n.mutateCh = ch
 }

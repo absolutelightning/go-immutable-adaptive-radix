@@ -62,6 +62,7 @@ func (t *RadixTree[T]) allocNode(ntype nodeType) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
+	n.setMutateCh(make(chan struct{}))
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
 	return n

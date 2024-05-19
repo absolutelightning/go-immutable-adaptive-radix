@@ -8,9 +8,10 @@ import (
 )
 
 type NodeLeaf[T any] struct {
-	value  T
-	keyLen uint32
-	key    []byte
+	value    T
+	keyLen   uint32
+	key      []byte
+	mutateCh chan struct{}
 }
 
 func (n *NodeLeaf[T]) getPartialLen() uint32 {
@@ -82,7 +83,7 @@ func (l *NodeLeaf[T]) prefixContainsMatch(key []byte) bool {
 	return bytes.HasPrefix(getKey(key), getKey(l.key))
 }
 
-func (n *NodeLeaf[T]) Iterator() *Iterator[T] {
+func (n *NodeLeaf[T]) iterator() *Iterator[T] {
 	stack := make([]Node[T], 0)
 	stack = append(stack, n)
 	nodeT := Node[T](n)
@@ -92,7 +93,7 @@ func (n *NodeLeaf[T]) Iterator() *Iterator[T] {
 	}
 }
 
-func (n *NodeLeaf[T]) PathIterator(path []byte) *PathIterator[T] {
+func (n *NodeLeaf[T]) pathIterator(path []byte) *PathIterator[T] {
 	nodeT := Node[T](n)
 	return &PathIterator[T]{parent: &nodeT,
 		path:  getTreeKey(path),
@@ -113,7 +114,7 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) Clone() Node[T] {
+func (n *NodeLeaf[T]) clone() Node[T] {
 	newNode := &NodeLeaf[T]{
 		keyLen: n.getKeyLen(),
 		key:    make([]byte, len(n.getKey())),
@@ -142,4 +143,12 @@ func (n *NodeLeaf[T]) getChildren() []Node[T] {
 
 func (n *NodeLeaf[T]) getKeys() []byte {
 	return nil
+}
+
+func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
+	return n.mutateCh
+}
+
+func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
+	n.mutateCh = ch
 }

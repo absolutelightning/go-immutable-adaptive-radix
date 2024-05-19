@@ -35,7 +35,7 @@ func NewRadixTree[T any]() *RadixTree[T] {
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 	nodeT := t.root
-	return nodeT.PathIterator(path)
+	return nodeT.pathIterator(path)
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) T {
@@ -48,7 +48,7 @@ func (t *RadixTree[T]) Insert(key []byte, value T) T {
 	return oldVal
 }
 
-func (t *RadixTree[T]) Get(key []byte) (T, bool) {
+func (t *RadixTree[T]) Get(key []byte) (T, bool, <-chan struct{}) {
 	return t.iterativeSearch(getTreeKey(key))
 }
 
@@ -63,11 +63,10 @@ func (t *RadixTree[T]) Maximum() *NodeLeaf[T] {
 func (t *RadixTree[T]) Delete(key []byte) T {
 	var zero T
 	newRoot, l := t.recursiveDelete(t.root, getTreeKey(key), 0)
-	t.root = newRoot
-	if t.root == nil {
-		nodeLeaf := t.allocNode(leafType)
-		t.root = nodeLeaf
+	if newRoot == nil {
+		newRoot = t.allocNode(leafType)
 	}
+	t.root = newRoot
 	if l != nil {
 		t.size--
 		old := l.getValue()
@@ -76,10 +75,10 @@ func (t *RadixTree[T]) Delete(key []byte) T {
 	return zero
 }
 
-func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
+func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	if t.root == nil {
-		return zero, false
+		return zero, false, nil
 	}
 	var child Node[T]
 	depth := 0
@@ -90,33 +89,33 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true
+				return n.getValue(), true, n.getMutateCh()
 			}
-			return zero, false
+			return zero, false, nil
 		}
 
 		// Bail if the prefix does not match
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
-				return zero, false
+				return zero, false, nil
 			}
 			depth += int(n.getPartialLen())
 		}
 
 		if depth >= len(key) {
-			return zero, false
+			return zero, false, nil
 		}
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
-			return zero, false
+			return zero, false, nil
 		}
 		n = child
 		depth++
 	}
-	return zero, false
+	return zero, false, nil
 }
 
 func (t *RadixTree[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T) {
@@ -247,15 +246,15 @@ func (t *RadixTree[T]) recursiveDelete(node Node[T], key []byte, depth int) (Nod
 	// If the child is a leaf, delete from this node
 	if isLeaf[T](child) {
 		if leafMatches(child.getKey(), key) == 0 {
-			node = t.removeChild(node.Clone(), key[depth])
+			node = t.removeChild(node.clone(), key[depth])
 			return node, child
 		}
 		return node, nil
 	}
 
 	// Recurse
-	newChild, val := t.recursiveDelete(child.Clone(), key, depth+1)
-	nodeClone := node.Clone()
-	nodeClone.setChild(idx, newChild)
-	return nodeClone, val
+	newChild, val := t.recursiveDelete(child.clone(), key, depth+1)
+	nodeclone := node.clone()
+	nodeclone.setChild(idx, newChild)
+	return nodeclone, val
 }

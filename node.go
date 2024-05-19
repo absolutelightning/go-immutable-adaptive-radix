@@ -12,12 +12,12 @@ type Node[T any] interface {
 	getPartial() []byte
 	setPartial([]byte)
 	isLeaf() bool
-	Iterator() *Iterator[T]
-	PathIterator([]byte) *PathIterator[T]
+	iterator() *Iterator[T]
+	pathIterator([]byte) *PathIterator[T]
 	matchPrefix([]byte) bool
 	getChild(int) Node[T]
 	setChild(int, Node[T])
-	Clone() Node[T]
+	clone() Node[T]
 	getKey() []byte
 	getValue() T
 	getKeyLen() uint32
@@ -26,4 +26,6 @@ type Node[T any] interface {
 	setKeyAtIdx(int, byte)
 	getChildren() []Node[T]
 	getKeys() []byte
+	getMutateCh() chan struct{}
+	setMutateCh(chan struct{})
 }

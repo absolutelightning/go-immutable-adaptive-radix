@@ -22,14 +22,9 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
 	if node.isLeaf() {
-		leafN := node.(*NodeLeaf[T])
-		if len(leafN.key) == 0 {
+		if len(node.getKey()) == 0 {
 			return nil, zero, false
 		}
-	}
-
-	if node == nil {
-		return nil, zero, false
 	}
 
 	if len(i.stack) == 0 {
