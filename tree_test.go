@@ -135,7 +135,7 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 }
 
 func setup(r *RadixTree[int]) (int, []string) {
-	maxV := 500000
+	maxV := 900000
 	for i := 0; i < maxV; i++ {
 		uuid1, _ := uuid.GenerateUUID()
 		for j := 0; j < 10; j++ {
@@ -156,7 +156,7 @@ func setup(r *RadixTree[int]) (int, []string) {
 	return maxV, keys
 }
 
-func BenchmarkInsertIRadix(b *testing.B) {
+func BenchmarkInsertART(b *testing.B) {
 	r := NewRadixTree[int]()
 	maxV, keys := setup(r)
 	b.ResetTimer()
@@ -166,7 +166,7 @@ func BenchmarkInsertIRadix(b *testing.B) {
 	}
 }
 
-func BenchmarkSearchIRadix(b *testing.B) {
+func BenchmarkSearchART(b *testing.B) {
 	r := NewRadixTree[int]()
 	maxV, keys := setup(r)
 	b.ResetTimer()
@@ -176,7 +176,7 @@ func BenchmarkSearchIRadix(b *testing.B) {
 	}
 }
 
-func BenchmarkDeleteIRadix(b *testing.B) {
+func BenchmarkDeleteART(b *testing.B) {
 	r := NewRadixTree[int]()
 	maxV, keys := setup(r)
 	b.ResetTimer()
