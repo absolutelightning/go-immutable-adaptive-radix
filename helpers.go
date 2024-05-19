@@ -316,18 +316,22 @@ func (t *RadixTree[T]) findChild(n Node[T], c byte) (Node[T], int) {
 func findChild[T any](n Node[T], c byte) (Node[T], int) {
 	switch n.getArtNodeType() {
 	case node4:
-		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
-			return n.getKeyAtIdx(i) > c
+		keys := n.getKeys()
+		nCh := int(n.getNumChildren())
+		idx := sort.Search(nCh, func(i int) bool {
+			return keys[i] > c
 		})
-		if idx >= 1 && n.getKeyAtIdx(idx-1) == c {
+		if idx >= 1 && keys[idx-1] == c {
 			return n.getChild(idx - 1), idx - 1
 		}
 	case node16:
+		keys := n.getKeys()
 		// Compare the key to all 16 stored keys
-		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
-			return n.getKeyAtIdx(i) > c
+		nCh := int(n.getNumChildren())
+		idx := sort.Search(nCh, func(i int) bool {
+			return keys[i] > c
 		})
-		if idx >= 1 && n.getKeyAtIdx(idx-1) == c {
+		if idx >= 1 && keys[idx-1] == c {
 			return n.getChild(idx - 1), idx - 1
 		}
 	case node48:
