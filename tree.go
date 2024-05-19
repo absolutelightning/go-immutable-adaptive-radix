@@ -48,7 +48,7 @@ func (t *RadixTree[T]) Insert(key []byte, value T) T {
 	return oldVal
 }
 
-func (t *RadixTree[T]) Search(key []byte) (T, bool) {
+func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 	return t.iterativeSearch(getTreeKey(key))
 }
 
@@ -217,7 +217,7 @@ func (t *RadixTree[T]) recursiveInsert(node Node[T], key []byte, value T, depth 
 }
 
 func (t *RadixTree[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], Node[T]) {
-	// Search terminated
+	// Get terminated
 	if node == nil {
 		return nil, nil
 	}

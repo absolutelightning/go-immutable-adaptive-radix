@@ -24,7 +24,7 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 // Get is used to look up a specific key, returning
 // the value and if it was found
 func (t *Txn[T]) Get(k []byte) (T, bool) {
-	res, found := t.tree.Search(k)
+	res, found := t.tree.Get(k)
 	return res, found
 }
 
