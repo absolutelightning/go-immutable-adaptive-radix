@@ -340,8 +340,9 @@ func findChild[T any](n Node[T], c byte) (Node[T], int) {
 			return n.getChild(int(i - 1)), int(i - 1)
 		}
 	case node256:
-		if n.getChild(int(c)) != nil {
-			return n.getChild(int(c)), int(c)
+		ch := n.getChild(int(c))
+		if ch != nil {
+			return ch, int(c)
 		}
 	case leafType:
 		// no-op
