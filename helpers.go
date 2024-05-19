@@ -354,11 +354,11 @@ func findChild[T any](n Node[T], c byte) (Node[T], int) {
 }
 
 func getTreeKey(key []byte) []byte {
-	return append(key, '$')
+	return append([]byte{'^'}, append(key, '$')...)
 }
 
 func getKey(key []byte) []byte {
-	return key[:len(key)-1]
+	return key[1 : len(key)-1]
 }
 
 func (t *RadixTree[T]) removeChild(n Node[T], c byte) Node[T] {

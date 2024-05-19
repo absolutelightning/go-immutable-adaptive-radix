@@ -31,6 +31,11 @@ func NewRadixTree[T any]() *RadixTree[T] {
 	return rt
 }
 
+// Len is used to return the number of elements in the tree
+func (t *RadixTree[T]) Len() int {
+	return int(t.size)
+}
+
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 	nodeT := t.root
 	return nodeT.pathIterator(path)
@@ -48,6 +53,56 @@ func (t *RadixTree[T]) Insert(key []byte, value T) T {
 
 func (t *RadixTree[T]) Get(key []byte) (T, bool, <-chan struct{}) {
 	return t.iterativeSearch(getTreeKey(key))
+}
+
+func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
+	key := getTreeKey(k)
+	var zero T
+	if t.root == nil {
+		return nil, zero, false
+	}
+
+	var child, last Node[T]
+	depth := 0
+
+	n := t.root
+	for n != nil {
+
+		// Bail if the prefix does not match
+		if n.getPartialLen() > 0 {
+			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
+			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
+				break
+			}
+			depth += int(n.getPartialLen())
+		}
+
+		if depth >= len(key) {
+			break
+		}
+
+		for _, ch := range n.getChildren() {
+			if ch != nil {
+				if isLeaf[T](ch) && bytes.HasPrefix(getKey(key), getKey(ch.getKey())) {
+					last = ch
+				}
+			}
+		}
+
+		// Recursively search
+		child, _ = t.findChild(n, key[depth])
+		if child == nil {
+			break
+		}
+		n = child
+		depth++
+	}
+
+	if last != nil {
+		return getKey(last.getKey()), last.getValue(), true
+	}
+
+	return nil, zero, false
 }
 
 func (t *RadixTree[T]) Minimum() *NodeLeaf[T] {
