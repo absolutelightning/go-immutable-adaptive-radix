@@ -62,6 +62,7 @@ func (t *RadixTree[T]) allocNode(ntype nodeType) Node[T] {
 	n.setMutateCh(make(chan struct{}))
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
+	t.trachChns[n.getMutateCh()] = struct{}{}
 	return n
 }
 

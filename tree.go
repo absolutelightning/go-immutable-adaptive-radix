@@ -20,12 +20,14 @@ const (
 )
 
 type RadixTree[T any] struct {
-	root Node[T]
-	size uint64
+	root      Node[T]
+	size      uint64
+	trachChns map[chan struct{}]struct{}
 }
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
+	rt.trachChns = make(map[chan struct{}]struct{})
 	nodeLeaf := rt.allocNode(leafType)
 	rt.root = nodeLeaf
 	return rt
