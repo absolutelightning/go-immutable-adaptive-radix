@@ -153,3 +153,13 @@ func (n *Node4[T]) getLowerBoundCh(c byte) int {
 	}
 	return -1
 }
+
+func (n *Node4[T]) ReverseIterator() *ReverseIterator[T] {
+	nodeT := Node[T](n)
+	return &ReverseIterator[T]{
+		i: &Iterator[T]{
+			stack: []Node[T]{nodeT},
+			node:  nodeT,
+		},
+	}
+}

@@ -156,3 +156,13 @@ func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
 func (n *NodeLeaf[T]) getLowerBoundCh(c byte) int {
 	return -1
 }
+
+func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
+	nodeT := Node[T](n)
+	return &ReverseIterator[T]{
+		i: &Iterator[T]{
+			stack: []Node[T]{nodeT},
+			node:  nodeT,
+		},
+	}
+}

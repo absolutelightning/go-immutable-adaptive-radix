@@ -32,4 +32,5 @@ type Node[T any] interface {
 
 	Iterator() *Iterator[T]
 	PathIterator([]byte) *PathIterator[T]
+	ReverseIterator() *ReverseIterator[T]
 }
