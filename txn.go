@@ -240,6 +240,10 @@ func (t *Txn[T]) slowNotify() {
 	}
 }
 
+func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
+	return t.tree.LongestPrefix(prefix)
+}
+
 // DeletePrefix is used to delete an entire subtree that matches the prefix
 // This will delete all nodes under that prefix
 func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
