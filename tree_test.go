@@ -6,8 +6,10 @@ package adaptive
 import (
 	"bufio"
 	"github.com/hashicorp/go-uuid"
+	"math/rand"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -178,6 +180,63 @@ func TestLongestPrefix(t *testing.T) {
 		}
 		if string(m) != test.out {
 			t.Fatalf("mis-match: %v %v", string(m), test)
+		}
+	}
+}
+
+const datasetSize = 100000
+
+func generateDataset(size int) []string {
+	rand.Seed(time.Now().UnixNano())
+	dataset := make([]string, size)
+	for i := 0; i < size; i++ {
+		uuid1, _ := uuid.GenerateUUID()
+		dataset[i] = uuid1
+	}
+	return dataset
+}
+
+func BenchmarkGroupedOperations(b *testing.B) {
+	dataset := generateDataset(datasetSize)
+	art := NewRadixTree[int]()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Insert
+		for _, key := range dataset {
+			art.Insert([]byte(key), i)
+		}
+
+		// Search
+		for _, key := range dataset {
+			art.Get([]byte(key))
+		}
+
+		// Delete
+		for _, key := range dataset {
+			art.Delete([]byte(key))
+		}
+	}
+}
+
+func BenchmarkMixedOperations(b *testing.B) {
+	dataset := generateDataset(datasetSize)
+	art := NewRadixTree[int]()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		for j := 0; j < datasetSize; j++ {
+			key := dataset[j]
+
+			// Randomly choose an operation
+			switch rand.Intn(3) {
+			case 0:
+				art.Insert([]byte(key), j)
+			case 1:
+				art.Get([]byte(key))
+			case 2:
+				art.Delete([]byte(key))
+			}
 		}
 	}
 }
