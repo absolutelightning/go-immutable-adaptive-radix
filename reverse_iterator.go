@@ -89,7 +89,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// if it finds a node in the stack that has _not_ been marked as expanded
 			// so in this one case we don't call `found` and instead let the iterator
 			// do the expansion and recursion through all the children.
-			ri.i.stack = append(ri.i.stack, n)
+			ri.i.stack = append([]Node[T]{n}, ri.i.stack...)
 			return
 		}
 
