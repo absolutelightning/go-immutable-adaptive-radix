@@ -310,3 +310,55 @@ func (t *RadixTree[T]) recursiveDelete(node Node[T], key []byte, depth int) (Nod
 	nodeClone.setChild(idx, newChild)
 	return nodeClone, val
 }
+
+func (t *RadixTree[T]) DeletePrefix(key []byte) (Node[T], bool) {
+	newRoot, numDeletions := t.deletePrefix(t.root, getTreeKey(key), 0)
+	if numDeletions != 0 {
+		t.root = newRoot
+		t.size = t.size - uint64(numDeletions)
+		return newRoot, true
+	}
+	return nil, false
+}
+
+func (t *RadixTree[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int) {
+	// Get terminated
+	if node == nil {
+		return nil, 0
+	}
+	// Handle hitting a leaf node
+	if isLeaf[T](node) {
+		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
+			return nil, 1
+		}
+		return node, 0
+	}
+
+	// Bail if the prefix does not match
+	if node.getPartialLen() > 0 {
+		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
+		if prefixLen < min(maxPrefixLen, len(getKey(key))) {
+			depth += prefixLen
+		} else {
+			return node, 0
+		}
+	}
+
+	numDel := 0
+
+	// Recurse on the children
+	var newChIndxMap = make(map[int]Node[T])
+	for idx, ch := range node.getChildren() {
+		if ch != nil {
+			newCh, del := t.deletePrefix(ch, key, depth+1)
+			newChIndxMap[idx] = newCh
+			numDel += del
+		}
+	}
+
+	for idx, ch := range newChIndxMap {
+		node.setChild(idx, ch)
+	}
+
+	return node, numDel
+}

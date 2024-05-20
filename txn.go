@@ -238,3 +238,14 @@ func (t *Txn[T]) slowNotify() {
 		rootIter.Next()
 	}
 }
+
+// DeletePrefix is used to delete an entire subtree that matches the prefix
+// This will delete all nodes under that prefix
+func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
+	newRoot, ok := t.tree.DeletePrefix(prefix)
+	if ok {
+		t.tree.root = newRoot
+		t.size = t.tree.size
+	}
+	return false
+}
