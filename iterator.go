@@ -164,6 +164,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		if child == nil {
 			// If the child node doesn't exist, break the loop
 			node = nil
+			i.node = nil
 			break
 		}
 
