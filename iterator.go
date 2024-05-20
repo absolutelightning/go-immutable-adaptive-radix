@@ -11,13 +11,14 @@ import (
 // down to a specified path. This will iterate over the same values that
 // the Node.WalkPath method will.
 type Iterator[T any] struct {
-	path         []byte
-	node         Node[T]
-	stack        []Node[T]
-	depth        int
-	pos          Node[T]
-	lowerBound   bool
-	seenMismatch bool
+	path              []byte
+	node              Node[T]
+	stack             []Node[T]
+	depth             int
+	pos               Node[T]
+	lowerBound        bool
+	reverseLowerBound bool
+	seenMismatch      bool
 }
 
 // Front returns the current node that has been iterated to.
