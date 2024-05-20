@@ -184,13 +184,13 @@ func (i *Iterator[T]) recurseMin(n Node[T]) Node[T] {
 	if n.isLeaf() {
 		return n
 	}
-	nEdges := n.getNumChildren()
-	if nEdges > 1 {
+	nCh := n.getNumChildren()
+	if nCh > 1 {
 		// Add all the other edges to the stack (the min node will be added as
 		// we recurse)
 		i.stack = append(i.stack, n.getChildren()[1:]...)
 	}
-	if nEdges > 0 {
+	if nCh > 0 {
 		return i.recurseMin(n.getChildren()[0])
 	}
 	// Shouldn't be possible
