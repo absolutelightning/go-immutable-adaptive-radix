@@ -7,7 +7,7 @@ import (
 )
 
 // TODO Revisit later
-// Getting giberrish data in output not able to debug
+// Getting gibberish data in output not able to debug
 //func TestIterateLowerBoundFuzz(t *testing.T) {
 //	r := NewRadixTree[string]()
 //	var set []string
