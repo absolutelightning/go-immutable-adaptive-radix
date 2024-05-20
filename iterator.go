@@ -3,15 +3,20 @@
 
 package adaptive
 
+import (
+	"bytes"
+)
+
 // Iterator is used to iterate over a set of nodes from the node
 // down to a specified path. This will iterate over the same values that
 // the Node.WalkPath method will.
 type Iterator[T any] struct {
-	path  []byte
-	node  Node[T]
-	stack []Node[T]
-	depth int
-	pos   Node[T]
+	path       []byte
+	node       Node[T]
+	stack      []Node[T]
+	depth      int
+	pos        Node[T]
+	lowerBound bool
 }
 
 // Front returns the current node that has been iterated to.
@@ -23,9 +28,6 @@ func (i *Iterator[T]) Path() string {
 	return string(i.path)
 }
 
-// Next
-// TODO - Update the i.pos to the current node
-// TODO - Update the i.path to the current path
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
@@ -37,14 +39,28 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	for len(i.stack) > 0 {
 		node := i.stack[0]
 		i.stack = i.stack[1:]
+
+		if node == nil {
+			return nil, zero, false
+		}
+
 		currentNode := node.(Node[T])
 
+		i.pos = currentNode
+		i.path = append(i.path, currentNode.getPartial()...)
 		switch currentNode.getArtNodeType() {
 		case leafType:
 			leafCh := currentNode.(*NodeLeaf[T])
+			if i.lowerBound {
+				i.pos = leafCh
+				i.path = leafCh.key
+				return getKey(leafCh.key), leafCh.value, true
+			}
 			if !leafCh.matchPrefix(i.path) {
 				continue
 			}
+			i.pos = leafCh
+			i.path = leafCh.key
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
@@ -104,12 +120,15 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 		}
 	}
+	i.pos = nil
+	i.path = []byte{}
 	return nil, zero, false
 }
 
-func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
+func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) {
 	// Start from the node node
 	node := i.node
+	watch = node.getMutateCh()
 
 	prefix := getTreeKey(prefixKey)
 
@@ -118,7 +137,7 @@ func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
 	i.stack = nil
 	depth := 0
 
-	for node != nil {
+	for {
 		// Check if the node matches the prefix
 		i.stack = []Node[T]{node}
 		i.node = node
@@ -154,6 +173,123 @@ func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
 
 		// Move to the next level in the tree
 		node = child
+		watch = node.getMutateCh()
+		depth++
+	}
+	return watch
+}
+
+func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
+	i.SeekPrefixWatch(prefixKey)
+}
+
+func (i *Iterator[T]) recurseMin(n Node[T]) Node[T] {
+	// Traverse to the minimum child
+	if n.isLeaf() {
+		return n
+	}
+	nEdges := n.getNumChildren()
+	if nEdges > 1 {
+		// Add all the other edges to the stack (the min node will be added as
+		// we recurse)
+		i.stack = append(i.stack, n.getChildren()[1:]...)
+	}
+	if nEdges > 0 {
+		return i.recurseMin(n.getChildren()[0])
+	}
+	// Shouldn't be possible
+	return nil
+}
+
+func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
+	node := i.node
+
+	i.stack = []Node[T]{}
+	i.lowerBound = true
+
+	prefix := getTreeKey(prefixKey)
+
+	found := func(n Node[T]) {
+		i.stack = append(
+			[]Node[T]{n},
+			i.stack...,
+		)
+	}
+
+	findMin := func(n Node[T]) {
+		n = i.recurseMin(n)
+		if n != nil {
+			found(n)
+			return
+		}
+	}
+
+	i.path = prefix
+
+	depth := 0
+	i.node = node
+
+	for {
+		// Check if the node matches the prefix
+
+		var prefixCmp int
+		if int(node.getPartialLen()) < len(prefix) {
+			prefixCmp = bytes.Compare(node.getPartial()[:node.getPartialLen()], prefix[depth:depth+int(node.getPartialLen())])
+		} else {
+			prefixCmp = bytes.Compare(node.getPartial()[:node.getPartialLen()], prefix)
+		}
+
+		if prefixCmp > 0 {
+			// Prefix is larger, that means the lower bound is greater than the search
+			// and from now on we need to follow the minimum path to the smallest
+			// leaf under this subtree.
+			findMin(node)
+			return
+		}
+
+		if prefixCmp < 0 {
+			// Prefix is smaller than search prefix, that means there is no lower
+			// bound
+			i.node = nil
+			return
+		}
+
+		if node.isLeaf() {
+			if bytes.Compare(node.getKey(), prefix) >= 0 {
+				found(node)
+			}
+			return
+		}
+
+		// Determine the child index to proceed based on the next byte of the prefix
+		if node.getPartialLen() > 0 {
+			// If the node has a prefix, compare it with the prefix
+			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
+			if mismatchIdx < int(node.getPartialLen()) {
+				// If there's a mismatch, set the node to nil to break the loop
+				node = nil
+				break
+			}
+			depth += int(node.getPartialLen())
+		}
+
+		idx := node.getLowerBoundCh(prefix[depth])
+		if idx == -1 {
+			// If the child node doesn't exist, break the loop
+			node = nil
+			break
+		}
+
+		if idx+1 < int(node.getNumChildren()) {
+			for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
+				if node.getChild(itr) != nil {
+					i.stack = append([]Node[T]{node.getChild(itr)}, i.stack...)
+				}
+			}
+		}
+
+		// Move to the next level in the tree
+		node = node.getChild(idx)
 		depth++
 	}
 }

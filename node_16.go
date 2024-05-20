@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"sort"
 )
 
 type Node16[T any] struct {
@@ -57,6 +58,7 @@ func (n *Node16[T]) Iterator() *Iterator[T] {
 	return &Iterator[T]{
 		stack: stack,
 		node:  nodeT,
+		path:  []byte{},
 	}
 }
 
@@ -140,4 +142,16 @@ func (n *Node16[T]) setValue(T) {
 }
 
 func (n *Node16[T]) setKey(key []byte) {
+}
+
+func (n *Node16[T]) getLowerBoundCh(c byte) int {
+	nCh := int(n.getNumChildren())
+	idx := sort.Search(nCh, func(i int) bool {
+		return n.keys[i] >= c
+	})
+	// we want lower bound behavior so return even if it's not an exact match
+	if idx < nCh {
+		return idx
+	}
+	return -1
 }

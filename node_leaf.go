@@ -90,6 +90,7 @@ func (n *NodeLeaf[T]) Iterator() *Iterator[T] {
 	return &Iterator[T]{
 		stack: stack,
 		node:  nodeT,
+		path:  []byte{},
 	}
 }
 
@@ -151,4 +152,8 @@ func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
 
 func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh = ch
+}
+
+func (n *NodeLeaf[T]) getLowerBoundCh(c byte) int {
+	return -1
 }

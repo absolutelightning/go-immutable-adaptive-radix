@@ -28,6 +28,7 @@ type Node[T any] interface {
 	getKeys() []byte
 	getMutateCh() chan struct{}
 	setMutateCh(chan struct{})
+	getLowerBoundCh(byte) int
 
 	Iterator() *Iterator[T]
 	PathIterator([]byte) *PathIterator[T]

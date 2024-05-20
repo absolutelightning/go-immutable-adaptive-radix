@@ -285,6 +285,7 @@ func TestDeletePrefix(t *testing.T) {
 				t.Fatalf("Bad tree length, got %d want %d tree %v, deleting prefix %v ", got, want, testCase.treeNodes, testCase.prefix)
 			}
 
+			//verifyTree(t, testCase.expectedOut, r)
 			//Delete a non-existant node
 			_, ok = r.DeletePrefix([]byte("CCCCC"))
 			if ok {
