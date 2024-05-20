@@ -395,92 +395,116 @@ func TestIteratePrefix(t *testing.T) {
 	}
 }
 
-//
-//func TestTrackMutate_DeletePrefix(t *testing.T) {
-//
-//	r := New[any]()
-//
-//	keys := []string{
-//		"foo",
-//		"foo/bar/baz",
-//		"foo/baz/bar",
-//		"foo/zip/zap",
-//		"bazbaz",
-//		"zipzap",
-//	}
-//	for _, k := range keys {
-//		r, _, _ = r.Insert([]byte(k), nil)
-//	}
-//	if r.Len() != len(keys) {
-//		t.Fatalf("bad len: %v %v", r.Len(), len(keys))
-//	}
-//
-//	rootWatch, _, _ := r.Root().GetWatch(nil)
-//	if rootWatch == nil {
-//		t.Fatalf("Should have returned a watch")
-//	}
-//
-//	nodeWatch1, _, _ := r.Root().GetWatch([]byte("foo/bar/baz"))
-//	if nodeWatch1 == nil {
-//		t.Fatalf("Should have returned a watch")
-//	}
-//
-//	nodeWatch2, _, _ := r.Root().GetWatch([]byte("foo/baz/bar"))
-//	if nodeWatch2 == nil {
-//		t.Fatalf("Should have returned a watch")
-//	}
-//
-//	nodeWatch3, _, _ := r.Root().GetWatch([]byte("foo/zip/zap"))
-//	if nodeWatch3 == nil {
-//		t.Fatalf("Should have returned a watch")
-//	}
-//
-//	unknownNodeWatch, _, _ := r.Root().GetWatch([]byte("bazbaz"))
-//	if unknownNodeWatch == nil {
-//		t.Fatalf("Should have returned a watch")
-//	}
-//
-//	// Verify that deleting prefixes triggers the right set of watches
-//	txn := r.Txn()
-//	txn.TrackMutate(true)
-//	ok := txn.DeletePrefix([]byte("foo"))
-//	if !ok {
-//		t.Fatalf("Expected delete prefix to return true")
-//	}
-//	if hasAnyClosedMutateCh(r) {
-//		t.Fatalf("Transaction was not committed, no channel should have been closed")
-//	}
-//
-//	txn.Commit()
-//
-//	// Verify that all the leaf nodes we set up watches for above get triggered from the delete prefix call
-//	select {
-//	case <-rootWatch:
-//	default:
-//		t.Fatalf("root watch was not triggered")
-//	}
-//	select {
-//	case <-nodeWatch1:
-//	default:
-//		t.Fatalf("node watch was not triggered")
-//	}
-//	select {
-//	case <-nodeWatch2:
-//	default:
-//		t.Fatalf("node watch was not triggered")
-//	}
-//	select {
-//	case <-nodeWatch3:
-//	default:
-//		t.Fatalf("node watch was not triggered")
-//	}
-//	select {
-//	case <-unknownNodeWatch:
-//		t.Fatalf("Unrelated node watch was triggered during a prefix delete")
-//	default:
-//	}
-//
-//}
+func TestTrackMutate_DeletePrefix(t *testing.T) {
+
+	r := NewRadixTree[any]()
+
+	keys := []string{
+		"foo",
+		"foo/bar/baz",
+		"foo/baz/bar",
+		"foo/zip/zap",
+		"bazbaz",
+		"zipzap",
+	}
+	txn := r.Txn()
+	for _, k := range keys {
+		r.Insert([]byte(k), nil)
+	}
+	if r.Len() != len(keys) {
+		t.Fatalf("bad len: %v %v", r.Len(), len(keys))
+	}
+
+	rootWatch, _, _ := txn.GetWatch(nil)
+	if rootWatch == nil {
+		t.Fatalf("Should have returned a watch")
+	}
+
+	nodeWatch1, _, _ := txn.GetWatch([]byte("foo/bar/baz"))
+	if nodeWatch1 == nil {
+		t.Fatalf("Should have returned a watch")
+	}
+
+	nodeWatch2, _, _ := txn.GetWatch([]byte("foo/baz/bar"))
+	if nodeWatch2 == nil {
+		t.Fatalf("Should have returned a watch")
+	}
+
+	nodeWatch3, _, _ := txn.GetWatch([]byte("foo/zip/zap"))
+	if nodeWatch3 == nil {
+		t.Fatalf("Should have returned a watch")
+	}
+
+	unknownNodeWatch, _, _ := txn.GetWatch([]byte("bazbaz"))
+	if unknownNodeWatch == nil {
+		t.Fatalf("Should have returned a watch")
+	}
+
+	// Verify that deleting prefixes triggers the right set of watches
+	txn.TrackMutate(true)
+	ok := txn.DeletePrefix([]byte("foo"))
+	if !ok {
+		t.Fatalf("Expected delete prefix to return true")
+	}
+	if hasAnyClosedMutateCh(r) {
+		t.Fatalf("Transaction was not committed, no channel should have been closed")
+	}
+
+	txn.Commit()
+
+	// Verify that all the leaf nodes we set up watches for above get triggered from the delete prefix call
+	select {
+	case <-rootWatch:
+	default:
+		t.Fatalf("root watch was not triggered")
+	}
+	select {
+	case <-nodeWatch1:
+	default:
+		t.Fatalf("node watch was not triggered")
+	}
+	select {
+	case <-nodeWatch2:
+	default:
+		t.Fatalf("node watch was not triggered")
+	}
+	select {
+	case <-nodeWatch3:
+	default:
+		t.Fatalf("node watch was not triggered")
+	}
+	select {
+	case <-unknownNodeWatch:
+		t.Fatalf("Unrelated node watch was triggered during a prefix delete")
+	default:
+	}
+
+}
+
+// hasAnyClosedMutateCh scans the given tree and returns true if there are any
+// closed mutate channels on any nodes or leaves.
+func hasAnyClosedMutateCh[T any](r *RadixTree[T]) bool {
+	for iter := r.root.Iterator(); iter.Front() != nil; iter.Next() {
+		n := iter.Front()
+		if isClosed(n.getMutateCh()) {
+			return true
+		}
+		if n.isLeaf() && isClosed(n.getMutateCh()) {
+			return true
+		}
+	}
+	return false
+}
+
+// isClosed returns true if the given channel is closed.
+func isClosed(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
+	}
+}
 
 const datasetSize = 100000
 
