@@ -6,12 +6,11 @@ package adaptive
 import (
 	"bufio"
 	"github.com/hashicorp/go-uuid"
+	"github.com/stretchr/testify/require"
 	"math/rand"
 	"os"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 )
 
 func TestARTree_InsertAndSearchWords(t *testing.T) {
@@ -187,7 +186,7 @@ func TestLongestPrefix(t *testing.T) {
 const datasetSize = 100000
 
 func generateDataset(size int) []string {
-	rand.Seed(time.Now().UnixNano())
+	rand.New(rand.NewSource(time.Now().UnixNano()))
 	dataset := make([]string, size)
 	for i := 0; i < size; i++ {
 		uuid1, _ := uuid.GenerateUUID()
