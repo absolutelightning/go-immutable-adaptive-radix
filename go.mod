@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/stretchr/testify v1.9.0
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 )
 
 require (
