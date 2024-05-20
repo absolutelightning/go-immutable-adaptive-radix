@@ -20,14 +20,23 @@ const (
 )
 
 type RadixTree[T any] struct {
-	root      Node[T]
-	size      uint64
-	trachChns map[chan struct{}]struct{}
+	root Node[T]
+	size uint64
+
+	// trackChannels is used to hold channels that need to be notified to
+	// signal mutation of the tree. This will only hold up to
+	// defaultModifiedCache number of entries, after which we will set the
+	// trackOverflow flag, which will cause us to use a more expensive
+	// algorithm to perform the notifications. Mutation tracking is only
+	// performed if trackMutate is true.
+	trackChannels map[chan struct{}]struct{}
+	trackOverflow bool
+	trackMutate   bool
 }
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
-	rt.trachChns = make(map[chan struct{}]struct{})
+	rt.trackChannels = make(map[chan struct{}]struct{})
 	nodeLeaf := rt.allocNode(leafType)
 	rt.root = nodeLeaf
 	return rt
@@ -139,14 +148,15 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	depth := 0
 
 	n := t.root
-	for n != nil {
+	watch := n.getMutateCh()
+	for {
 		// Might be a leaf
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true, n.getMutateCh()
+				return n.getValue(), true, watch
 			}
-			return zero, false, nil
+			break
 		}
 
 		// Bail if the prefix does not match
@@ -165,12 +175,13 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
-			return zero, false, nil
+			return zero, false, watch
 		}
 		n = child
+		watch = n.getMutateCh()
 		depth++
 	}
-	return zero, false, nil
+	return zero, false, watch
 }
 
 func (t *RadixTree[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T) {
@@ -363,4 +374,36 @@ func (t *RadixTree[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T
 	}
 
 	return node, numDel
+}
+
+// trackChannel safely attempts to track the given mutation channel, setting the
+// overflow flag if we can no longer track any more. This limits the amount of
+// state that will accumulate during a transaction and we have a slower algorithm
+// to switch to if we overflow.
+func (t *RadixTree[T]) trackChannel(ch chan struct{}) {
+	// In overflow, make sure we don't store any more objects.
+	if t.trackOverflow {
+		return
+	}
+
+	// If this would overflow the state we reject it and set the flag (since
+	// we aren't tracking everything that's required any longer).
+	if len(t.trackChannels) >= defaultModifiedCache {
+		// Mark that we are in the overflow state
+		t.trackOverflow = true
+
+		// Clear the map so that the channels can be garbage collected. It is
+		// safe to do this since we have already overflowed and will be using
+		// the slow notify algorithm.
+		t.trackChannels = nil
+		return
+	}
+
+	// Create the map on the fly when we need it.
+	if t.trackChannels == nil {
+		t.trackChannels = make(map[chan struct{}]struct{})
+	}
+
+	// Otherwise we are good to track it.
+	t.trackChannels[ch] = struct{}{}
 }
