@@ -236,7 +236,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		if int(node.getPartialLen()) < len(prefix) {
 			prefixCmp = bytes.Compare(node.getPartial()[:node.getPartialLen()], prefix[depth:depth+int(node.getPartialLen())])
 		} else {
-			prefixCmp = bytes.Compare(node.getPartial()[:node.getPartialLen()], prefix)
+			prefixCmp = bytes.Compare(node.getPartial()[:node.getPartialLen()], prefix[depth:])
 		}
 
 		if prefixCmp > 0 {
