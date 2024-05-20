@@ -37,6 +37,7 @@ func TestIterateLowerBoundFuzz(t *testing.T) {
 			}
 			result = append(result, string(key))
 		}
+		t.Logf("Radix Set: %#v", result)
 		return result
 	}
 
@@ -60,6 +61,7 @@ func TestIterateLowerBoundFuzz(t *testing.T) {
 				result = append(result, k)
 			}
 		}
+		t.Logf("Filtered Set: %#v", result)
 		return result
 	}
 

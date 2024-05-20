@@ -47,20 +47,17 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 		currentNode := node.(Node[T])
 
 		i.pos = currentNode
-		i.path = append(i.path, currentNode.getPartial()...)
 		switch currentNode.getArtNodeType() {
 		case leafType:
 			leafCh := currentNode.(*NodeLeaf[T])
 			if i.lowerBound {
 				i.pos = leafCh
-				i.path = leafCh.key
 				return getKey(leafCh.key), leafCh.value, true
 			}
-			if !leafCh.matchPrefix(i.path) {
+			if len(i.Path()) >= 2 && !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
 			i.pos = leafCh
-			i.path = leafCh.key
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
@@ -121,7 +118,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 		}
 	}
 	i.pos = nil
-	i.path = []byte{}
 	return nil, zero, false
 }
 
@@ -254,10 +250,8 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			return
 		}
 
-		if node.isLeaf() {
-			if bytes.Compare(node.getKey(), prefix) >= 0 {
-				found(node)
-			}
+		if node.isLeaf() && bytes.Compare(node.getKey(), prefix) >= 0 {
+			found(node)
 			return
 		}
 
@@ -276,7 +270,6 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		idx := node.getLowerBoundCh(prefix[depth])
 		if idx == -1 {
 			// If the child node doesn't exist, break the loop
-			node = nil
 			break
 		}
 

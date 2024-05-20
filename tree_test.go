@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"math/rand"
 	"os"
+	"slices"
 	"testing"
 	"time"
 )
@@ -292,6 +293,105 @@ func TestDeletePrefix(t *testing.T) {
 				t.Fatalf("Expected DeletePrefix to return false ")
 			}
 		})
+	}
+}
+
+func TestIteratePrefix(t *testing.T) {
+	r := NewRadixTree[any]()
+
+	keys := []string{
+		"foo/bar/baz",
+		"foo/baz/bar",
+		"foo/zip/zap",
+		"foobar",
+		"zipzap",
+	}
+	for _, k := range keys {
+		r.Insert([]byte(k), nil)
+	}
+	if r.Len() != len(keys) {
+		t.Fatalf("bad len: %v %v", r.Len(), len(keys))
+	}
+
+	type exp struct {
+		inp string
+		out []string
+	}
+	cases := []exp{
+		{
+			"",
+			keys,
+		},
+		{
+			"f",
+			[]string{
+				"foo/bar/baz",
+				"foo/baz/bar",
+				"foo/zip/zap",
+				"foobar",
+			},
+		},
+		{
+			"foo",
+			[]string{
+				"foo/bar/baz",
+				"foo/baz/bar",
+				"foo/zip/zap",
+				"foobar",
+			},
+		},
+		{
+			"foob",
+			[]string{"foobar"},
+		},
+		{
+			"foo/",
+			[]string{"foo/bar/baz", "foo/baz/bar", "foo/zip/zap"},
+		},
+		{
+			"foo/b",
+			[]string{"foo/bar/baz", "foo/baz/bar"},
+		},
+		{
+			"foo/ba",
+			[]string{"foo/bar/baz", "foo/baz/bar"},
+		},
+		{
+			"foo/bar",
+			[]string{"foo/bar/baz"},
+		},
+		{
+			"foo/bar/baz",
+			[]string{"foo/bar/baz"},
+		},
+		{
+			"foo/bar/bazoo",
+			[]string{},
+		},
+		{
+			"z",
+			[]string{"zipzap"},
+		},
+	}
+
+	for idx, test := range cases {
+		iter := r.root.Iterator()
+		if test.inp != "" {
+			iter.SeekPrefix([]byte(test.inp))
+		}
+
+		// Consume all the keys
+		var out []string
+		for {
+			key, _, ok := iter.Next()
+			if !ok {
+				break
+			}
+			out = append(out, string(key))
+		}
+		if !slices.Equal(out, test.out) {
+			t.Fatalf("mis-match: %d %v %v", idx, out, test.out)
+		}
 	}
 }
 

@@ -60,7 +60,6 @@ func (n *Node256[T]) Iterator() *Iterator[T] {
 	return &Iterator[T]{
 		stack: stack,
 		node:  nodeT,
-		path:  []byte{},
 	}
 }
 
@@ -139,8 +138,8 @@ func (n *Node256[T]) setKey(key []byte) {
 }
 
 func (n *Node256[T]) getLowerBoundCh(c byte) int {
-	for i := 0; i < 256; i++ {
-		if n.getChild(i) != nil && i >= int(c) {
+	for i := int(c); i < 256; i++ {
+		if n.getChild(i) != nil {
 			return i
 		}
 	}

@@ -58,7 +58,6 @@ func (n *Node16[T]) Iterator() *Iterator[T] {
 	return &Iterator[T]{
 		stack: stack,
 		node:  nodeT,
-		path:  []byte{},
 	}
 }
 
