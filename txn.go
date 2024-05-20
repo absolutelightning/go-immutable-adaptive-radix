@@ -30,9 +30,10 @@ type Txn[T any] struct {
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
-		size: t.size,
-		snap: t.root,
-		tree: t,
+		size:          t.size,
+		snap:          t.root,
+		tree:          t,
+		trackChannels: t.trachChns,
 	}
 	return txn
 }
@@ -181,7 +182,7 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
-	nt := &RadixTree[T]{t.tree.root, t.size}
+	nt := &RadixTree[T]{t.tree.root, t.size, t.trackChannels}
 	return nt
 }
 
