@@ -28,6 +28,12 @@ r, _, _ = r.Insert([]byte("foo"), 1)
 r, _, _ = r.Insert([]byte("bar"), 2)
 r, _, _ = r.Insert([]byte("foobar"), 2)
 
+// Find the longest prefix match
+m, _, _ := r.LongestPrefix([]byte("foozip"))
+if string(m) != "foo" {
+    panic("should be foo")
+}
+
 ```
 
 Here is an example of performing a range scan of the keys.
