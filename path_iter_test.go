@@ -96,7 +96,7 @@ func TestPathIterator(t *testing.T) {
 			t.Fatalf("iteration returned more values than expected: %d, actual: %d+", len(test.out), len(test.out)+1)
 		}
 
-		// Verify that continued calls to next on a completed iterator do not panic or return values.
+		// Verify that continued calls to next on a completed Iterator do not panic or return values.
 		_, _, found = iter.Next()
 		if found {
 			t.Fatalf("iteration returned a value after previously indicating iteration was complete")

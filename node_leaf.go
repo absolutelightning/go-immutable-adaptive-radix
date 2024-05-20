@@ -83,7 +83,7 @@ func (l *NodeLeaf[T]) prefixContainsMatch(key []byte) bool {
 	return bytes.HasPrefix(getKey(key), getKey(l.key))
 }
 
-func (n *NodeLeaf[T]) iterator() *Iterator[T] {
+func (n *NodeLeaf[T]) Iterator() *Iterator[T] {
 	stack := make([]Node[T], 0)
 	stack = append(stack, n)
 	nodeT := Node[T](n)
@@ -93,7 +93,7 @@ func (n *NodeLeaf[T]) iterator() *Iterator[T] {
 	}
 }
 
-func (n *NodeLeaf[T]) pathIterator(path []byte) *PathIterator[T] {
+func (n *NodeLeaf[T]) PathIterator(path []byte) *PathIterator[T] {
 	nodeT := Node[T](n)
 	return &PathIterator[T]{node: &nodeT,
 		path:  getTreeKey(path),

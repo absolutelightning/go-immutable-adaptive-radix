@@ -189,8 +189,8 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // to trigger notifications. This doesn't require any additional state but it
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
-	snapIter := t.snap.iterator()
-	rootIter := t.Root().iterator()
+	snapIter := t.snap.Iterator()
+	rootIter := t.Root().Iterator()
 	for snapIter.Front() != nil || rootIter.Front() != nil {
 		// If we've exhausted the nodes in the old snapshot, we know
 		// there's nothing remaining to notify.
