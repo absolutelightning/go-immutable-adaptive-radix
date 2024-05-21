@@ -10,9 +10,46 @@ import (
 	"math/rand"
 	"os"
 	"slices"
+	"sort"
 	"testing"
 	"time"
 )
+
+func TestRadix_HugeTxn(t *testing.T) {
+	r := NewRadixTree[int]()
+
+	// Insert way more nodes than the cache can fit
+	txn1 := r.Txn()
+	var expect []string
+	for i := 0; i < defaultModifiedCache*100; i++ {
+		gen, err := uuid.GenerateUUID()
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		txn1.Insert([]byte(gen), i)
+		expect = append(expect, gen)
+	}
+	r = txn1.Commit()
+	sort.Strings(expect)
+
+	// Collect the output, should be sorted
+	var out []string
+	fn := func(k []byte, v int) bool {
+		out = append(out, string(k))
+		return false
+	}
+	r.Walk(fn)
+
+	// Verify the match
+	if len(out) != len(expect) {
+		t.Fatalf("length mis-match: %d vs %d", len(out), len(expect))
+	}
+	for i := 0; i < len(out); i++ {
+		if out[i] != expect[i] {
+			t.Fatalf("mis-match: %v %v", out[i], expect[i])
+		}
+	}
+}
 
 func TestARTree_InsertAndSearchWords(t *testing.T) {
 	t.Parallel()

@@ -9,8 +9,6 @@ import (
 
 const maxPrefixLen = 10
 
-type nodeType int
-
 const (
 	leafType nodeType = iota
 	node4
@@ -19,10 +17,17 @@ const (
 	node256
 )
 
+type nodeType int
+
 type RadixTree[T any] struct {
 	root Node[T]
 	size uint64
 }
+
+// WalkFn is used when walking the tree. Takes a
+// key and value, returning if iteration should
+// be terminated.
+type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
@@ -224,4 +229,28 @@ func (t *RadixTree[T]) Root() Node[T] {
 func (t *RadixTree[T]) GetWatch(k []byte) (<-chan struct{}, T, bool) {
 	res, found, watch := t.Get(k)
 	return watch, res, found
+}
+
+// Walk is used to walk the tree
+func (t *RadixTree[T]) Walk(fn WalkFn[T]) {
+	recursiveWalk(t.root, fn)
+}
+
+// recursiveWalk is used to do a pre-order walk of a node
+// recursively. Returns true if the walk should be aborted
+func recursiveWalk[T any](n Node[T], fn WalkFn[T]) bool {
+	// Visit the leaf values if any
+	if n.isLeaf() && fn(getKey(n.getKey()), n.getValue()) {
+		return true
+	}
+
+	// Recurse on the children
+	for _, e := range n.getChildren() {
+		if e != nil {
+			if recursiveWalk(e, fn) {
+				return true
+			}
+		}
+	}
+	return false
 }
