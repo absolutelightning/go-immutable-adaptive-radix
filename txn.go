@@ -6,6 +6,8 @@ package adaptive
 import (
 	"bytes"
 	"strings"
+
+	"github.com/hashicorp/golang-lru/v2/simplelru"
 )
 
 const defaultModifiedCache = 8192
@@ -28,6 +30,13 @@ type Txn[T any] struct {
 	trackChannels map[chan struct{}]struct{}
 	trackOverflow bool
 	trackMutate   bool
+
+	// writable is a cache of writable nodes that have been created during
+	// the course of the transaction. This allows us to re-use the same
+	// nodes for further writes and avoid unnecessary copies of nodes that
+	// have never been exposed outside the transaction. This will only hold
+	// up to defaultModifiedCache number of entries.
+	writable *simplelru.LRU[Node[T], any]
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
@@ -106,7 +115,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
-		newNode := t.allocNode(node4)
+		newNode := t.writeNode(node4)
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
@@ -136,7 +145,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		}
 
 		// Create a new node
-		newNode := t.allocNode(node4)
+		newNode := t.writeNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 
@@ -178,7 +187,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	var zero T
 	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 	if newRoot == nil {
-		newRoot = t.allocNode(leafType)
+		newRoot = t.writeNode(leafType)
 	}
 	t.tree.root = newRoot
 	if l != nil {
@@ -402,7 +411,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 
 func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	// Allocate memory for the leaf node
-	l := t.allocNode(leafType)
+	l := t.writeNode(leafType)
 
 	if l == nil {
 		return nil
@@ -415,7 +424,7 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	return l
 }
 
-func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
+func (t *Txn[T]) writeNode(ntype nodeType) Node[T] {
 	var n Node[T]
 	switch ntype {
 	case leafType:
@@ -434,13 +443,41 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	n.setMutateCh(make(chan struct{}))
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
-	if t.trackMutate && t.trackChannels == nil {
-		t.trackChannels = make(map[chan struct{}]struct{})
+
+	if t.writable == nil {
+		lru, err := simplelru.NewLRU[Node[T], any](defaultModifiedCache, nil)
+		if err != nil {
+			panic(err)
+		}
+		t.writable = lru
 	}
+
+	// If this node has already been modified, we can continue to use it
+	// during this transaction. We know that we don't need to track it for
+	// a node update since the node is writable, but if this is for a leaf
+	// update we track it, in case the initial write to this node didn't
+	// update the leaf.
+	if _, ok := t.writable.Get(n); ok {
+		if t.trackMutate {
+			t.trackChannel(n.getMutateCh())
+		}
+		return n
+	}
+
+	// Mark this node as being mutated.
 	if t.trackMutate {
-		t.trackChannels[n.getMutateCh()] = struct{}{}
+		t.trackChannel(n.getMutateCh())
 	}
-	return n
+
+	// Copy the existing node. If you have set forLeafUpdate it will be
+	// safe to replace this leaf with another after you get your node for
+	// writing. You MUST replace it, because the channel associated with
+	// this leaf will be closed when this transaction is committed.
+	nc := n.clone()
+
+	// Mark this node as writable.
+	t.writable.Add(nc, nil)
+	return nc
 }
 
 // trackChannel safely attempts to track the given mutation channel, setting the

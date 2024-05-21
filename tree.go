@@ -126,6 +126,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	n := t.root
 	watch := n.getMutateCh()
 	for {
+		watch = n.getMutateCh()
 		// Might be a leaf
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
