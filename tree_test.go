@@ -396,8 +396,6 @@ func TestIteratePrefix(t *testing.T) {
 	}
 }
 
-// TODO Revisit
-
 func TestTrackMutate_DeletePrefix(t *testing.T) {
 
 	r := NewRadixTree[any]()
@@ -410,7 +408,6 @@ func TestTrackMutate_DeletePrefix(t *testing.T) {
 		"bazbaz",
 		"zipzap",
 	}
-	txn := r.Txn()
 	for _, k := range keys {
 		r, _, _ = r.Insert([]byte(k), nil)
 	}
@@ -418,32 +415,33 @@ func TestTrackMutate_DeletePrefix(t *testing.T) {
 		t.Fatalf("bad len: %v %v", r.Len(), len(keys))
 	}
 
-	rootWatch, _, _ := txn.GetWatch(nil)
+	rootWatch, _, _ := r.GetWatch(nil)
 	if rootWatch == nil {
 		t.Fatalf("Should have returned a watch")
 	}
 
-	nodeWatch1, _, _ := txn.GetWatch([]byte("foo/bar/baz"))
+	nodeWatch1, _, _ := r.GetWatch([]byte("foo/bar/baz"))
 	if nodeWatch1 == nil {
 		t.Fatalf("Should have returned a watch")
 	}
 
-	nodeWatch2, _, _ := txn.GetWatch([]byte("foo/baz/bar"))
+	nodeWatch2, _, _ := r.GetWatch([]byte("foo/baz/bar"))
 	if nodeWatch2 == nil {
 		t.Fatalf("Should have returned a watch")
 	}
 
-	nodeWatch3, _, _ := txn.GetWatch([]byte("foo/zip/zap"))
+	nodeWatch3, _, _ := r.GetWatch([]byte("foo/zip/zap"))
 	if nodeWatch3 == nil {
 		t.Fatalf("Should have returned a watch")
 	}
 
-	unknownNodeWatch, _, _ := txn.GetWatch([]byte("bazbaz"))
+	unknownNodeWatch, _, _ := r.GetWatch([]byte("bazbaz"))
 	if unknownNodeWatch == nil {
 		t.Fatalf("Should have returned a watch")
 	}
 
 	// Verify that deleting prefixes triggers the right set of watches
+	txn := r.Txn()
 	txn.TrackMutate(true)
 	ok := txn.DeletePrefix([]byte("foo"))
 	if !ok {

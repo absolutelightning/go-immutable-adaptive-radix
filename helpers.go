@@ -76,7 +76,7 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		newNode := t.writeNode(node16)
+		newNode := t.writeNode(node16, make(chan struct{}))
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
@@ -102,7 +102,7 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		newNode := t.writeNode(node48)
+		newNode := t.writeNode(node48, make(chan struct{}))
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		for i := 0; i < int(n.getNumChildren()); i++ {
@@ -125,7 +125,7 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		newNode := t.writeNode(node256)
+		newNode := t.writeNode(node256, make(chan struct{}))
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
 				newNode.setChild(i, n.getChild(int(n.getKeyAtIdx(i))-1))
@@ -380,7 +380,7 @@ func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 	n.numChildren--
 
 	if n.numChildren == 3 {
-		newNode := t.writeNode(node4)
+		newNode := t.writeNode(node4, make(chan struct{}))
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.keys[:4])
@@ -397,7 +397,7 @@ func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 	n.numChildren--
 
 	if n.numChildren == 12 {
-		newNode := t.writeNode(node16)
+		newNode := t.writeNode(node16, make(chan struct{}))
 		t.copyHeader(newNode, n)
 		child := 0
 		for i := 0; i < 256; i++ {
@@ -420,7 +420,7 @@ func (t *Txn[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
 	if n.numChildren == 37 {
-		newNode := t.writeNode(node48)
+		newNode := t.writeNode(node48, make(chan struct{}))
 		t.copyHeader(newNode, n)
 
 		pos := 0

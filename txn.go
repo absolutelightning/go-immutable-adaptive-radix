@@ -91,13 +91,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	// If we are at a nil node, inject a leaf
 	if node == nil {
-		return t.makeLeaf(key, value), zero
+		return t.makeLeaf(key, value, make(chan struct{})), zero
 	}
 
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
-			return t.makeLeaf(key, value), zero
+			return t.makeLeaf(key, value, node.getMutateCh()), zero
 		}
 	}
 
@@ -107,15 +107,15 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
-			return t.makeLeaf(key, value), node.getValue()
+			return t.makeLeaf(key, value, node.getMutateCh()), node.getValue()
 		}
 
 		// New value, we must split the leaf into a node4
-		newLeaf2 := t.makeLeaf(key, value)
+		newLeaf2 := t.makeLeaf(key, value, make(chan struct{}))
 
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
-		newNode := t.writeNode(node4)
+		newNode := t.writeNode(node4, make(chan struct{}))
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
@@ -139,13 +139,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 
 			// No child, node goes within us
-			newLeaf := t.makeLeaf(key, value)
+			newLeaf := t.makeLeaf(key, value, make(chan struct{}))
 			node = t.addChild(node, key[depth], newLeaf)
 			return node, zero
 		}
 
 		// Create a new node
-		newNode := t.writeNode(node4)
+		newNode := t.writeNode(node4, make(chan struct{}))
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 
@@ -166,7 +166,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
 		}
 		// Insert the new leaf
-		newLeaf := t.makeLeaf(key, value)
+		newLeaf := t.makeLeaf(key, value, make(chan struct{}))
 		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
 		return newNode, zero
 	}
@@ -179,7 +179,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	}
 
 	// No child, node goes within us
-	newLeaf := t.makeLeaf(key, value)
+	newLeaf := t.makeLeaf(key, value, make(chan struct{}))
 	return t.addChild(node, key[depth], newLeaf), zero
 }
 
@@ -187,7 +187,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	var zero T
 	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 	if newRoot == nil {
-		newRoot = t.writeNode(leafType)
+		newRoot = t.writeNode(leafType, make(chan struct{}))
 	}
 	t.tree.root = newRoot
 	if l != nil {
@@ -375,6 +375,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
+			t.trackChannel(node.getMutateCh())
 			return nil, 1
 		}
 		return node, 0
@@ -389,6 +390,8 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 			return node, 0
 		}
 	}
+
+	t.trackChannel(node.getMutateCh())
 
 	numDel := 0
 
@@ -409,9 +412,9 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	return node, numDel
 }
 
-func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
+func (t *Txn[T]) makeLeaf(key []byte, value T, mCh chan struct{}) Node[T] {
 	// Allocate memory for the leaf node
-	l := t.writeNode(leafType)
+	l := t.writeNode(leafType, mCh)
 
 	if l == nil {
 		return nil
@@ -424,7 +427,7 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	return l
 }
 
-func (t *Txn[T]) writeNode(ntype nodeType) Node[T] {
+func (t *Txn[T]) writeNode(ntype nodeType, mCh chan struct{}) Node[T] {
 	var n Node[T]
 	switch ntype {
 	case leafType:
@@ -440,7 +443,7 @@ func (t *Txn[T]) writeNode(ntype nodeType) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
-	n.setMutateCh(make(chan struct{}))
+	n.setMutateCh(mCh)
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
 

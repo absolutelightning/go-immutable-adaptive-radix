@@ -117,17 +117,17 @@ func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
 
 func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
+	n := t.root
+	watch := n.getMutateCh()
 	if t.root == nil {
 		return zero, false, nil
 	}
 	var child Node[T]
 	depth := 0
 
-	n := t.root
-	watch := n.getMutateCh()
 	for {
-		watch = n.getMutateCh()
 		// Might be a leaf
+		watch = n.getMutateCh()
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
@@ -146,7 +146,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		}
 
 		if depth >= len(key) {
-			return zero, false, nil
+			return zero, false, watch
 		}
 
 		// Recursively search
@@ -155,10 +155,9 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 			return zero, false, watch
 		}
 		n = child
-		watch = n.getMutateCh()
 		depth++
 	}
-	return zero, false, watch
+	return zero, false, n.getMutateCh()
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
@@ -218,4 +217,11 @@ func (t *RadixTree[T]) findChild(n Node[T], c byte) (Node[T], int) {
 // query operations.
 func (t *RadixTree[T]) Root() Node[T] {
 	return t.root
+}
+
+// GetWatch is used to lookup a specific key, returning
+// the watch channel, value and if it was found
+func (t *RadixTree[T]) GetWatch(k []byte) (<-chan struct{}, T, bool) {
+	res, found, watch := t.Get(k)
+	return watch, res, found
 }
