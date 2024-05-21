@@ -39,6 +39,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
 	if len(i.stack) == 0 {
+		i.pos = nil
 		return nil, zero, false
 	}
 
@@ -59,7 +60,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			leafCh := currentNode.(*NodeLeaf[T])
 			if i.lowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
-					i.pos = leafCh
 					return getKey(leafCh.key), leafCh.value, true
 				}
 				continue
@@ -67,7 +67,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if len(i.Path()) >= 2 && !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
-			i.pos = leafCh
 			i.iterPath = append(i.iterPath, leafCh.getKey()...)
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:

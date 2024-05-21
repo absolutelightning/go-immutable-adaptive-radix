@@ -94,16 +94,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	// If we are at a nil node, inject a leaf
 	if node == nil {
-		return t.makeLeaf(key, value, make(chan struct{})), zero
+		return t.makeLeaf(key, value), zero
 	}
 
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
-			if t.trackMutate {
-				t.trackChannel(node.getMutateCh())
-			}
-			return t.makeLeaf(key, value, node.getMutateCh()), zero
+			return t.makeLeaf(key, value), zero
 		}
 	}
 
@@ -116,11 +113,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			if t.trackMutate {
 				t.trackChannel(node.getMutateCh())
 			}
-			return t.makeLeaf(key, value, node.getMutateCh()), node.getValue()
+			return t.makeLeaf(key, value), node.getValue()
 		}
 
 		// New value, we must split the leaf into a node4
-		newLeaf2 := t.makeLeaf(key, value, make(chan struct{}))
+		newLeaf2 := t.makeLeaf(key, value)
 
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
@@ -144,15 +141,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 				node.setChild(idx, newChild)
-				if t.trackMutate {
-					t.trackChannel(child.getMutateCh())
-					t.trackChannel(node.getMutateCh())
-				}
 				return node, val
 			}
 
 			// No child, node goes within us
-			newLeaf := t.makeLeaf(key, value, make(chan struct{}))
+			newLeaf := t.makeLeaf(key, value)
 			node = t.addChild(node, key[depth], newLeaf)
 			return node, zero
 		}
@@ -178,31 +171,21 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
 		}
-		if t.trackMutate {
-			t.trackChannel(node.getMutateCh())
-		}
 		// Insert the new leaf
-		newLeaf := t.makeLeaf(key, value, make(chan struct{}))
+		newLeaf := t.makeLeaf(key, value)
 		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
 		return newNode, zero
 	}
 	// Find a child to recurse to
 	child, idx := t.findChild(node, key[depth])
 	if child != nil {
-		if t.trackMutate {
-			t.trackChannel(child.getMutateCh())
-			t.trackChannel(node.getMutateCh())
-		}
 		newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 		node.setChild(idx, newChild)
 		return node, val
 	}
 
 	// No child, node goes within us
-	newLeaf := t.makeLeaf(key, value, make(chan struct{}))
-	if t.trackMutate {
-		t.trackChannel(node.getMutateCh())
-	}
+	newLeaf := t.makeLeaf(key, value)
 	return t.addChild(node, key[depth], newLeaf), zero
 }
 
@@ -303,14 +286,7 @@ func (t *Txn[T]) Notify() {
 		t.slowNotify()
 	} else {
 		for ch := range t.trackChannels {
-			select {
-			case _, ok := <-ch:
-				if ok {
-					close(ch)
-				}
-			default:
-				close(ch)
-			}
+			close(ch)
 		}
 	}
 
@@ -457,9 +433,9 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	return node, numDel
 }
 
-func (t *Txn[T]) makeLeaf(key []byte, value T, mCh chan struct{}) Node[T] {
+func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	// Allocate memory for the leaf node
-	l := t.writeNode(leafType, mCh)
+	l := t.writeNode(leafType, make(chan struct{}))
 
 	if l == nil {
 		return nil

@@ -559,7 +559,9 @@ func TestTrackMutate_DeletePrefix(t *testing.T) {
 // hasAnyClosedMutateCh scans the given tree and returns true if there are any
 // closed mutate channels on any nodes or leaves.
 func hasAnyClosedMutateCh[T any](r *RadixTree[T]) bool {
-	for iter := r.Root().Iterator(); iter.Front() != nil; iter.Next() {
+	iter := r.Root().Iterator()
+	iter.Next()
+	for ; iter.Front() != nil; iter.Next() {
 		n := iter.Front()
 		if isClosed(n.getMutateCh()) {
 			return true
