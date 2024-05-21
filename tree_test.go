@@ -685,8 +685,9 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.CommitOnly()
-			txn.slowNotify()
+			//r = txn.CommitOnly()
+			//txn.slowNotify()
+			r = txn.Commit()
 		}
 		if hasAnyClosedMutateCh(r) {
 			// We don't merge child in Adaptive Radix Trees
@@ -828,8 +829,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.CommitOnly()
-			txn.slowNotify()
+			r = txn.Commit()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
@@ -886,8 +886,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.CommitOnly()
-			txn.slowNotify()
+			r = txn.Commit()
 		}
 		if hasAnyClosedMutateCh(r) {
 			//t.Fatalf("bad")
