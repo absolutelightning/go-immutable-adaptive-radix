@@ -140,6 +140,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 	if prefixKey == nil {
 		i.node = node
+		i.stack = []Node[T]{node}
 		return
 	}
 
