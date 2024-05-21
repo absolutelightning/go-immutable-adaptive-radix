@@ -122,7 +122,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// New value, we must split the leaf into a node4
 		newLeaf2 := t.makeLeaf(key, value)
 
-		nc := t.writeNode(node)
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
 		newNode := t.allocNode(node4)
@@ -130,7 +129,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
 		// Add the leafs to the new node4
-		newNode = t.addChild(newNode, nc.getKey()[depth+longestPrefix], nc)
+		newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
 		newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		return newNode, zero
 	}
