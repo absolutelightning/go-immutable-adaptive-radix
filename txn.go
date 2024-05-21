@@ -206,6 +206,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
+			t.trackChannel(node.getMutateCh())
 			return nil, node
 		}
 		return node, nil
@@ -229,6 +230,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// If the child is a leaf, delete from this node
 	if isLeaf[T](child) {
 		if leafMatches(child.getKey(), key) == 0 {
+			t.trackChannel(child.getMutateCh())
 			return t.removeChild(node.clone(), key[depth]), child
 		}
 		return node, nil
@@ -292,6 +294,7 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 	}
+	t.writable = nil
 	return nt
 }
 
@@ -463,13 +466,14 @@ func (t *Txn[T]) writeNode(ntype nodeType, mCh chan struct{}) Node[T] {
 	if _, ok := t.writable.Get(n); ok {
 		if t.trackMutate {
 			t.trackChannel(n.getMutateCh())
+			t.recursiveTrackLeaf(n)
 		}
 		return n
 	}
-
 	// Mark this node as being mutated.
 	if t.trackMutate {
 		t.trackChannel(n.getMutateCh())
+		t.recursiveTrackLeaf(n)
 	}
 
 	// Copy the existing node. If you have set forLeafUpdate it will be
@@ -481,6 +485,14 @@ func (t *Txn[T]) writeNode(ntype nodeType, mCh chan struct{}) Node[T] {
 	// Mark this node as writable.
 	t.writable.Add(nc, nil)
 	return nc
+}
+
+func (t *Txn[T]) recursiveTrackLeaf(n Node[T]) {
+	for _, ch := range n.getChildren() {
+		if ch != nil && ch.isLeaf() {
+			t.trackChannel(ch.getMutateCh())
+		}
+	}
 }
 
 // trackChannel safely attempts to track the given mutation channel, setting the

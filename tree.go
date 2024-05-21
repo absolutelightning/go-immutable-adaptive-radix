@@ -125,7 +125,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	n := t.root
 	watch := n.getMutateCh()
 	if t.root == nil {
-		return zero, false, nil
+		return zero, false, watch
 	}
 	var child Node[T]
 	depth := 0
@@ -145,7 +145,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
-				return zero, false, nil
+				return zero, false, watch
 			}
 			depth += int(n.getPartialLen())
 		}
