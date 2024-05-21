@@ -44,7 +44,7 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
 		snap: t.root,
-		tree: t,
+		tree: t.Clone(),
 	}
 	return txn
 }
@@ -128,9 +128,15 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
-		// Add the leafs to the new node4
-		newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
-		newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+		if len(node.getKey()) > depth+longestPrefix {
+			// Add the leafs to the new node4
+			newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+		}
+
+		if len(newLeaf2.getKey()) > depth+longestPrefix {
+			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+		}
+
 		return newNode, zero
 	}
 
@@ -188,15 +194,18 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
 		return newNode, zero
 	}
-	// Find a child to recurse to
-	child, idx := t.findChild(node, key[depth])
-	if child != nil {
-		newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
-		node.setChild(idx, newChild)
-		if t.trackMutate {
-			t.trackChannel(node.getMutateCh())
+
+	if depth < len(key) {
+		// Find a child to recurse to
+		child, idx := t.findChild(node, key[depth])
+		if child != nil {
+			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+			node.setChild(idx, newChild)
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+			}
+			return node, val
 		}
-		return node, val
 	}
 
 	// No child, node goes within us
@@ -204,7 +213,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if t.trackMutate {
 		t.trackChannel(node.getMutateCh())
 	}
-	return t.addChild(node, key[depth], newLeaf), zero
+	if depth < len(key) {
+		return t.addChild(node, key[depth], newLeaf), zero
+	}
+	return node, zero
 }
 
 func (t *Txn[T]) Delete(key []byte) (T, bool) {

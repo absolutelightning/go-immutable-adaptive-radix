@@ -105,7 +105,7 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber := 1
 	for scanner.Scan() {
-		art.Insert(scanner.Bytes(), lineNumber)
+		art, _, _ = art.Insert(scanner.Bytes(), lineNumber)
 		lineNumber += 1
 		lines = append(lines, scanner.Text())
 	}
