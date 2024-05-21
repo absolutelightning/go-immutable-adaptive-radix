@@ -89,7 +89,9 @@ func (n *Node4[T]) clone(keepWatch bool) Node[T] {
 		newNode.mutateCh = make(chan struct{})
 	}
 	copy(newNode.keys[:], n.keys[:])
-	copy(newNode.children[:], n.children[:])
+	for i := 0; i < int(n.numChildren); i++ {
+		newNode.children[i] = n.children[i].clone(keepWatch)
+	}
 	return newNode
 }
 
