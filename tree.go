@@ -42,7 +42,7 @@ func (t *RadixTree[T]) Len() int {
 
 // Clone is used to return the clone of tree
 func (t *RadixTree[T]) Clone() *RadixTree[T] {
-	return &RadixTree[T]{root: t.root.clone(), size: t.size}
+	return &RadixTree[T]{root: t.root.clone(true), size: t.size}
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {

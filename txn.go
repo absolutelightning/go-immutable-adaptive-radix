@@ -43,7 +43,7 @@ type Txn[T any] struct {
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
-		snap: t.root.clone(),
+		snap: t.root.clone(false),
 		tree: t.Clone(),
 	}
 	return txn
@@ -524,7 +524,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	// safe to replace this leaf with another after you get your node for
 	// writing. You MUST replace it, because the channel associated with
 	// this leaf will be closed when this transaction is committed.
-	nc := n.clone()
+	nc := n.clone(false)
 
 	// Mark this node as writable.
 	t.writable.Add(nc, nil)
