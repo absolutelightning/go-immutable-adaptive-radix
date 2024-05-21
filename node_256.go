@@ -83,13 +83,17 @@ func (n *Node256[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node256[T]) clone() Node[T] {
+func (n *Node256[T]) clone(keepWatch bool) Node[T] {
 	newNode := &Node256[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
 		partial:     n.getPartial(),
 	}
-	newNode.mutateCh = make(chan struct{})
+	if keepWatch {
+		newNode.mutateCh = n.getMutateCh()
+	} else {
+		newNode.mutateCh = make(chan struct{})
+	}
 	copy(newNode.children[:], n.children[:])
 	return newNode
 }
