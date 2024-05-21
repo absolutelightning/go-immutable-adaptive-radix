@@ -453,8 +453,6 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
 		if prefixLen < min(maxPrefixLen, len(getKey(key))) {
 			depth += prefixLen
-		} else {
-			return node, 0
 		}
 	}
 
