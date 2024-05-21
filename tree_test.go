@@ -105,7 +105,7 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber := 1
 	for scanner.Scan() {
-		art.Insert(scanner.Bytes(), lineNumber)
+		art, _, _ = art.Insert(scanner.Bytes(), lineNumber)
 		lineNumber += 1
 		lines = append(lines, scanner.Text())
 	}
@@ -685,8 +685,9 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.CommitOnly()
-			txn.slowNotify()
+			//r = txn.CommitOnly()
+			//txn.slowNotify()
+			r = txn.Commit()
 		}
 		if hasAnyClosedMutateCh(r) {
 			// We don't merge child in Adaptive Radix Trees
@@ -828,8 +829,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.CommitOnly()
-			txn.slowNotify()
+			r = txn.Commit()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
@@ -886,8 +886,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.CommitOnly()
-			txn.slowNotify()
+			r = txn.Commit()
 		}
 		if hasAnyClosedMutateCh(r) {
 			//t.Fatalf("bad")
