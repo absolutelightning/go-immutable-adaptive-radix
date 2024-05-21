@@ -149,7 +149,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			depth += int(node.getPartialLen())
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
-				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+				newChildChClone := t.writeNode(child)
+				newChild, val := t.recursiveInsert(newChildChClone, key, value, depth+1, old)
 				node.setChild(idx, newChild)
 				if t.trackMutate {
 					t.trackChannel(node.getMutateCh())

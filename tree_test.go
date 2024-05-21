@@ -1158,12 +1158,35 @@ func BenchmarkMixedOperations(b *testing.B) {
 			// Randomly choose an operation
 			switch rand.Intn(3) {
 			case 0:
-				art.Insert([]byte(key), j)
+				art, _, _ = art.Insert([]byte(key), j)
 			case 1:
 				art.Get([]byte(key))
 			case 2:
-				art.Delete([]byte(key))
+				art, _, _ = art.Delete([]byte(key))
 			}
+		}
+	}
+}
+
+func BenchmarkGroupedOperations(b *testing.B) {
+	dataset := generateDataset(datasetSize)
+	art := NewRadixTree[int]()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		// Insert all keys
+		for _, key := range dataset {
+			art, _, _ = art.Insert([]byte(key), 0)
+		}
+
+		// Search all keys
+		for _, key := range dataset {
+			art.Get([]byte(key))
+		}
+
+		// Delete all keys
+		for _, key := range dataset {
+			art, _, _ = art.Delete([]byte(key))
 		}
 	}
 }
@@ -1173,7 +1196,7 @@ func BenchmarkInsertART(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
-		r.Insert([]byte(uuid1), n)
+		r, _, _ = r.Insert([]byte(uuid1), n)
 	}
 }
 
@@ -1182,7 +1205,7 @@ func BenchmarkSearchART(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
-		r.Insert([]byte(uuid1), n)
+		r, _, _ = r.Insert([]byte(uuid1), n)
 		r.Get([]byte(uuid1))
 	}
 }
@@ -1192,7 +1215,7 @@ func BenchmarkDeleteART(b *testing.B) {
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
-		r.Insert([]byte(uuid1), n)
-		r.Delete([]byte(uuid1))
+		r, _, _ = r.Insert([]byte(uuid1), n)
+		r, _, _ = r.Delete([]byte(uuid1))
 	}
 }
