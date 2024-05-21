@@ -83,7 +83,7 @@ func (n *Node256[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node256[T]) clone(keepWatch bool) Node[T] {
+func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 	newNode := &Node256[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
@@ -94,7 +94,15 @@ func (n *Node256[T]) clone(keepWatch bool) Node[T] {
 	} else {
 		newNode.mutateCh = make(chan struct{})
 	}
-	copy(newNode.children[:], n.children[:])
+	if deep {
+		for i := 0; i < 256; i++ {
+			if n.children[i] != nil {
+				newNode.children[i] = n.children[i].clone(keepWatch, deep)
+			}
+		}
+	} else {
+		copy(newNode.children[:], n.children[:])
+	}
 	return newNode
 }
 

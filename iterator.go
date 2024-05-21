@@ -141,7 +141,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	if prefixKey == nil {
 		i.node = node
 		i.stack = []Node[T]{node}
-		return
+		return watch
 	}
 
 	for {
@@ -151,7 +151,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		watch = node.getMutateCh()
 
 		if node.isLeaf() {
-			return
+			return watch
 		}
 
 		// Determine the child index to proceed based on the next byte of the prefix
@@ -184,7 +184,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		node = child
 		depth++
 	}
-	return
+	return watch
 }
 
 func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
