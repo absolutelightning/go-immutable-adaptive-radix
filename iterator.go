@@ -229,11 +229,11 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 	}
 
 	findMin := func(n Node[T]) {
-		n = i.recurseMin(n)
 		if n != nil {
 			found(n)
 			return
 		}
+		n = i.recurseMin(n)
 	}
 
 	i.path = prefix
