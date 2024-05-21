@@ -43,7 +43,7 @@ type Txn[T any] struct {
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
-		snap: t.root,
+		snap: t.root.clone(),
 		tree: t.Clone(),
 	}
 	return txn
@@ -55,7 +55,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 
 	txn := &Txn[T]{
-		tree: t.tree,
+		tree: t.tree.Clone(),
 		snap: t.snap,
 		size: t.size,
 	}
