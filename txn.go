@@ -41,10 +41,11 @@ type Txn[T any] struct {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
+	treeClone := t.Clone()
 	txn := &Txn[T]{
 		size: t.size,
-		snap: t.root.clone(false),
-		tree: t.Clone(),
+		snap: treeClone.root,
+		tree: treeClone,
 	}
 	return txn
 }
@@ -56,7 +57,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 
 	txn := &Txn[T]{
 		tree: t.tree.Clone(),
-		snap: t.snap,
+		snap: t.snap.clone(false),
 		size: t.size,
 	}
 	return txn
