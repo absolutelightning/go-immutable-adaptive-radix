@@ -19,6 +19,11 @@ type Iterator[T any] struct {
 	lowerBound        bool
 	reverseLowerBound bool
 	seenMismatch      bool
+	iterPath          []byte
+}
+
+func (i *Iterator[T]) GetIterPath() []byte {
+	return i.iterPath
 }
 
 // Front returns the current node that has been iterated to.
@@ -34,6 +39,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
 	if len(i.stack) == 0 {
+		i.pos = nil
 		return nil, zero, false
 	}
 
@@ -54,7 +60,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			leafCh := currentNode.(*NodeLeaf[T])
 			if i.lowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
-					i.pos = leafCh
 					return getKey(leafCh.key), leafCh.value, true
 				}
 				continue
@@ -62,7 +67,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if len(i.Path()) >= 2 && !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
-			i.pos = leafCh
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
@@ -77,6 +81,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			i.iterPath = append(i.iterPath, n4.getPartial()[:n4.getPartialLen()]...)
 		case node16:
 			n16 := currentNode.(*Node16[T])
 			for itr := 15; itr >= 0; itr-- {
@@ -90,6 +95,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			i.iterPath = append(i.iterPath, n16.getPartial()[:n16.getPartialLen()]...)
 		case node48:
 			n48 := currentNode.(*Node48[T])
 			for itr := 0; itr < 256; itr++ {
@@ -107,6 +113,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			i.iterPath = append(i.iterPath, n48.getPartial()[:n48.getPartialLen()]...)
 		case node256:
 			n256 := currentNode.(*Node256[T])
 			for itr := 255; itr >= 0; itr-- {
@@ -120,6 +127,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			i.iterPath = append(i.iterPath, n256.getPartial()[:n256.getPartialLen()]...)
 		}
 	}
 	i.pos = nil
@@ -127,7 +135,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 }
 
 func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) {
-	// Start from the node node
+	// Start from the node
 	node := i.node
 	watch = node.getMutateCh()
 
@@ -142,6 +150,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		// Check if the node matches the prefix
 		i.stack = []Node[T]{node}
 		i.node = node
+		watch = node.getMutateCh()
 
 		if node.isLeaf() {
 			return
@@ -178,7 +187,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		watch = node.getMutateCh()
 		depth++
 	}
-	return watch
+	return
 }
 
 func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {

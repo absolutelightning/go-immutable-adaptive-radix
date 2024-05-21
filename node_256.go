@@ -89,6 +89,7 @@ func (n *Node256[T]) clone() Node[T] {
 		numChildren: n.getNumChildren(),
 		partial:     n.getPartial(),
 	}
+	newNode.mutateCh = make(chan struct{})
 	copy(newNode.children[:], n.children[:])
 	return newNode
 }
