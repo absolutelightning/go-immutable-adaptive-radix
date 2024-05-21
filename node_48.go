@@ -58,6 +58,7 @@ func (n *Node48[T]) Iterator() *Iterator[T] {
 	return &Iterator[T]{
 		stack: stack,
 		node:  nodeT,
+		pos:   n,
 	}
 }
 

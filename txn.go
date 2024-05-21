@@ -79,6 +79,9 @@ func (t *Txn[T]) Get(k []byte) (T, bool) {
 func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	var old int
 	newRoot, oldVal := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
+	if t.trackMutate {
+		t.trackChannel(t.tree.root.getMutateCh())
+	}
 	if old == 0 {
 		t.size++
 	}
@@ -97,6 +100,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+			}
 			return t.makeLeaf(key, value, node.getMutateCh()), zero
 		}
 	}
@@ -107,6 +113,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+			}
 			return t.makeLeaf(key, value, node.getMutateCh()), node.getValue()
 		}
 
@@ -135,6 +144,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 				node.setChild(idx, newChild)
+				if t.trackMutate {
+					t.trackChannel(child.getMutateCh())
+					t.trackChannel(node.getMutateCh())
+				}
 				return node, val
 			}
 
@@ -165,6 +178,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
 		}
+		if t.trackMutate {
+			t.trackChannel(node.getMutateCh())
+		}
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value, make(chan struct{}))
 		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
@@ -173,6 +189,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	// Find a child to recurse to
 	child, idx := t.findChild(node, key[depth])
 	if child != nil {
+		if t.trackMutate {
+			t.trackChannel(child.getMutateCh())
+			t.trackChannel(node.getMutateCh())
+		}
 		newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 		node.setChild(idx, newChild)
 		return node, val
@@ -180,12 +200,18 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value, make(chan struct{}))
+	if t.trackMutate {
+		t.trackChannel(node.getMutateCh())
+	}
 	return t.addChild(node, key[depth], newLeaf), zero
 }
 
 func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	var zero T
 	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
+	if t.trackMutate {
+		t.trackChannel(t.tree.root.getMutateCh())
+	}
 	if newRoot == nil {
 		newRoot = t.writeNode(leafType, make(chan struct{}))
 	}
@@ -206,7 +232,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
-			t.trackChannel(node.getMutateCh())
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+			}
 			return nil, node
 		}
 		return node, nil
@@ -230,7 +258,10 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// If the child is a leaf, delete from this node
 	if isLeaf[T](child) {
 		if leafMatches(child.getKey(), key) == 0 {
-			t.trackChannel(child.getMutateCh())
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+				t.trackChannel(child.getMutateCh())
+			}
 			return t.removeChild(node.clone(), key[depth]), child
 		}
 		return node, nil
@@ -240,6 +271,10 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	newChild, val := t.recursiveDelete(child.clone(), key, depth+1)
 	nodeClone := node.clone()
 	nodeClone.setChild(idx, newChild)
+	if t.trackMutate {
+		t.trackChannel(node.getMutateCh())
+		t.trackChannel(child.getMutateCh())
+	}
 	return nodeClone, val
 }
 
@@ -268,7 +303,14 @@ func (t *Txn[T]) Notify() {
 		t.slowNotify()
 	} else {
 		for ch := range t.trackChannels {
-			close(ch)
+			select {
+			case _, ok := <-ch:
+				if ok {
+					close(ch)
+				}
+			default:
+				close(ch)
+			}
 		}
 	}
 
@@ -324,7 +366,7 @@ func (t *Txn[T]) slowNotify() {
 
 		// Do one string compare so we can check the various conditions
 		// below without repeating the compare.
-		cmp := strings.Compare(snapIter.Path(), rootIter.Path())
+		cmp := strings.Compare(string(snapIter.GetIterPath()), rootIter.Path())
 
 		// If the snapshot is behind the node, then we must have deleted
 		// this node during the transaction.
@@ -523,7 +565,6 @@ func (t *Txn[T]) trackChannel(ch chan struct{}) {
 		t.trackChannels = make(map[chan struct{}]struct{})
 	}
 
-	// Otherwise we are good to track it.
 	t.trackChannels[ch] = struct{}{}
 }
 
