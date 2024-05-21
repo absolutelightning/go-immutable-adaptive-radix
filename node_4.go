@@ -90,6 +90,9 @@ func (n *Node4[T]) clone(keepWatch bool) Node[T] {
 	}
 	copy(newNode.keys[:], n.keys[:])
 	for i := 0; i < int(n.numChildren); i++ {
+		if n.children[i] == nil {
+			continue
+		}
 		newNode.children[i] = n.children[i].clone(keepWatch)
 	}
 	return newNode
