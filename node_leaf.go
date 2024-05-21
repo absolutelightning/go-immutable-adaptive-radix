@@ -114,13 +114,17 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) clone() Node[T] {
+func (n *NodeLeaf[T]) clone(keepWatch bool) Node[T] {
 	newNode := &NodeLeaf[T]{
 		keyLen: n.getKeyLen(),
 		key:    make([]byte, len(n.getKey())),
 		value:  n.getValue(),
 	}
-	newNode.mutateCh = make(chan struct{})
+	if keepWatch {
+		newNode.mutateCh = n.getMutateCh()
+	} else {
+		newNode.mutateCh = make(chan struct{})
+	}
 	copy(newNode.key[:], n.key[:])
 	nodeT := Node[T](newNode)
 	return nodeT

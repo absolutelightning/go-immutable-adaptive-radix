@@ -41,10 +41,11 @@ type Txn[T any] struct {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
+	treeClone := t.Clone()
 	txn := &Txn[T]{
 		size: t.size,
-		snap: t.root,
-		tree: t,
+		snap: treeClone.root,
+		tree: treeClone,
 	}
 	return txn
 }
@@ -55,8 +56,8 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 
 	txn := &Txn[T]{
-		tree: t.tree,
-		snap: t.snap,
+		tree: t.tree.Clone(),
+		snap: t.snap.clone(false),
 		size: t.size,
 	}
 	return txn
@@ -128,9 +129,15 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
-		// Add the leafs to the new node4
-		newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
-		newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+		if len(node.getKey()) > depth+longestPrefix {
+			// Add the leafs to the new node4
+			newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+		}
+
+		if len(newLeaf2.getKey()) > depth+longestPrefix {
+			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+		}
+
 		return newNode, zero
 	}
 
@@ -188,15 +195,18 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
 		return newNode, zero
 	}
-	// Find a child to recurse to
-	child, idx := t.findChild(node, key[depth])
-	if child != nil {
-		newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
-		node.setChild(idx, newChild)
-		if t.trackMutate {
-			t.trackChannel(node.getMutateCh())
+
+	if depth < len(key) {
+		// Find a child to recurse to
+		child, idx := t.findChild(node, key[depth])
+		if child != nil {
+			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+			node.setChild(idx, newChild)
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+			}
+			return node, val
 		}
-		return node, val
 	}
 
 	// No child, node goes within us
@@ -204,7 +214,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if t.trackMutate {
 		t.trackChannel(node.getMutateCh())
 	}
-	return t.addChild(node, key[depth], newLeaf), zero
+	if depth < len(key) {
+		return t.addChild(node, key[depth], newLeaf), zero
+	}
+	return node, zero
 }
 
 func (t *Txn[T]) Delete(key []byte) (T, bool) {
@@ -301,6 +314,9 @@ func (t *Txn[T]) Notify() {
 		//t.slowNotify()
 	} else {
 		for ch := range t.trackChannels {
+			if ch == nil {
+				continue
+			}
 			select {
 			case _, ok := <-ch:
 				if ok {
@@ -438,8 +454,6 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
 		if prefixLen < min(maxPrefixLen, len(getKey(key))) {
 			depth += prefixLen
-		} else {
-			return node, 0
 		}
 	}
 
@@ -511,7 +525,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	// safe to replace this leaf with another after you get your node for
 	// writing. You MUST replace it, because the channel associated with
 	// this leaf will be closed when this transaction is committed.
-	nc := n.clone()
+	nc := n.clone(false)
 
 	// Mark this node as writable.
 	t.writable.Add(nc, nil)

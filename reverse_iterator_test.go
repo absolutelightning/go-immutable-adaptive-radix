@@ -339,7 +339,7 @@ func TestReverseIterator_SeekPrefix(t *testing.T) {
 	r := NewRadixTree[any]()
 	keys := []string{"001", "002", "005", "010", "100"}
 	for _, k := range keys {
-		r.Insert([]byte(k), nil)
+		r, _, _ = r.Insert([]byte(k), nil)
 	}
 
 	cases := []struct {

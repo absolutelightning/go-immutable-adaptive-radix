@@ -31,14 +31,18 @@ type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
-	nodeLeaf := &NodeLeaf[T]{}
-	rt.root = nodeLeaf
+	rt.root = &NodeLeaf[T]{}
 	return rt
 }
 
 // Len is used to return the number of elements in the tree
 func (t *RadixTree[T]) Len() int {
 	return int(t.size)
+}
+
+// Clone is used to return the clone of tree
+func (t *RadixTree[T]) Clone() *RadixTree[T] {
+	return &RadixTree[T]{root: t.root.clone(true), size: t.size}
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {

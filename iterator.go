@@ -38,11 +38,6 @@ func (i *Iterator[T]) Path() string {
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
-	if len(i.stack) == 0 {
-		i.pos = nil
-		return nil, zero, false
-	}
-
 	// Iterate through the stack until it's empty
 	for len(i.stack) > 0 {
 		node := i.stack[0]
@@ -81,7 +76,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
-			i.iterPath = append(i.iterPath, n4.getPartial()[:n4.getPartialLen()]...)
 		case node16:
 			n16 := currentNode.(*Node16[T])
 			for itr := 15; itr >= 0; itr-- {
@@ -95,7 +89,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
-			i.iterPath = append(i.iterPath, n16.getPartial()[:n16.getPartialLen()]...)
 		case node48:
 			n48 := currentNode.(*Node48[T])
 			for itr := 0; itr < 256; itr++ {
@@ -113,7 +106,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
-			i.iterPath = append(i.iterPath, n48.getPartial()[:n48.getPartialLen()]...)
 		case node256:
 			n256 := currentNode.(*Node256[T])
 			for itr := 255; itr >= 0; itr-- {
@@ -127,7 +119,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
-			i.iterPath = append(i.iterPath, n256.getPartial()[:n256.getPartialLen()]...)
 		}
 	}
 	i.pos = nil
@@ -136,6 +127,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 
 func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) {
 	// Start from the node
+
 	node := i.node
 	watch = node.getMutateCh()
 
@@ -145,6 +137,12 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 	i.stack = nil
 	depth := 0
+
+	if prefixKey == nil {
+		i.node = node
+		i.stack = []Node[T]{node}
+		return
+	}
 
 	for {
 		// Check if the node matches the prefix
@@ -184,7 +182,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 		// Move to the next level in the tree
 		node = child
-		watch = node.getMutateCh()
 		depth++
 	}
 	return
@@ -232,11 +229,11 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 	}
 
 	findMin := func(n Node[T]) {
-		n = i.recurseMin(n)
 		if n != nil {
 			found(n)
 			return
 		}
+		n = i.recurseMin(n)
 	}
 
 	i.path = prefix
