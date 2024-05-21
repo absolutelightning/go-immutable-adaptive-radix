@@ -67,7 +67,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if len(i.Path()) >= 2 && !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
-			i.iterPath = append(i.iterPath, leafCh.getKey()...)
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])

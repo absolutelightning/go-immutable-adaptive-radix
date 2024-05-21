@@ -261,23 +261,19 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if isLeaf[T](child) {
 		if leafMatches(child.getKey(), key) == 0 {
 			if t.trackMutate {
-				t.trackChannel(node.getMutateCh())
 				t.trackChannel(child.getMutateCh())
 			}
-			return t.removeChild(node.clone(), key[depth]), child
+			newNode := t.removeChild(node, key[depth])
+			return t.writeNode(newNode), child
 		}
 		return node, nil
 	}
 
 	// Recurse
-	newChild, val := t.recursiveDelete(child.clone(), key, depth+1)
-	nodeClone := node.clone()
-	nodeClone.setChild(idx, newChild)
-	if t.trackMutate {
-		t.trackChannel(node.getMutateCh())
-		t.trackChannel(child.getMutateCh())
-	}
-	return nodeClone, val
+	newChild, val := t.recursiveDelete(child, key, depth+1)
+	nClone := t.writeNode(node)
+	nClone.setChild(idx, t.writeNode(newChild))
+	return nClone, val
 }
 
 func (t *Txn[T]) Root() Node[T] {
@@ -302,7 +298,8 @@ func (t *Txn[T]) Notify() {
 	// If we've overflowed the tracking state we can't use it in any way and
 	// need to do a full tree compare.
 	if t.trackOverflow {
-		t.slowNotify()
+		// TODO Discuss
+		//t.slowNotify()
 	} else {
 		for ch := range t.trackChannels {
 			select {
@@ -348,6 +345,8 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 func (t *Txn[T]) slowNotify() {
 	snapIter := t.snap.Iterator()
 	rootIter := t.Root().Iterator()
+	snapIter.Next()
+	rootIter.Next()
 	for snapIter.Front() != nil || rootIter.Front() != nil {
 		// If we've exhausted the nodes in the old snapshot, we know
 		// there's nothing remaining to notify.
@@ -361,14 +360,21 @@ func (t *Txn[T]) slowNotify() {
 		// know from the loop condition there's something in the old
 		// snapshot.
 		if rootIter.Front() == nil {
-			close(snapElem.getMutateCh())
+			select {
+			case _, ok := <-snapElem.getMutateCh():
+				if ok {
+					close(snapElem.getMutateCh())
+				}
+			default:
+				close(snapElem.getMutateCh())
+			}
 			snapIter.Next()
 			continue
 		}
 
 		// Do one string compare so we can check the various conditions
 		// below without repeating the compare.
-		cmp := strings.Compare(string(snapIter.GetIterPath()), rootIter.Path())
+		cmp := strings.Compare(string(getKey(snapIter.GetIterPath())), string(getKey(rootIter.GetIterPath())))
 
 		// If the snapshot is behind the node, then we must have deleted
 		// this node during the transaction.
