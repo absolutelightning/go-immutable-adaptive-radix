@@ -33,10 +33,9 @@ type Txn[T any] struct {
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
-		size:          t.size,
-		snap:          t.root,
-		tree:          t,
-		trackChannels: make(map[chan struct{}]struct{}),
+		size: t.size,
+		snap: t.root,
+		tree: t,
 	}
 	return txn
 }
@@ -435,7 +434,12 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	n.setMutateCh(make(chan struct{}))
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
-	t.trackChannels[n.getMutateCh()] = struct{}{}
+	if t.trackMutate && t.trackChannels == nil {
+		t.trackChannels = make(map[chan struct{}]struct{})
+	}
+	if t.trackMutate {
+		t.trackChannels[n.getMutateCh()] = struct{}{}
+	}
 	return n
 }
 

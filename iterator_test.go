@@ -40,12 +40,12 @@ func TestIterateLowerBoundFuzz(t *testing.T) {
 	// the same list as filtering all sorted keys that are lower.
 
 	radixAddAndScan := func(newKey, searchKey readableString) []string {
-		r.Insert([]byte(newKey), "")
+		r, _, _ = r.Insert([]byte(newKey), "")
 
 		t.Log("NewKey: ", newKey, "SearchKey: ", searchKey)
 
 		// Now iterate the tree from searchKey to the end
-		it := r.root.Iterator()
+		it := r.Root().Iterator()
 		var result []string
 		it.SeekLowerBound([]byte(searchKey))
 		for {

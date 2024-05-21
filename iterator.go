@@ -142,6 +142,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		// Check if the node matches the prefix
 		i.stack = []Node[T]{node}
 		i.node = node
+		watch = node.getMutateCh()
 
 		if node.isLeaf() {
 			return
@@ -178,7 +179,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		watch = node.getMutateCh()
 		depth++
 	}
-	return watch
+	return
 }
 
 func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {

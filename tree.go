@@ -212,3 +212,9 @@ func (t *RadixTree[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T
 func (t *RadixTree[T]) findChild(n Node[T], c byte) (Node[T], int) {
 	return findChild(n, c)
 }
+
+// Root returns the root node of the tree which can be used for richer
+// query operations.
+func (t *RadixTree[T]) Root() Node[T] {
+	return t.root
+}
