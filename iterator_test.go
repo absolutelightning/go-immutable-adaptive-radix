@@ -320,7 +320,7 @@ func TestIterateLowerBound(t *testing.T) {
 			// Insert keys
 			for _, k := range test.keys {
 				var ok bool
-				r.Insert([]byte(k), nil)
+				r, _, _ = r.Insert([]byte(k), nil)
 				if ok {
 					t.Fatalf("duplicate key %s in keys", k)
 				}

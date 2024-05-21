@@ -3,7 +3,10 @@
 
 package adaptive
 
-import "strings"
+import (
+	"bytes"
+	"strings"
+)
 
 const defaultModifiedCache = 8192
 
@@ -15,14 +18,25 @@ type Txn[T any] struct {
 	// snap is a snapshot of the node node for use if we have to run the
 	// slow notify algorithm.
 	snap Node[T]
+
+	// trackChannels is used to hold channels that need to be notified to
+	// signal mutation of the tree. This will only hold up to
+	// defaultModifiedCache number of entries, after which we will set the
+	// trackOverflow flag, which will cause us to use a more expensive
+	// algorithm to perform the notifications. Mutation tracking is only
+	// performed if trackMutate is true.
+	trackChannels map[chan struct{}]struct{}
+	trackOverflow bool
+	trackMutate   bool
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
-		size: t.size,
-		snap: t.root,
-		tree: t,
+		size:          t.size,
+		snap:          t.root,
+		tree:          t,
+		trackChannels: make(map[chan struct{}]struct{}),
 	}
 	return txn
 }
@@ -44,7 +58,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 // then notifications will be issued for affected internal nodes and leaves when
 // the transaction is committed.
 func (t *Txn[T]) TrackMutate(track bool) {
-	t.tree.trackMutate = track
+	t.trackMutate = track
 }
 
 // Get is used to look up a specific key, returning
@@ -54,16 +68,169 @@ func (t *Txn[T]) Get(k []byte) (T, bool) {
 	return res, found
 }
 
-func (t *Txn[T]) Insert(key []byte, value T) T {
-	oldVal := t.tree.Insert(key, value)
-	t.size = t.tree.size
-	return oldVal
+func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
+	var old int
+	newRoot, oldVal := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
+	if old == 0 {
+		t.size++
+	}
+	t.tree.root = newRoot
+	return oldVal, old == 1
 }
 
-func (t *Txn[T]) Delete(key []byte) T {
-	oldVal := t.tree.Delete(key)
-	t.size = t.tree.size
-	return oldVal
+func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T) {
+	var zero T
+
+	// If we are at a nil node, inject a leaf
+	if node == nil {
+		return t.makeLeaf(key, value), zero
+	}
+
+	if node.isLeaf() {
+		// This means node is nil
+		if node.getKeyLen() == 0 {
+			return t.makeLeaf(key, value), zero
+		}
+	}
+
+	// If we are at a leaf, we need to replace it with a node
+	if node.isLeaf() {
+		// Check if we are updating an existing value
+		nodeKey := node.getKey()
+		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
+			*old = 1
+			return t.makeLeaf(key, value), node.getValue()
+		}
+
+		// New value, we must split the leaf into a node4
+		newLeaf2 := t.makeLeaf(key, value)
+
+		// Determine longest prefix
+		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
+		newNode := t.allocNode(node4)
+		newNode.setPartialLen(uint32(longestPrefix))
+		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
+
+		// Add the leafs to the new node4
+		newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+		newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+		return newNode, zero
+	}
+
+	// Check if given node has a prefix
+	if node.getPartialLen() > 0 {
+		// Determine if the prefixes differ, since we need to split
+		prefixDiff := prefixMismatch[T](node, key, len(key), depth)
+		if prefixDiff >= int(node.getPartialLen()) {
+			depth += int(node.getPartialLen())
+			child, idx := t.findChild(node, key[depth])
+			if child != nil {
+				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+				node.setChild(idx, newChild)
+				return node, val
+			}
+
+			// No child, node goes within us
+			newLeaf := t.makeLeaf(key, value)
+			node = t.addChild(node, key[depth], newLeaf)
+			return node, zero
+		}
+
+		// Create a new node
+		newNode := t.allocNode(node4)
+		newNode.setPartialLen(uint32(prefixDiff))
+		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
+
+		// Adjust the prefix of the old node
+		if node.getPartialLen() <= maxPrefixLen {
+			newNode = t.addChild(newNode, node.getPartial()[prefixDiff], node)
+			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
+			length := min(maxPrefixLen, int(node.getPartialLen()))
+			copy(node.getPartial()[:], node.getPartial()[prefixDiff+1:+prefixDiff+1+length])
+		} else {
+			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
+			l := minimum[T](node)
+			if l == nil {
+				return node, zero
+			}
+			newNode = t.addChild(newNode, l.key[depth+prefixDiff], node)
+			length := min(maxPrefixLen, int(node.getPartialLen()))
+			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
+		}
+		// Insert the new leaf
+		newLeaf := t.makeLeaf(key, value)
+		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
+		return newNode, zero
+	}
+	// Find a child to recurse to
+	child, idx := t.findChild(node, key[depth])
+	if child != nil {
+		newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+		node.setChild(idx, newChild)
+		return node, val
+	}
+
+	// No child, node goes within us
+	newLeaf := t.makeLeaf(key, value)
+	return t.addChild(node, key[depth], newLeaf), zero
+}
+
+func (t *Txn[T]) Delete(key []byte) (T, bool) {
+	var zero T
+	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
+	if newRoot == nil {
+		newRoot = t.allocNode(leafType)
+	}
+	t.tree.root = newRoot
+	if l != nil {
+		t.size--
+		old := l.getValue()
+		return old, true
+	}
+	return zero, false
+}
+
+func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], Node[T]) {
+	// Get terminated
+	if node == nil {
+		return nil, nil
+	}
+	// Handle hitting a leaf node
+	if isLeaf[T](node) {
+		if leafMatches(node.getKey(), key) == 0 {
+			return nil, node
+		}
+		return node, nil
+	}
+
+	// Bail if the prefix does not match
+	if node.getPartialLen() > 0 {
+		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
+		if prefixLen != min(maxPrefixLen, int(node.getPartialLen())) {
+			return node, nil
+		}
+		depth += int(node.getPartialLen())
+	}
+
+	// Find child node
+	child, idx := t.findChild(node, key[depth])
+	if child == nil {
+		return nil, nil
+	}
+
+	// If the child is a leaf, delete from this node
+	if isLeaf[T](child) {
+		if leafMatches(child.getKey(), key) == 0 {
+			return t.removeChild(node.clone(), key[depth]), child
+		}
+		return node, nil
+	}
+
+	// Recurse
+	newChild, val := t.recursiveDelete(child.clone(), key, depth+1)
+	nodeClone := node.clone()
+	nodeClone.setChild(idx, newChild)
+	return nodeClone, val
 }
 
 func (t *Txn[T]) Root() Node[T] {
@@ -81,31 +248,31 @@ func (t *Txn[T]) GetWatch(k []byte) (<-chan struct{}, T, bool) {
 // only be done once a transaction is committed via CommitOnly, and it is called
 // automatically by Commit.
 func (t *Txn[T]) Notify() {
-	if !t.tree.trackMutate {
+	if !t.trackMutate {
 		return
 	}
 
 	// If we've overflowed the tracking state we can't use it in any way and
 	// need to do a full tree compare.
-	if t.tree.trackOverflow {
+	if t.trackOverflow {
 		t.slowNotify()
 	} else {
-		for ch := range t.tree.trackChannels {
+		for ch := range t.trackChannels {
 			close(ch)
 		}
 	}
 
 	// Clean up the tracking state so that a re-notify is safe (will trigger
 	// the else clause above which will be a no-op).
-	t.tree.trackChannels = nil
-	t.tree.trackOverflow = false
+	t.trackChannels = nil
+	t.trackOverflow = false
 }
 
 // Commit is used to finalize the transaction and return a new tree. If mutation
 // tracking is turned on then notifications will also be issued.
 func (t *Txn[T]) Commit() *RadixTree[T] {
 	nt := t.CommitOnly()
-	if t.tree.trackMutate {
+	if t.trackMutate {
 		t.Notify()
 	}
 	return nt
@@ -116,9 +283,7 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
-		t.tree.trackChannels,
-		t.tree.trackOverflow,
-		t.tree.trackMutate}
+	}
 	return nt
 }
 
@@ -183,11 +348,130 @@ func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
 // DeletePrefix is used to delete an entire subtree that matches the prefix
 // This will delete all nodes under that prefix
 func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
-	newRoot, ok := t.tree.DeletePrefix(prefix)
-	if ok {
+	key := getTreeKey(prefix)
+	newRoot, numDeletions := t.deletePrefix(t.tree.root, key, 0)
+	if numDeletions != 0 {
 		t.tree.root = newRoot
+		t.tree.size = t.tree.size - uint64(numDeletions)
 		t.size = t.tree.size
 		return true
 	}
 	return false
+}
+
+func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int) {
+	// Get terminated
+	if node == nil {
+		return nil, 0
+	}
+	// Handle hitting a leaf node
+	if isLeaf[T](node) {
+		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
+			return nil, 1
+		}
+		return node, 0
+	}
+
+	// Bail if the prefix does not match
+	if node.getPartialLen() > 0 {
+		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
+		if prefixLen < min(maxPrefixLen, len(getKey(key))) {
+			depth += prefixLen
+		} else {
+			return node, 0
+		}
+	}
+
+	numDel := 0
+
+	// Recurse on the children
+	var newChIndxMap = make(map[int]Node[T])
+	for idx, ch := range node.getChildren() {
+		if ch != nil {
+			newCh, del := t.deletePrefix(ch, key, depth+1)
+			newChIndxMap[idx] = newCh
+			numDel += del
+		}
+	}
+
+	for idx, ch := range newChIndxMap {
+		node.setChild(idx, ch)
+	}
+
+	return node, numDel
+}
+
+func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
+	// Allocate memory for the leaf node
+	l := t.allocNode(leafType)
+
+	if l == nil {
+		return nil
+	}
+
+	// Set the value and key length
+	l.setValue(value)
+	l.setKeyLen(uint32(len(key)))
+	l.setKey(key)
+	return l
+}
+
+func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
+	var n Node[T]
+	switch ntype {
+	case leafType:
+		n = &NodeLeaf[T]{}
+	case node4:
+		n = &Node4[T]{}
+	case node16:
+		n = &Node16[T]{}
+	case node48:
+		n = &Node48[T]{}
+	case node256:
+		n = &Node256[T]{}
+	default:
+		panic("Unknown node type")
+	}
+	n.setMutateCh(make(chan struct{}))
+	n.setPartial(make([]byte, maxPrefixLen))
+	n.setPartialLen(maxPrefixLen)
+	t.trackChannels[n.getMutateCh()] = struct{}{}
+	return n
+}
+
+// trackChannel safely attempts to track the given mutation channel, setting the
+// overflow flag if we can no longer track any more. This limits the amount of
+// state that will accumulate during a transaction and we have a slower algorithm
+// to switch to if we overflow.
+func (t *Txn[T]) trackChannel(ch chan struct{}) {
+	// In overflow, make sure we don't store any more objects.
+	if t.trackOverflow {
+		return
+	}
+
+	// If this would overflow the state we reject it and set the flag (since
+	// we aren't tracking everything that's required any longer).
+	if len(t.trackChannels) >= defaultModifiedCache {
+		// Mark that we are in the overflow state
+		t.trackOverflow = true
+
+		// Clear the map so that the channels can be garbage collected. It is
+		// safe to do this since we have already overflowed and will be using
+		// the slow notify algorithm.
+		t.trackChannels = nil
+		return
+	}
+
+	// Create the map on the fly when we need it.
+	if t.trackChannels == nil {
+		t.trackChannels = make(map[chan struct{}]struct{})
+	}
+
+	// Otherwise we are good to track it.
+	t.trackChannels[ch] = struct{}{}
+}
+
+// findChild finds the child node pointer based on the given character in the ART tree node.
+func (t *Txn[T]) findChild(n Node[T], c byte) (Node[T], int) {
+	return findChild(n, c)
 }

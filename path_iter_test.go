@@ -21,7 +21,7 @@ func TestPathIterator(t *testing.T) {
 		"zipzap",
 	}
 	for _, k := range keys {
-		_ = r.Insert([]byte(k), nil)
+		r, _, _ = r.Insert([]byte(k), nil)
 	}
 	if int(r.size) != len(keys) {
 		t.Fatalf("bad len: %v %v", r.size, len(keys))

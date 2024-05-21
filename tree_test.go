@@ -92,8 +92,8 @@ func TestARTree_InsertVeryLongKey(t *testing.T) {
 		44, 208, 250, 180, 14, 1, 0, 0, 8}
 
 	art := NewRadixTree[string]()
-	val1 := art.Insert(key1, string(key1))
-	val2 := art.Insert(key2, string(key2))
+	art, val1, _ := art.Insert(key1, string(key1))
+	art, val2, _ := art.Insert(key2, string(key2))
 	require.Equal(t, val1, "")
 	require.Equal(t, val2, "")
 
@@ -118,18 +118,19 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber := 1
 	for scanner.Scan() {
-		art.Insert(scanner.Bytes(), lineNumber)
+		art, _, _ = art.Insert(scanner.Bytes(), lineNumber)
 		lineNumber += 1
 		lines = append(lines, scanner.Text())
 	}
 
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber = 1
+	var val int
 	for _, line := range lines {
 		lineNumberFetched, f, _ := art.Get([]byte(line))
 		require.True(t, f)
 		require.Equal(t, lineNumberFetched, lineNumber)
-		val := art.Delete([]byte(line))
+		art, val, _ = art.Delete([]byte(line))
 		require.Equal(t, val, lineNumber)
 		lineNumber += 1
 		require.Equal(t, art.size, uint64(len(lines)-lineNumber+1))
@@ -148,7 +149,7 @@ func TestLongestPrefix(t *testing.T) {
 		"foozip",
 	}
 	for _, k := range keys {
-		r.Insert([]byte(k), nil)
+		r, _, _ = r.Insert([]byte(k), nil)
 	}
 	if int(r.size) != len(keys) {
 		t.Fatalf("bad len: %v %v", r.size, len(keys))
@@ -273,12 +274,12 @@ func TestDeletePrefix(t *testing.T) {
 		t.Run(testCase.desc, func(t *testing.T) {
 			r := NewRadixTree[bool]()
 			for _, ss := range testCase.treeNodes {
-				r.Insert([]byte(ss), true)
+				r, _, _ = r.Insert([]byte(ss), true)
 			}
 			if got, want := r.Len(), len(testCase.treeNodes); got != want {
 				t.Fatalf("Unexpected tree length after insert, got %d want %d ", got, want)
 			}
-			_, ok := r.DeletePrefix([]byte(testCase.prefix))
+			r, ok := r.DeletePrefix([]byte(testCase.prefix))
 			if !ok {
 				t.Fatalf("DeletePrefix should have returned true for tree %v, deleting prefix %v", testCase.treeNodes, testCase.prefix)
 			}
@@ -288,7 +289,7 @@ func TestDeletePrefix(t *testing.T) {
 
 			//verifyTree(t, testCase.expectedOut, r)
 			//Delete a non-existant node
-			_, ok = r.DeletePrefix([]byte("CCCCC"))
+			r, ok = r.DeletePrefix([]byte("CCCCC"))
 			if ok {
 				t.Fatalf("Expected DeletePrefix to return false ")
 			}
@@ -307,7 +308,7 @@ func TestIteratePrefix(t *testing.T) {
 		"zipzap",
 	}
 	for _, k := range keys {
-		r.Insert([]byte(k), nil)
+		r, _, _ = r.Insert([]byte(k), nil)
 	}
 	if r.Len() != len(keys) {
 		t.Fatalf("bad len: %v %v", r.Len(), len(keys))
