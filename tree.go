@@ -31,8 +31,7 @@ type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
-	nodeLeaf := &NodeLeaf[T]{}
-	rt.root = nodeLeaf
+	rt.root = &NodeLeaf[T]{}
 	return rt
 }
 

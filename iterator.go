@@ -38,9 +38,9 @@ func (i *Iterator[T]) Path() string {
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
-	if len(i.stack) == 0 {
-		i.pos = nil
-		return nil, zero, false
+	// Initialize our stack if needed.
+	if i.stack == nil && i.node != nil {
+		i.stack = []Node[T]{i.node}
 	}
 
 	// Iterate through the stack until it's empty
@@ -140,17 +140,17 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	node := i.node
 	watch = node.getMutateCh()
 
-	if len(prefixKey) == 0 {
-		i.node = node
-		return
-	}
-
 	prefix := getTreeKey(prefixKey)
 
 	i.path = prefix
 
 	i.stack = nil
 	depth := 0
+
+	if prefixKey == nil {
+		i.node = node
+		return
+	}
 
 	for {
 		// Check if the node matches the prefix
