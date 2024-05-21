@@ -100,6 +100,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+			}
 			return t.makeLeaf(key, value), zero
 		}
 	}
@@ -119,14 +122,15 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// New value, we must split the leaf into a node4
 		newLeaf2 := t.makeLeaf(key, value)
 
+		nc := t.writeNode(node)
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
-		newNode := t.writeNode(node4, make(chan struct{}))
+		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
 		// Add the leafs to the new node4
-		newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+		newNode = t.addChild(newNode, nc.getKey()[depth+longestPrefix], nc)
 		newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		return newNode, zero
 	}
@@ -141,17 +145,23 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 				node.setChild(idx, newChild)
+				if t.trackMutate {
+					t.trackChannel(node.getMutateCh())
+				}
 				return node, val
 			}
 
 			// No child, node goes within us
 			newLeaf := t.makeLeaf(key, value)
 			node = t.addChild(node, key[depth], newLeaf)
+			if t.trackMutate {
+				t.trackChannel(node.getMutateCh())
+			}
 			return node, zero
 		}
 
 		// Create a new node
-		newNode := t.writeNode(node4, make(chan struct{}))
+		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 
@@ -171,6 +181,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
 		}
+		if t.trackMutate {
+			t.trackChannel(node.getMutateCh())
+		}
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value)
 		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
@@ -181,11 +194,17 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if child != nil {
 		newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 		node.setChild(idx, newChild)
+		if t.trackMutate {
+			t.trackChannel(node.getMutateCh())
+		}
 		return node, val
 	}
 
 	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value)
+	if t.trackMutate {
+		t.trackChannel(node.getMutateCh())
+	}
 	return t.addChild(node, key[depth], newLeaf), zero
 }
 
@@ -196,7 +215,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 		t.trackChannel(t.tree.root.getMutateCh())
 	}
 	if newRoot == nil {
-		newRoot = t.writeNode(leafType, make(chan struct{}))
+		newRoot = t.allocNode(leafType)
 	}
 	t.tree.root = newRoot
 	if l != nil {
@@ -286,7 +305,14 @@ func (t *Txn[T]) Notify() {
 		t.slowNotify()
 	} else {
 		for ch := range t.trackChannels {
-			close(ch)
+			select {
+			case _, ok := <-ch:
+				if ok {
+					close(ch)
+				}
+			default:
+				close(ch)
+			}
 		}
 	}
 
@@ -435,7 +461,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 
 func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	// Allocate memory for the leaf node
-	l := t.writeNode(leafType, make(chan struct{}))
+	l := t.allocNode(leafType)
 
 	if l == nil {
 		return nil
@@ -448,7 +474,42 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	return l
 }
 
-func (t *Txn[T]) writeNode(ntype nodeType, mCh chan struct{}) Node[T] {
+func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
+	if t.writable == nil {
+		lru, err := simplelru.NewLRU[Node[T], any](defaultModifiedCache, nil)
+		if err != nil {
+			panic(err)
+		}
+		t.writable = lru
+	}
+	// If this node has already been modified, we can continue to use it
+	// during this transaction. We know that we don't need to track it for
+	// a node update since the node is writable, but if this is for a leaf
+	// update we track it, in case the initial write to this node didn't
+	// update the leaf.
+	if _, ok := t.writable.Get(n); ok {
+		if t.trackMutate {
+			t.trackChannel(n.getMutateCh())
+		}
+		return n
+	}
+	// Mark this node as being mutated.
+	if t.trackMutate {
+		t.trackChannel(n.getMutateCh())
+	}
+
+	// Copy the existing node. If you have set forLeafUpdate it will be
+	// safe to replace this leaf with another after you get your node for
+	// writing. You MUST replace it, because the channel associated with
+	// this leaf will be closed when this transaction is committed.
+	nc := n.clone()
+
+	// Mark this node as writable.
+	t.writable.Add(nc, nil)
+	return nc
+}
+
+func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	var n Node[T]
 	switch ntype {
 	case leafType:
@@ -464,53 +525,10 @@ func (t *Txn[T]) writeNode(ntype nodeType, mCh chan struct{}) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
-	n.setMutateCh(mCh)
+	n.setMutateCh(make(chan struct{}))
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
-
-	if t.writable == nil {
-		lru, err := simplelru.NewLRU[Node[T], any](defaultModifiedCache, nil)
-		if err != nil {
-			panic(err)
-		}
-		t.writable = lru
-	}
-
-	// If this node has already been modified, we can continue to use it
-	// during this transaction. We know that we don't need to track it for
-	// a node update since the node is writable, but if this is for a leaf
-	// update we track it, in case the initial write to this node didn't
-	// update the leaf.
-	if _, ok := t.writable.Get(n); ok {
-		if t.trackMutate {
-			t.trackChannel(n.getMutateCh())
-			t.recursiveTrackLeaf(n)
-		}
-		return n
-	}
-	// Mark this node as being mutated.
-	if t.trackMutate {
-		t.trackChannel(n.getMutateCh())
-		t.recursiveTrackLeaf(n)
-	}
-
-	// Copy the existing node. If you have set forLeafUpdate it will be
-	// safe to replace this leaf with another after you get your node for
-	// writing. You MUST replace it, because the channel associated with
-	// this leaf will be closed when this transaction is committed.
-	nc := n.clone()
-
-	// Mark this node as writable.
-	t.writable.Add(nc, nil)
-	return nc
-}
-
-func (t *Txn[T]) recursiveTrackLeaf(n Node[T]) {
-	for _, ch := range n.getChildren() {
-		if ch != nil && ch.isLeaf() {
-			t.trackChannel(ch.getMutateCh())
-		}
-	}
+	return n
 }
 
 // trackChannel safely attempts to track the given mutation channel, setting the
