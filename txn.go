@@ -301,6 +301,9 @@ func (t *Txn[T]) Notify() {
 		//t.slowNotify()
 	} else {
 		for ch := range t.trackChannels {
+			if ch == nil {
+				continue
+			}
 			select {
 			case _, ok := <-ch:
 				if ok {
