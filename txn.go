@@ -122,7 +122,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// New value, we must split the leaf into a node4
 		newLeaf2 := t.makeLeaf(key, value)
 
-		nc := t.writeNode(node)
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
 		newNode := t.allocNode(node4)
@@ -130,7 +129,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
 		// Add the leafs to the new node4
-		newNode = t.addChild(newNode, nc.getKey()[depth+longestPrefix], nc)
+		newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
 		newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		return newNode, zero
 	}
@@ -272,7 +271,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 	nClone := t.writeNode(node)
-	nClone.setChild(idx, t.writeNode(newChild))
+	nClone.setChild(idx, newChild)
 	return nClone, val
 }
 
@@ -481,6 +480,10 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 }
 
 func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
+	if n == nil {
+		return n
+	}
+
 	if t.writable == nil {
 		lru, err := simplelru.NewLRU[Node[T], any](defaultModifiedCache, nil)
 		if err != nil {
