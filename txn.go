@@ -41,7 +41,7 @@ type Txn[T any] struct {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
-	treeClone := t.Clone()
+	treeClone := t.Clone(false)
 	txn := &Txn[T]{
 		size: t.size,
 		snap: treeClone.root,
@@ -56,8 +56,8 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 
 	txn := &Txn[T]{
-		tree: t.tree.Clone(),
-		snap: t.snap.clone(false),
+		tree: t.tree.Clone(false),
+		snap: t.snap.clone(false, false),
 		size: t.size,
 	}
 	return txn
@@ -527,7 +527,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	// safe to replace this leaf with another after you get your node for
 	// writing. You MUST replace it, because the channel associated with
 	// this leaf will be closed when this transaction is committed.
-	nc := n.clone(false)
+	nc := n.clone(false, false)
 
 	// Mark this node as writable.
 	t.writable.Add(nc, nil)

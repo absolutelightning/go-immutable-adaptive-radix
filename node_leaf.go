@@ -114,7 +114,7 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) clone(keepWatch bool) Node[T] {
+func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &NodeLeaf[T]{
 		keyLen: n.getKeyLen(),
 		key:    make([]byte, len(n.getKey())),
