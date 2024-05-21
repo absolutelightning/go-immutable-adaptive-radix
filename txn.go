@@ -272,7 +272,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 	nClone := t.writeNode(node)
-	nClone.setChild(idx, t.writeNode(newChild))
+	nClone.setChild(idx, newChild)
 	return nClone, val
 }
 
@@ -481,6 +481,10 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 }
 
 func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
+	if n == nil {
+		return n
+	}
+
 	if t.writable == nil {
 		lru, err := simplelru.NewLRU[Node[T], any](defaultModifiedCache, nil)
 		if err != nil {
