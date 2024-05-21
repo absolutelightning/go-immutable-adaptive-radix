@@ -21,10 +21,10 @@ func TestReverseIterator_SeekReverseLowerBoundFuzz(t *testing.T) {
 	// produces the same list as filtering all sorted keys that are bigger.
 
 	radixAddAndScan := func(newKey, searchKey readableString) []string {
-		r.Insert([]byte(newKey), nil)
+		r, _, _ = r.Insert([]byte(newKey), nil)
 
 		// Now iterate the tree from searchKey to the beginning
-		it := r.root.ReverseIterator()
+		it := r.Root().ReverseIterator()
 		var result []string
 		it.SeekReverseLowerBound([]byte(searchKey))
 		for {
@@ -305,7 +305,7 @@ func TestReverseIterator_SeekLowerBound(t *testing.T) {
 			// Insert keys
 			for _, k := range test.keys {
 				var ok bool
-				r.Insert([]byte(k), nil)
+				r, _, _ = r.Insert([]byte(k), nil)
 				if ok {
 					t.Fatalf("duplicate key %s in keys", k)
 				}
@@ -361,7 +361,7 @@ func TestReverseIterator_SeekPrefix(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			it := r.root.ReverseIterator()
+			it := r.Root().ReverseIterator()
 			it.SeekPrefix([]byte(c.prefix))
 
 			if c.expectResult && it.i.node == nil {
@@ -382,10 +382,10 @@ func TestReverseIterator_SeekPrefixWatch(t *testing.T) {
 
 	// Create tree
 	r := NewRadixTree[any]()
-	r.Insert(key, nil)
+	r, _, _ = r.Insert(key, nil)
 
 	// Find mutate channel
-	it := r.root.ReverseIterator()
+	it := r.Root().ReverseIterator()
 	ch := it.SeekPrefixWatch(key)
 
 	// Change prefix
@@ -406,10 +406,10 @@ func TestReverseIterator_Previous(t *testing.T) {
 	r := NewRadixTree[any]()
 	keys := []string{"001", "002", "005", "010", "100"}
 	for _, k := range keys {
-		r.Insert([]byte(k), nil)
+		r, _, _ = r.Insert([]byte(k), nil)
 	}
 
-	it := r.root.ReverseIterator()
+	it := r.Root().ReverseIterator()
 
 	for i := len(keys) - 1; i >= 0; i-- {
 		got, _, _ := it.Previous()

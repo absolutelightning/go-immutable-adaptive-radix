@@ -28,44 +28,6 @@ func leafMatches(nodeKey []byte, key []byte) int {
 	return bytes.Compare(nodeKey, key)
 }
 
-func (t *RadixTree[T]) makeLeaf(key []byte, value T) Node[T] {
-	// Allocate memory for the leaf node
-	l := t.allocNode(leafType)
-
-	if l == nil {
-		return nil
-	}
-
-	// Set the value and key length
-	l.setValue(value)
-	l.setKeyLen(uint32(len(key)))
-	l.setKey(key)
-	return l
-}
-
-func (t *RadixTree[T]) allocNode(ntype nodeType) Node[T] {
-	var n Node[T]
-	switch ntype {
-	case leafType:
-		n = &NodeLeaf[T]{}
-	case node4:
-		n = &Node4[T]{}
-	case node16:
-		n = &Node16[T]{}
-	case node48:
-		n = &Node48[T]{}
-	case node256:
-		n = &Node256[T]{}
-	default:
-		panic("Unknown node type")
-	}
-	n.setMutateCh(make(chan struct{}))
-	n.setPartial(make([]byte, maxPrefixLen))
-	n.setPartialLen(maxPrefixLen)
-	t.trachChns[n.getMutateCh()] = struct{}{}
-	return n
-}
-
 // longestCommonPrefix finds the length of the longest common prefix between two leaf nodes.
 func longestCommonPrefix[T any](l1, l2 Node[T], depth int) int {
 	maxCmp := len(l2.getKey()) - depth
@@ -82,7 +44,7 @@ func longestCommonPrefix[T any](l1, l2 Node[T], depth int) int {
 }
 
 // addChild adds a child node to the parent node.
-func (t *RadixTree[T]) addChild(n Node[T], c byte, child Node[T]) Node[T] {
+func (t *Txn[T]) addChild(n Node[T], c byte, child Node[T]) Node[T] {
 	switch n.getArtNodeType() {
 	case node4:
 		return t.addChild4(n, c, child)
@@ -98,7 +60,7 @@ func (t *RadixTree[T]) addChild(n Node[T], c byte, child Node[T]) Node[T] {
 }
 
 // addChild4 adds a child node to a node4.
-func (t *RadixTree[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
+func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 	if n.getNumChildren() < 4 {
 		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
 			return n.getKeyAtIdx(i) > c
@@ -124,7 +86,7 @@ func (t *RadixTree[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 }
 
 // addChild16 adds a child node to a node16.
-func (t *RadixTree[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
+func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 	if n.getNumChildren() < 16 {
 		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
 			return n.getKeyAtIdx(i) > c
@@ -152,7 +114,7 @@ func (t *RadixTree[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 }
 
 // addChild48 adds a child node to a node48.
-func (t *RadixTree[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
+func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 	if n.getNumChildren() < 48 {
 		pos := 0
 		for n.getChild(pos) != nil {
@@ -175,14 +137,14 @@ func (t *RadixTree[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 }
 
 // addChild256 adds a child node to a node256.
-func (t *RadixTree[T]) addChild256(n Node[T], c byte, child Node[T]) Node[T] {
+func (t *Txn[T]) addChild256(n Node[T], c byte, child Node[T]) Node[T] {
 	n.setNumChildren(n.getNumChildren() + 1)
 	n.setChild(int(c), child)
 	return n
 }
 
 // copyHeader copies header information from src to dest node.
-func (t *RadixTree[T]) copyHeader(dest, src Node[T]) {
+func (t *Txn[T]) copyHeader(dest, src Node[T]) {
 	dest.setNumChildren(src.getNumChildren())
 	dest.setPartialLen(src.getPartialLen())
 	length := min(maxPrefixLen, int(src.getPartialLen()))
@@ -308,10 +270,6 @@ func isLeaf[T any](node Node[T]) bool {
 	return node.isLeaf()
 }
 
-// findChild finds the child node pointer based on the given character in the ART tree node.
-func (t *RadixTree[T]) findChild(n Node[T], c byte) (Node[T], int) {
-	return findChild(n, c)
-}
 func findChild[T any](n Node[T], c byte) (Node[T], int) {
 	switch n.getArtNodeType() {
 	case node4:
@@ -360,7 +318,7 @@ func getKey(key []byte) []byte {
 	return key[1 : len(key)-1]
 }
 
-func (t *RadixTree[T]) removeChild(n Node[T], c byte) Node[T] {
+func (t *Txn[T]) removeChild(n Node[T], c byte) Node[T] {
 	switch n.getArtNodeType() {
 	case node4:
 		return t.removeChild4(n.(*Node4[T]), c)
@@ -375,7 +333,7 @@ func (t *RadixTree[T]) removeChild(n Node[T], c byte) Node[T] {
 	}
 }
 
-func (t *RadixTree[T]) removeChild4(n *Node4[T], c byte) Node[T] {
+func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 	pos := sort.Search(int(n.numChildren), func(i int) bool {
 		return n.keys[i] >= c
 	})
@@ -412,7 +370,7 @@ func (t *RadixTree[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 	return n
 }
 
-func (t *RadixTree[T]) removeChild16(n *Node16[T], c byte) Node[T] {
+func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 	pos := sort.Search(int(n.numChildren), func(i int) bool {
 		return n.keys[i] >= c
 	})
@@ -432,7 +390,7 @@ func (t *RadixTree[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 	return n
 }
 
-func (t *RadixTree[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
+func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 	pos := n.keys[c]
 	n.keys[c] = 0
 	n.children[pos-1] = nil
@@ -455,7 +413,7 @@ func (t *RadixTree[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 	return n
 }
 
-func (t *RadixTree[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
+func (t *Txn[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
 	n.children[c] = nil
 	n.numChildren--
 

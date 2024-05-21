@@ -120,6 +120,7 @@ func (n *NodeLeaf[T]) clone() Node[T] {
 		key:    make([]byte, len(n.getKey())),
 		value:  n.getValue(),
 	}
+	newNode.mutateCh = make(chan struct{})
 	copy(newNode.key[:], n.key[:])
 	nodeT := Node[T](newNode)
 	return nodeT

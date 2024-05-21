@@ -93,6 +93,7 @@ func (n *Node48[T]) clone() Node[T] {
 		numChildren: n.getNumChildren(),
 		partial:     n.getPartial(),
 	}
+	newNode.mutateCh = make(chan struct{})
 	copy(newNode.keys[:], n.keys[:])
 	copy(newNode.children[:], n.children[:])
 	return newNode
