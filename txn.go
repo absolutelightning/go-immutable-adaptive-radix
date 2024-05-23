@@ -17,7 +17,7 @@ type Txn[T any] struct {
 
 	// snap is a snapshot of the node node for use if we have to run the
 	// slow notify algorithm.
-	snap *RadixTree[T]
+	snap Node[T]
 
 	// trackChannels is used to hold channels that need to be notified to
 	// signal mutation of the tree. This will only hold up to
@@ -39,10 +39,11 @@ type Txn[T any] struct {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
+	treeClone := t.Clone(false)
 	txn := &Txn[T]{
 		size: t.size,
-		snap: t.Clone(false),
-		tree: t,
+		snap: treeClone.root,
+		tree: treeClone,
 	}
 	return txn
 }
@@ -54,7 +55,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 
 	txn := &Txn[T]{
 		tree: t.tree.Clone(false),
-		snap: t.snap.Clone(false),
+		snap: t.snap.clone(false, false),
 		size: t.size,
 	}
 	return txn
@@ -347,7 +348,7 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	for id := range t.trackIds {
-		if _, ok := t.snap.idg.chanMap[id]; ok {
+		if _, ok := t.tree.idg.chanMap[id]; ok {
 			close(t.tree.idg.chanMap[id])
 			delete(t.tree.idg.chanMap, id)
 		}

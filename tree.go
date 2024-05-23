@@ -38,6 +38,10 @@ func (gen *IDGenerator) GenerateID() (uint64, chan struct{}) {
 	return id, ch
 }
 
+func (gen *IDGenerator) GetChan(id uint64) chan struct{} {
+	return gen.chanMap[id]
+}
+
 type RadixTree[T any] struct {
 	root Node[T]
 	size uint64
