@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/golang-lru/v2/simplelru"
 )
@@ -552,6 +553,7 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
+	n.setMutex(&sync.RWMutex{})
 	n.setMutateCh(make(chan struct{}))
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)

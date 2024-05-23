@@ -3,6 +3,8 @@
 
 package adaptive
 
+import "sync"
+
 type Node[T any] interface {
 	getPartialLen() uint32
 	setPartialLen(uint32)
@@ -15,6 +17,7 @@ type Node[T any] interface {
 	matchPrefix([]byte) bool
 	getChild(int) Node[T]
 	setChild(int, Node[T])
+	setMutex(*sync.RWMutex)
 	clone(bool, bool) Node[T]
 	getKey() []byte
 	getValue() T
