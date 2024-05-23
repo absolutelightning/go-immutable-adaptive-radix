@@ -178,7 +178,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newNode = t.addChild(newNode, node.getPartial()[prefixDiff], node)
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
 			length := min(maxPrefixLen, int(node.getPartialLen()))
-			copy(node.getPartial()[:], node.getPartial()[prefixDiff+1:+prefixDiff+1+length])
+			node.setPartial(node.getPartial()[prefixDiff+1 : prefixDiff+1+length])
 		} else {
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
 			l := minimum[T](node)
@@ -187,7 +187,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 			newNode = t.addChild(newNode, l.key[depth+prefixDiff], node)
 			length := min(maxPrefixLen, int(node.getPartialLen()))
-			copy(node.getPartial()[:], l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
+			node.setPartial(l.key[depth+prefixDiff+1 : depth+prefixDiff+1+length])
 		}
 		if t.trackMutate {
 			t.trackChannel(node.getMutateCh())
