@@ -20,10 +20,14 @@ type Node48[T any] struct {
 }
 
 func (n *Node48[T]) getPartialLen() uint32 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.partialLen
 }
 
 func (n *Node48[T]) setPartialLen(partialLen uint32) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.partialLen = partialLen
 }
 
@@ -40,6 +44,8 @@ func (n *Node48[T]) setNumChildren(numChildren uint8) {
 }
 
 func (n *Node48[T]) getPartial() []byte {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.partial
 }
 
@@ -48,6 +54,8 @@ func (n *Node48[T]) setMutex(mu *sync.RWMutex) {
 }
 
 func (n *Node48[T]) setPartial(partial []byte) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.partial = partial
 }
 
