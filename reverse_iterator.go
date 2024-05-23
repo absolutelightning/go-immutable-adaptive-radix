@@ -42,6 +42,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 	// node should both be nil to prevent the iterator from assuming it is just
 	// iterating the whole tree from the root node. Either way this needs to end
 	// up as nil so just set it here.
+	ri.i.seenMismatch = false
 	ri.i.stack = make([]Node[T], 0)
 	ri.i.reverseLowerBound = true
 	n := ri.i.node
@@ -93,7 +94,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			return
 		}
 
-		if prefixCmp > 0 {
+		if prefixCmp > 0 && !ri.i.seenMismatch {
 			// Prefix is larger than search prefix, or there is no prefix but we've
 			// also exhausted the search key. Either way, that means there is no
 			// reverse lower bound since nothing comes before our current search
@@ -131,7 +132,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 		if n.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix
 			mismatchIdx := prefixMismatch[T](n, prefix, len(prefix), depth)
-			if mismatchIdx < int(n.getPartialLen()) {
+			if mismatchIdx < int(n.getPartialLen()) && !ri.i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
 				n = nil
 				break

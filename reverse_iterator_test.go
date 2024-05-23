@@ -296,6 +296,11 @@ func TestReverseIterator_SeekLowerBound(t *testing.T) {
 			"gga",
 			[]string{"gada", "gab", "fgg", "fgcggg", "fgcdef", "fccbfc", "fbefb", "facccdc", "egd", "egba", "efacgg", "edbaa", "ecccfd", "eaaddb", "e", "defccd", "decb", "de", "ddebeeg", "d", "cf", "ceegb", "cdd", "ccbeec", "cbddbf", "cafae", "c", "bg", "bfgccg", "bffeea", "bcgefa", "bcdg", "bcccea", "b", "ag", "acbb", "abcggbg", "ab", "aaafbb", "a", ""},
 		},
+		{
+			[]string{"aagcfgc", "acbcdca", "aceeaca", "ad", "aefab", "afdcec", "b", "badcf", "bbag", "bccdegd", "cafg", "cbb", "ccaagef", "daae", "dabdbb", "dbbgb", "dbcaca", "fbeaab", "ffeec", "fg", "ga", "gbc", "gdcg", "gec", "gecga", "gfa", "gfad"},
+			"gg",
+			[]string{"gfad", "gfa", "gecga", "gec", "gdcg", "gbc", "ga", "fg", "ffeec", "fbeaab", "dbcaca", "dbbgb", "dabdbb", "daae", "ccaagef", "cbb", "cafg", "bccdegd", "bbag", "badcf", "b", "afdcec", "aefab", "ad", "aceeaca", "acbcdca", "aagcfgc"},
+		},
 	}
 
 	for idx, test := range cases {
