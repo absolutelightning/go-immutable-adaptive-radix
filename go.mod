@@ -1,4 +1,4 @@
-module github.com/absolutelightning/go-immutable-adaptive-radix
+module github.com/hashicorp/go-immutable-adaptive-radix
 
 go 1.21
 
