@@ -6,28 +6,31 @@ package adaptive
 import (
 	"bytes"
 	"sort"
-	"sync"
 )
 
 type Node16[T any] struct {
+	id          uint64
 	partialLen  uint32
 	numChildren uint8
 	partial     []byte
 	keys        [16]byte
 	children    [16]Node[T]
 	mutateCh    chan struct{}
-	mu          *sync.RWMutex
+}
+
+func (n *Node16[T]) getId() uint64 {
+	return n.id
+}
+
+func (n *Node16[T]) setId(id uint64) {
+	n.id = id
 }
 
 func (n *Node16[T]) getPartialLen() uint32 {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.partialLen
 }
 
 func (n *Node16[T]) setPartialLen(partialLen uint32) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.partialLen = partialLen
 }
 
@@ -44,14 +47,10 @@ func (n *Node16[T]) setNumChildren(numChildren uint8) {
 }
 
 func (n *Node16[T]) getPartial() []byte {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.partial
 }
 
 func (n *Node16[T]) setPartial(partial []byte) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.partial = partial
 }
 
@@ -85,8 +84,6 @@ func (n *Node16[T]) matchPrefix(prefix []byte) bool {
 }
 
 func (n *Node16[T]) getChild(index int) Node[T] {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.children[index]
 }
 
@@ -94,9 +91,10 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
-		partial:     n.getPartial(),
-		mu:          n.mu,
 	}
+	newPartial := make([]byte, maxPrefixLen)
+	copy(newPartial, n.partial)
+	newNode.setPartial(newPartial)
 	if keepWatch {
 		newNode.mutateCh = n.getMutateCh()
 	} else {
@@ -125,8 +123,6 @@ func (n *Node16[T]) setKeyLen(keyLen uint32) {
 }
 
 func (n *Node16[T]) setChild(index int, child Node[T]) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.children[index] = child
 }
 func (n *Node16[T]) getKey() []byte {
@@ -162,10 +158,6 @@ func (n *Node16[T]) getMutateCh() chan struct{} {
 
 func (n *Node16[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh = ch
-}
-
-func (n *Node16[T]) setMutex(mu *sync.RWMutex) {
-	n.mu = mu
 }
 
 func (n *Node16[T]) setValue(T) {

@@ -352,7 +352,7 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {
-				n.partial[prefix] = n.keys[0]
+				n.getPartial()[prefix] = n.keys[0]
 				prefix++
 			}
 			if prefix < maxPrefixLen {

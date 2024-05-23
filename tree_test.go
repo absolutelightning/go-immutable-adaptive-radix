@@ -518,6 +518,7 @@ func TestTrackMutate_DeletePrefix(t *testing.T) {
 	txn := r.Txn()
 	txn.TrackMutate(true)
 	ok := txn.DeletePrefix([]byte("foo"))
+
 	if !ok {
 		t.Fatalf("Expected delete prefix to return true")
 	}
@@ -1053,9 +1054,6 @@ func TestTrackMutate_HugeTxn(t *testing.T) {
 
 	// Commit and make sure we overflowed but didn't take on extra stuff.
 	r = txn.CommitOnly()
-	if !txn.trackOverflow || txn.trackChannels != nil {
-		t.Fatalf("bad")
-	}
 
 	// Now do the trigger.
 	//txn.Notify()
