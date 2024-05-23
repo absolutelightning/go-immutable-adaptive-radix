@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"sync"
 )
 
 type NodeLeaf[T any] struct {
@@ -108,6 +109,9 @@ func (n *NodeLeaf[T]) matchPrefix(prefix []byte) bool {
 	actualKey := getKey(n.key)
 	actualPrefix := getKey(prefix)
 	return bytes.HasPrefix(actualKey, actualPrefix)
+}
+
+func (n *NodeLeaf[T]) setMutex(mu *sync.RWMutex) {
 }
 
 func (n *NodeLeaf[T]) getChild(index int) Node[T] {
