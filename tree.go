@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"sync/atomic"
 )
 
 const maxPrefixLen = 10
@@ -19,9 +20,28 @@ const (
 
 type nodeType int
 
+type IDGenerator struct {
+	counter uint64
+	chanMap map[uint64]chan struct{}
+}
+
+// NewIDGenerator initializes a new IDGenerator
+func NewIDGenerator() *IDGenerator {
+	return &IDGenerator{counter: 0, chanMap: make(map[uint64]chan struct{})}
+}
+
+// GenerateID generates a new atomic ID
+func (gen *IDGenerator) GenerateID() (uint64, chan struct{}) {
+	ch := make(chan struct{})
+	id := atomic.AddUint64(&gen.counter, 1)
+	gen.chanMap[id] = ch
+	return id, ch
+}
+
 type RadixTree[T any] struct {
 	root Node[T]
 	size uint64
+	idg  *IDGenerator
 }
 
 // WalkFn is used when walking the tree. Takes a
@@ -32,6 +52,7 @@ type WalkFn[T any] func(k []byte, v T) bool
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
 	rt.root = &NodeLeaf[T]{}
+	rt.idg = NewIDGenerator()
 	return rt
 }
 
@@ -42,7 +63,9 @@ func (t *RadixTree[T]) Len() int {
 
 // Clone is used to return the clone of tree
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
-	return &RadixTree[T]{root: t.root.clone(true, deep), size: t.size}
+	newRoot := t.root.clone(true, deep)
+	newRoot.setId(t.root.getId())
+	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
@@ -240,6 +263,10 @@ func (t *RadixTree[T]) Walk(fn WalkFn[T]) {
 	recursiveWalk(t.root, fn)
 }
 
+func (t *RadixTree[T]) DFS(fn DfsFn[T]) {
+	dfs(t.root, fn)
+}
+
 // recursiveWalk is used to do a pre-order walk of a node
 // recursively. Returns true if the walk should be aborted
 func recursiveWalk[T any](n Node[T], fn WalkFn[T]) bool {
@@ -257,4 +284,20 @@ func recursiveWalk[T any](n Node[T], fn WalkFn[T]) bool {
 		}
 	}
 	return false
+}
+
+type DfsFn[T any] func(n Node[T])
+
+// recursiveWalk is used to do a pre-order walk of a node
+// recursively. Returns true if the walk should be aborted
+func dfs[T any](n Node[T], fn DfsFn[T]) {
+	// Visit the leaf values if any
+	fn(n)
+
+	// Recurse on the children
+	for _, e := range n.getChildren() {
+		if e != nil {
+			dfs(e, fn)
+		}
+	}
 }

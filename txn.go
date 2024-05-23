@@ -5,9 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"strings"
-	"sync"
-
 	"github.com/hashicorp/golang-lru/v2/simplelru"
 )
 
@@ -20,7 +17,7 @@ type Txn[T any] struct {
 
 	// snap is a snapshot of the node node for use if we have to run the
 	// slow notify algorithm.
-	snap Node[T]
+	snap *RadixTree[T]
 
 	// trackChannels is used to hold channels that need to be notified to
 	// signal mutation of the tree. This will only hold up to
@@ -28,7 +25,7 @@ type Txn[T any] struct {
 	// trackOverflow flag, which will cause us to use a more expensive
 	// algorithm to perform the notifications. Mutation tracking is only
 	// performed if trackMutate is true.
-	trackChannels map[chan struct{}]struct{}
+	trackIds      map[uint64]struct{}
 	trackOverflow bool
 	trackMutate   bool
 
@@ -42,11 +39,10 @@ type Txn[T any] struct {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
-	treeClone := t.Clone(false)
 	txn := &Txn[T]{
 		size: t.size,
-		snap: treeClone.root,
-		tree: treeClone,
+		snap: t.Clone(false),
+		tree: t,
 	}
 	return txn
 }
@@ -58,7 +54,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 
 	txn := &Txn[T]{
 		tree: t.tree.Clone(false),
-		snap: t.snap.clone(false, false),
+		snap: t.snap.Clone(false),
 		size: t.size,
 	}
 	return txn
@@ -82,7 +78,7 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	var old int
 	newRoot, oldVal := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
 	if t.trackMutate {
-		t.trackChannel(t.tree.root.getMutateCh())
+		t.trackId(t.tree.root.getId())
 	}
 	if old == 0 {
 		t.size++
@@ -103,7 +99,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// This means node is nil
 		if node.getKeyLen() == 0 {
 			if t.trackMutate {
-				t.trackChannel(node.getMutateCh())
+				t.trackId(node.getId())
 			}
 			return t.makeLeaf(key, value), zero
 		}
@@ -116,7 +112,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
 			if t.trackMutate {
-				t.trackChannel(node.getMutateCh())
+				t.trackId(node.getId())
 			}
 			return t.makeLeaf(key, value), node.getValue()
 		}
@@ -155,7 +151,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 				nodeClone := t.writeNode(node)
 				nodeClone.setChild(idx, newChild)
 				if t.trackMutate {
-					t.trackChannel(node.getMutateCh())
+					t.trackId(node.getId())
 				}
 				return nodeClone, val
 			}
@@ -164,7 +160,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			node = t.addChild(node, key[depth], newLeaf)
 			if t.trackMutate {
-				t.trackChannel(node.getMutateCh())
+				t.trackId(node.getId())
 			}
 			return node, zero
 		}
@@ -175,7 +171,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 
 		if t.trackMutate {
-			t.trackChannel(node.getMutateCh())
+			t.trackId(node.getId())
 		}
 		nodeClone := t.writeNode(node)
 
@@ -210,7 +206,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			nodeClone := t.writeNode(node)
 			nodeClone.setChild(idx, newChild)
 			if t.trackMutate {
-				t.trackChannel(node.getMutateCh())
+				t.trackId(node.getId())
 			}
 			return nodeClone, val
 		}
@@ -219,7 +215,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value)
 	if t.trackMutate {
-		t.trackChannel(node.getMutateCh())
+		t.trackId(node.getId())
 	}
 	if depth < len(key) {
 		return t.addChild(node, key[depth], newLeaf), zero
@@ -231,7 +227,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	var zero T
 	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 	if t.trackMutate {
-		t.trackChannel(t.tree.root.getMutateCh())
+		t.trackId(t.tree.root.getId())
 	}
 	if newRoot == nil {
 		newRoot = t.allocNode(leafType)
@@ -254,7 +250,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
 			if t.trackMutate {
-				t.trackChannel(node.getMutateCh())
+				t.trackId(node.getId())
 			}
 			return nil, node
 		}
@@ -280,7 +276,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if isLeaf[T](child) {
 		if leafMatches(child.getKey(), key) == 0 {
 			if t.trackMutate {
-				t.trackChannel(child.getMutateCh())
+				t.trackId(child.getId())
 			}
 			nc := t.writeNode(node)
 			newNode := t.removeChild(nc, key[depth])
@@ -291,6 +287,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
+	if t.trackMutate {
+		t.trackId(node.getId())
+	}
 	nClone := t.writeNode(node)
 	nClone.setChild(idx, newChild)
 	return nClone, val
@@ -315,30 +314,10 @@ func (t *Txn[T]) Notify() {
 		return
 	}
 
-	// If we've overflowed the tracking state we can't use it in any way and
-	// need to do a full tree compare.
-	if t.trackOverflow {
-		// TODO Discuss
-		//t.slowNotify()
-	} else {
-		for ch := range t.trackChannels {
-			if ch == nil {
-				continue
-			}
-			select {
-			case _, ok := <-ch:
-				if ok {
-					close(ch)
-				}
-			default:
-				close(ch)
-			}
-		}
-	}
-
+	t.slowNotify()
 	// Clean up the tracking state so that a re-notify is safe (will trigger
 	// the else clause above which will be a no-op).
-	t.trackChannels = nil
+	t.trackIds = nil
 	t.trackOverflow = false
 }
 
@@ -357,6 +336,7 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
+		t.tree.idg,
 	}
 	t.writable = nil
 	return nt
@@ -366,62 +346,11 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // to trigger notifications. This doesn't require any additional state but it
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
-	snapIter := t.snap.Iterator()
-	rootIter := t.Root().Iterator()
-	snapIter.Next()
-	rootIter.Next()
-	for snapIter.Front() != nil || rootIter.Front() != nil {
-		// If we've exhausted the nodes in the old snapshot, we know
-		// there's nothing remaining to notify.
-		if snapIter.Front() == nil {
-			return
+	for id := range t.trackIds {
+		if _, ok := t.snap.idg.chanMap[id]; ok {
+			close(t.tree.idg.chanMap[id])
+			delete(t.tree.idg.chanMap, id)
 		}
-		snapElem := snapIter.Front()
-
-		// If we've exhausted the nodes in the new node, we know we need
-		// to invalidate everything that remains in the old snapshot. We
-		// know from the loop condition there's something in the old
-		// snapshot.
-		if rootIter.Front() == nil {
-			select {
-			case _, ok := <-snapElem.getMutateCh():
-				if ok {
-					close(snapElem.getMutateCh())
-				}
-			default:
-				close(snapElem.getMutateCh())
-			}
-			snapIter.Next()
-			continue
-		}
-
-		// Do one string compare so we can check the various conditions
-		// below without repeating the compare.
-		cmp := strings.Compare(string(getKey(snapIter.GetIterPath())), string(getKey(rootIter.GetIterPath())))
-
-		// If the snapshot is behind the node, then we must have deleted
-		// this node during the transaction.
-		if cmp < 0 {
-			close(snapElem.getMutateCh())
-			snapIter.Next()
-			continue
-		}
-
-		// If the snapshot is ahead of the node, then we must have added
-		// this node during the transaction.
-		if cmp > 0 {
-			rootIter.Next()
-			continue
-		}
-
-		// If we have the same path, then we need to see if we mutated a
-		// node and possibly the leaf.
-		rootElem := rootIter.Front()
-		if snapElem != rootElem {
-			close(snapElem.getMutateCh())
-		}
-		snapIter.Next()
-		rootIter.Next()
 	}
 }
 
@@ -435,6 +364,9 @@ func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
 	key := getTreeKey(prefix)
 	newRoot, numDeletions := t.deletePrefix(t.tree.root, key, 0)
 	if numDeletions != 0 {
+		if t.trackMutate {
+			t.trackId(t.tree.root.getId())
+		}
 		t.tree.root = newRoot
 		t.tree.size = t.tree.size - uint64(numDeletions)
 		t.size = t.tree.size
@@ -451,7 +383,9 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
-			t.trackChannel(node.getMutateCh())
+			if t.trackMutate {
+				t.trackId(node.getId())
+			}
 			return nil, 1
 		}
 		return node, 0
@@ -465,7 +399,9 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		}
 	}
 
-	t.trackChannel(node.getMutateCh())
+	if t.trackMutate {
+		t.trackId(node.getId())
+	}
 
 	numDel := 0
 
@@ -476,6 +412,9 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 			newCh, del := t.deletePrefix(ch, key, depth+1)
 			newChIndxMap[idx] = newCh
 			numDel += del
+			if del > 0 && t.trackMutate {
+				t.trackId(ch.getId())
+			}
 		}
 	}
 
@@ -520,20 +459,23 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	// update the leaf.
 	if _, ok := t.writable.Get(n); ok {
 		if t.trackMutate {
-			t.trackChannel(n.getMutateCh())
+			t.trackId(n.getId())
 		}
 		return n
 	}
 	// Mark this node as being mutated.
 	if t.trackMutate {
-		t.trackChannel(n.getMutateCh())
+		t.trackId(n.getId())
 	}
 
 	// Copy the existing node. If you have set forLeafUpdate it will be
 	// safe to replace this leaf with another after you get your node for
 	// writing. You MUST replace it, because the channel associated with
 	// this leaf will be closed when this transaction is committed.
+	newId, ch := t.tree.idg.GenerateID()
 	nc := n.clone(false, false)
+	nc.setId(newId)
+	nc.setMutateCh(ch)
 
 	// Mark this node as writable.
 	t.writable.Add(nc, nil)
@@ -556,42 +498,28 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
-	n.setMutex(&sync.RWMutex{})
-	n.setMutateCh(make(chan struct{}))
+	id, ch := t.tree.idg.GenerateID()
+	n.setId(id)
+	n.setMutateCh(ch)
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
 	return n
 }
 
-// trackChannel safely attempts to track the given mutation channel, setting the
+// trackId safely attempts to track the given mutation channel, setting the
 // overflow flag if we can no longer track any more. This limits the amount of
 // state that will accumulate during a transaction and we have a slower algorithm
 // to switch to if we overflow.
-func (t *Txn[T]) trackChannel(ch chan struct{}) {
+func (t *Txn[T]) trackId(id uint64) {
 	// In overflow, make sure we don't store any more objects.
-	if t.trackOverflow {
-		return
-	}
-
 	// If this would overflow the state we reject it and set the flag (since
-	// we aren't tracking everything that's required any longer).
-	if len(t.trackChannels) >= defaultModifiedCache {
-		// Mark that we are in the overflow state
-		t.trackOverflow = true
-
-		// Clear the map so that the channels can be garbage collected. It is
-		// safe to do this since we have already overflowed and will be using
-		// the slow notify algorithm.
-		t.trackChannels = nil
-		return
-	}
 
 	// Create the map on the fly when we need it.
-	if t.trackChannels == nil {
-		t.trackChannels = make(map[chan struct{}]struct{})
+	if t.trackIds == nil {
+		t.trackIds = make(map[uint64]struct{})
 	}
 
-	t.trackChannels[ch] = struct{}{}
+	t.trackIds[id] = struct{}{}
 }
 
 // findChild finds the child node pointer based on the given character in the ART tree node.

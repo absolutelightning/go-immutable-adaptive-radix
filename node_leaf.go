@@ -5,14 +5,22 @@ package adaptive
 
 import (
 	"bytes"
-	"sync"
 )
 
 type NodeLeaf[T any] struct {
+	id       uint64
 	value    T
 	keyLen   uint32
 	key      []byte
 	mutateCh chan struct{}
+}
+
+func (n *NodeLeaf[T]) getId() uint64 {
+	return n.id
+}
+
+func (n *NodeLeaf[T]) setId(id uint64) {
+	n.id = id
 }
 
 func (n *NodeLeaf[T]) getPartialLen() uint32 {
@@ -109,9 +117,6 @@ func (n *NodeLeaf[T]) matchPrefix(prefix []byte) bool {
 	actualKey := getKey(n.key)
 	actualPrefix := getKey(prefix)
 	return bytes.HasPrefix(actualKey, actualPrefix)
-}
-
-func (n *NodeLeaf[T]) setMutex(mu *sync.RWMutex) {
 }
 
 func (n *NodeLeaf[T]) getChild(index int) Node[T] {

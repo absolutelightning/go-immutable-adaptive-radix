@@ -3,9 +3,9 @@
 
 package adaptive
 
-import "sync"
-
 type Node[T any] interface {
+	getId() uint64
+	setId(uint64)
 	getPartialLen() uint32
 	setPartialLen(uint32)
 	getArtNodeType() nodeType
@@ -17,7 +17,6 @@ type Node[T any] interface {
 	matchPrefix([]byte) bool
 	getChild(int) Node[T]
 	setChild(int, Node[T])
-	setMutex(*sync.RWMutex)
 	clone(bool, bool) Node[T]
 	getKey() []byte
 	getValue() T
