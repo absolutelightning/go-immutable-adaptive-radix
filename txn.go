@@ -195,6 +195,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			length := min(maxPrefixLen, int(nodeClone.getPartialLen()))
 			copy(nodeClone.getPartial(), l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
 		}
+
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value)
 		newNode = t.addChild(newNode, key[depth+prefixDiff], newLeaf)
