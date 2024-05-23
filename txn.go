@@ -174,24 +174,26 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 
+		if t.trackMutate {
+			t.trackChannel(node.getMutateCh())
+		}
+		nodeClone := t.writeNode(node)
+
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= maxPrefixLen {
-			newNode = t.addChild(newNode, node.getPartial()[prefixDiff], node)
-			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
-			length := min(maxPrefixLen, int(node.getPartialLen()))
-			node.setPartial(node.getPartial()[prefixDiff+1 : prefixDiff+1+length])
+			newNode = t.addChild(newNode, nodeClone.getPartial()[prefixDiff], nodeClone)
+			nodeClone.setPartialLen(nodeClone.getPartialLen() - uint32(prefixDiff+1))
+			length := min(maxPrefixLen, int(nodeClone.getPartialLen()))
+			copy(nodeClone.getPartial(), nodeClone.getPartial()[prefixDiff+1:prefixDiff+1+length])
 		} else {
-			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
+			nodeClone.setPartialLen(nodeClone.getPartialLen() - uint32(prefixDiff+1))
 			l := minimum[T](node)
 			if l == nil {
 				return node, zero
 			}
-			newNode = t.addChild(newNode, l.key[depth+prefixDiff], node)
-			length := min(maxPrefixLen, int(node.getPartialLen()))
-			node.setPartial(l.key[depth+prefixDiff+1 : depth+prefixDiff+1+length])
-		}
-		if t.trackMutate {
-			t.trackChannel(node.getMutateCh())
+			newNode = t.addChild(newNode, l.key[depth+prefixDiff], nodeClone)
+			length := min(maxPrefixLen, int(nodeClone.getPartialLen()))
+			copy(nodeClone.getPartial(), l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
 		}
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value)
