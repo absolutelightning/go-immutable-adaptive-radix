@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/golang-lru/v2/simplelru"
 )
@@ -151,12 +152,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			if child != nil {
 				newChildChClone := t.writeNode(child)
 				newChild, val := t.recursiveInsert(newChildChClone, key, value, depth+1, old)
-				nodeClone := t.writeNode(node)
-				nodeClone.setChild(idx, newChild)
+				node.setChild(idx, newChild)
 				if t.trackMutate {
 					t.trackChannel(node.getMutateCh())
 				}
-				return nodeClone, val
+				return node, val
 			}
 
 			// No child, node goes within us
@@ -203,12 +203,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		child, idx := t.findChild(node, key[depth])
 		if child != nil {
 			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
-			nodeClone := t.writeNode(node)
-			nodeClone.setChild(idx, newChild)
+			node.setChild(idx, newChild)
 			if t.trackMutate {
 				t.trackChannel(node.getMutateCh())
 			}
-			return nodeClone, val
+			return node, val
 		}
 	}
 
@@ -552,6 +551,7 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
+	n.setMutex(&sync.RWMutex{})
 	n.setMutateCh(make(chan struct{}))
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)

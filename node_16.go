@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"sort"
+	"sync"
 )
 
 type Node16[T any] struct {
@@ -15,6 +16,7 @@ type Node16[T any] struct {
 	keys        [16]byte
 	children    [16]Node[T]
 	mutateCh    chan struct{}
+	mu          *sync.RWMutex
 }
 
 func (n *Node16[T]) getPartialLen() uint32 {
@@ -75,6 +77,8 @@ func (n *Node16[T]) matchPrefix(prefix []byte) bool {
 }
 
 func (n *Node16[T]) getChild(index int) Node[T] {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.children[index]
 }
 
@@ -83,6 +87,7 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
 		partial:     n.getPartial(),
+		mu:          n.mu,
 	}
 	if keepWatch {
 		newNode.mutateCh = n.getMutateCh()
@@ -112,6 +117,8 @@ func (n *Node16[T]) setKeyLen(keyLen uint32) {
 }
 
 func (n *Node16[T]) setChild(index int, child Node[T]) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.children[index] = child
 }
 func (n *Node16[T]) getKey() []byte {
@@ -147,6 +154,10 @@ func (n *Node16[T]) getMutateCh() chan struct{} {
 
 func (n *Node16[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh = ch
+}
+
+func (n *Node16[T]) setMutex(mu *sync.RWMutex) {
+	n.mu = mu
 }
 
 func (n *Node16[T]) setValue(T) {
