@@ -15,14 +15,10 @@ type Node256[T any] struct {
 }
 
 func (n *Node256[T]) getPartialLen() uint32 {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.partialLen
 }
 
 func (n *Node256[T]) setPartialLen(partialLen uint32) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.partialLen = partialLen
 }
 
@@ -47,14 +43,10 @@ func (n *Node256[T]) setNumChildren(numChildren uint8) {
 }
 
 func (n *Node256[T]) getPartial() []byte {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.partial
 }
 
 func (n *Node256[T]) setPartial(partial []byte) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.partial = partial
 }
 
