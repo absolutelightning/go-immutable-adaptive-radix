@@ -187,9 +187,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			copy(nodeClone.getPartial(), nodeClone.getPartial()[prefixDiff+1:prefixDiff+1+length])
 		} else {
 			nodeClone.setPartialLen(nodeClone.getPartialLen() - uint32(prefixDiff+1))
-			l := minimum[T](node)
+			l := minimum[T](nodeClone)
 			if l == nil {
-				return node, zero
+				return nodeClone, zero
 			}
 			newNode = t.addChild(newNode, l.key[depth+prefixDiff], nodeClone)
 			length := min(maxPrefixLen, int(nodeClone.getPartialLen()))
