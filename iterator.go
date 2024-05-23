@@ -280,7 +280,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		if node.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
-			if mismatchIdx < int(node.getPartialLen()) {
+			if mismatchIdx < int(node.getPartialLen()) && !i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
 				node = nil
 				break
