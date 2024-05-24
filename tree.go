@@ -75,6 +75,7 @@ func (cp *ChannelPool) GetChannel() (*ChannelEntry, int) {
 		entry = &ChannelEntry{
 			Ch: make(chan struct{}),
 		}
+		cp.id++
 		entry.ID = cp.id
 		cp.chMap.Store(entry.ID, entry)
 	} else {
