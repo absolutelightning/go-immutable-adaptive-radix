@@ -5,8 +5,6 @@ package adaptive
 
 type Node[T any] interface {
 	getId() uint64
-	getTree() *RadixTree[T]
-	setTree(*RadixTree[T])
 	setId(uint64)
 	getPartialLen() uint32
 	setPartialLen(uint32)

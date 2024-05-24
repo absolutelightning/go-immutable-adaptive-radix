@@ -8,11 +8,11 @@ import (
 )
 
 type NodeLeaf[T any] struct {
-	id     uint64
-	value  T
-	keyLen uint32
-	key    []byte
-	tree   *RadixTree[T]
+	id       uint64
+	value    T
+	keyLen   uint32
+	key      []byte
+	mutateCh chan struct{}
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -21,14 +21,6 @@ func (n *NodeLeaf[T]) getId() uint64 {
 
 func (n *NodeLeaf[T]) setId(id uint64) {
 	n.id = id
-}
-
-func (n *NodeLeaf[T]) getTree() *RadixTree[T] {
-	return n.tree
-}
-
-func (n *NodeLeaf[T]) setTree(tree *RadixTree[T]) {
-	n.tree = tree
 }
 
 func (n *NodeLeaf[T]) getPartialLen() uint32 {
@@ -137,11 +129,8 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 		key:    make([]byte, len(n.getKey())),
 		value:  n.getValue(),
 	}
-	newNode.setTree(n.tree)
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
-	} else {
-		newNode.setMutateCh(make(chan struct{}))
 	}
 	copy(newNode.key[:], n.key[:])
 	nodeT := Node[T](newNode)
@@ -169,14 +158,14 @@ func (n *NodeLeaf[T]) getKeys() []byte {
 }
 
 func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
-	if n.tree.idg.chanMap[n.id] == nil {
-		n.tree.idg.chanMap[n.id] = make(chan struct{})
-	}
-	return n.tree.idg.chanMap[n.id]
+	return n.mutateCh
 }
 
 func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
-	n.tree.idg.chanMap[n.id] = ch
+	if ch == nil {
+		ch = make(chan struct{})
+	}
+	n.mutateCh = ch
 }
 
 func (n *NodeLeaf[T]) getLowerBoundCh(c byte) int {

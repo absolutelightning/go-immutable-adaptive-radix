@@ -56,7 +56,6 @@ type WalkFn[T any] func(k []byte, v T) bool
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
 	rt.root = &NodeLeaf[T]{}
-	rt.root.setTree(rt)
 	rt.idg = NewIDGenerator()
 	return rt
 }

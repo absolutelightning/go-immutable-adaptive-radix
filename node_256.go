@@ -9,7 +9,7 @@ type Node256[T any] struct {
 	numChildren uint8
 	partial     []byte
 	children    [256]Node[T]
-	tree        *RadixTree[T]
+	mutateCh    chan struct{}
 }
 
 func (n *Node256[T]) getId() uint64 {
@@ -22,14 +22,6 @@ func (n *Node256[T]) getPartialLen() uint32 {
 
 func (n *Node256[T]) setId(id uint64) {
 	n.id = id
-}
-
-func (n *Node256[T]) getTree() *RadixTree[T] {
-	return n.tree
-}
-
-func (n *Node256[T]) setTree(tree *RadixTree[T]) {
-	n.tree = tree
 }
 
 func (n *Node256[T]) setPartialLen(partialLen uint32) {
@@ -105,14 +97,11 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
 	}
-	newNode.setTree(n.tree)
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
-	} else {
-		newNode.setMutateCh(make(chan struct{}))
 	}
 	if deep {
 		for i := 0; i < 256; i++ {
@@ -161,14 +150,14 @@ func (n *Node256[T]) getKeys() []byte {
 	return nil
 }
 func (n *Node256[T]) getMutateCh() chan struct{} {
-	if n.tree.idg.chanMap[n.id] == nil {
-		n.tree.idg.chanMap[n.id] = make(chan struct{})
-	}
-	return n.tree.idg.chanMap[n.id]
+	return n.mutateCh
 }
 
 func (n *Node256[T]) setMutateCh(ch chan struct{}) {
-	n.tree.idg.chanMap[n.id] = ch
+	if ch == nil {
+		ch = make(chan struct{})
+	}
+	n.mutateCh = ch
 }
 
 func (n *Node256[T]) setValue(T) {

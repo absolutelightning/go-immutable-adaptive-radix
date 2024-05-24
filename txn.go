@@ -501,7 +501,6 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	}
 	id, ch := t.tree.idg.GenerateID()
 	n.setId(id)
-	n.setTree(t.tree)
 	n.setMutateCh(ch)
 	n.setPartial(make([]byte, maxPrefixLen))
 	n.setPartialLen(maxPrefixLen)
