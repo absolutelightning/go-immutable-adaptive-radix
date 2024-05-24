@@ -175,7 +175,7 @@ func prefixMismatch[T any](n Node[T], key []byte, keyLen, depth int) int {
 		if l == nil {
 			return idx
 		}
-		maxCmp = min(int(l.keyLen), keyLen) - depth
+		maxCmp = min(len(l.key), keyLen) - depth
 		for ; idx < maxCmp; idx++ {
 			if l.key[idx+depth] != key[depth+idx] {
 				return idx
@@ -345,12 +345,13 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 	newChildZero := n.children[0]
 	// Remove nodes with only a single child
 	if n.numChildren == 1 {
-		if n.children[0] == nil {
-			return n
-		}
 		// Is not leaf
 		if !n.children[0].isLeaf() {
 			// Concatenate the prefixes
+			if t.trackMutate {
+				t.trackId(n.children[0].getId())
+				t.trackId(n.getId())
+			}
 			newChildZero = t.writeNode(n.children[0])
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {
@@ -358,16 +359,17 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 				prefix++
 			}
 			if prefix < maxPrefixLen {
-				subPrefix := min(int(n.children[0].getPartialLen()), maxPrefixLen-prefix)
+				subPrefix := min(int(newChildZero.getPartialLen()), maxPrefixLen-prefix)
 				copy(n.getPartial()[prefix:], newChildZero.getPartial()[:subPrefix])
 				prefix += subPrefix
 			}
 
 			// Store the prefix in the child
 			copy(newChildZero.getPartial(), n.partial[:min(prefix, maxPrefixLen)])
-			newChildZero.setPartialLen(n.children[0].getPartialLen() + n.getPartialLen() + 1)
+			newChildZero.setPartialLen(newChildZero.getPartialLen() + n.getPartialLen() + 1)
+			return newChildZero
 		}
-		return newChildZero
+		return n.children[0]
 	}
 	return n
 }
@@ -376,12 +378,19 @@ func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 	pos := sort.Search(int(n.numChildren), func(i int) bool {
 		return n.keys[i] >= c
 	})
-
+	if t.trackMutate {
+		if n.children[pos] != nil {
+			t.trackId(n.children[pos].getId())
+		}
+	}
 	copy(n.keys[pos:], n.keys[pos+1:])
 	copy(n.children[pos:], n.children[pos+1:])
 	n.numChildren--
 
 	if n.numChildren == 3 {
+		if t.trackMutate {
+			t.trackId(n.getId())
+		}
 		newNode := t.allocNode(node4)
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
@@ -395,10 +404,18 @@ func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 	pos := n.keys[c]
 	n.keys[c] = 0
+	if t.trackMutate {
+		if n.children[pos-1] != nil {
+			t.trackId(n.children[pos-1].getId())
+		}
+	}
 	n.children[pos-1] = nil
 	n.numChildren--
 
 	if n.numChildren == 12 {
+		if t.trackMutate {
+			t.trackId(n.getId())
+		}
 		newNode := t.allocNode(node16)
 		t.copyHeader(newNode, n)
 		child := 0
@@ -416,12 +433,20 @@ func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 }
 
 func (t *Txn[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
+	if t.trackMutate {
+		if n.children[c] != nil {
+			t.trackId(n.children[c].getId())
+		}
+	}
 	n.children[c] = nil
 	n.numChildren--
 
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
 	if n.numChildren == 37 {
+		if t.trackMutate {
+			t.trackId(n.getId())
+		}
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
 
