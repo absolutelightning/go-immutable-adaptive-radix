@@ -5,7 +5,7 @@ package adaptive
 
 import (
 	"bytes"
-	"sync/atomic"
+	"sync"
 )
 
 const maxPrefixLen = 10
@@ -18,34 +18,100 @@ const (
 	node256
 )
 
+const (
+	poolSize = 1000
+)
+
 type nodeType int
 
-type IDGenerator struct {
-	counter uint64
-	chanMap map[uint64]chan struct{}
+// ChannelPool is a pool of reusable channels
+type ChannelPool struct {
+	pool        *sync.Pool
+	mu          sync.Mutex
+	id          int
+	activeCount int
+	chMap       sync.Map // Concurrent map to store id -> channel mapping
 }
 
-// NewIDGenerator initializes a new IDGenerator
-func NewIDGenerator() *IDGenerator {
-	return &IDGenerator{counter: 0, chanMap: make(map[uint64]chan struct{})}
+// ChannelEntry stores a channel and its ID
+type ChannelEntry struct {
+	ID int
+	Ch chan struct{}
 }
 
-// GenerateID generates a new atomic ID
-func (gen *IDGenerator) GenerateID() (uint64, chan struct{}) {
-	ch := make(chan struct{})
-	id := atomic.AddUint64(&gen.counter, 1)
-	gen.chanMap[id] = ch
-	return id, ch
+// NewChannelPool creates a new ChannelPool and pre-fills it with channels
+func NewChannelPool() *ChannelPool {
+	cp := &ChannelPool{
+		pool: &sync.Pool{
+			New: func() interface{} {
+				return &ChannelEntry{
+					Ch: make(chan struct{}),
+				}
+			},
+		},
+		id:          0, // Initialize ID to 99 so the first ID will be 100
+		activeCount: 0,
+	}
+
+	// Pre-create channels up to the pool size and store them in the map
+	for i := 0; i < poolSize; i++ {
+		entry := &ChannelEntry{
+			ID: i,
+			Ch: make(chan struct{}),
+		}
+		cp.pool.Put(entry)
+	}
+
+	return cp
 }
 
-func (gen *IDGenerator) GetChan(id uint64) chan struct{} {
-	return gen.chanMap[id]
+// GetChannel retrieves a channel from the pool and assigns it a unique ID
+func (cp *ChannelPool) GetChannel() (*ChannelEntry, int) {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+
+	entry := cp.pool.Get().(*ChannelEntry)
+	if entry == nil {
+		entry = &ChannelEntry{
+			Ch: make(chan struct{}),
+		}
+		cp.id++
+		entry.ID = cp.id
+		cp.chMap.Store(entry.ID, entry)
+	} else {
+		cp.chMap.Store(entry.ID, entry)
+	}
+
+	return entry, entry.ID
+}
+
+// PutChannel closes the channel and returns it to the pool, clearing its mapping
+func (cp *ChannelPool) PutChannel(entry *ChannelEntry) {
+	cp.mu.Lock()
+	defer cp.mu.Unlock()
+
+	// Clear the channel before putting it back to the pool
+	close(entry.Ch)
+	cp.chMap.Delete(entry.ID)
+	cp.pool.Put(&ChannelEntry{
+		ID: entry.ID,
+		Ch: make(chan struct{}), // Create a new channel for reuse
+	})
+}
+
+// QueryChannel retrieves a channel entry by its ID
+func (cp *ChannelPool) QueryChannel(id int) (*ChannelEntry, bool) {
+	entry, ok := cp.chMap.Load(id)
+	if ok {
+		return entry.(*ChannelEntry), true
+	}
+	return nil, false
 }
 
 type RadixTree[T any] struct {
 	root Node[T]
 	size uint64
-	idg  *IDGenerator
+	chp  *ChannelPool
 }
 
 // WalkFn is used when walking the tree. Takes a
@@ -56,7 +122,7 @@ type WalkFn[T any] func(k []byte, v T) bool
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
 	rt.root = &NodeLeaf[T]{}
-	rt.idg = NewIDGenerator()
+	rt.chp = NewChannelPool()
 	return rt
 }
 
@@ -67,9 +133,12 @@ func (t *RadixTree[T]) Len() int {
 
 // Clone is used to return the clone of tree
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
+	if t.root == nil {
+		return nil
+	}
 	newRoot := t.root.clone(true, deep)
 	newRoot.setId(t.root.getId())
-	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
+	return &RadixTree[T]{root: newRoot, size: t.size, chp: t.chp}
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
