@@ -72,32 +72,6 @@ func TestInsert_UpdateFeedback(t *testing.T) {
 	}
 }
 
-func TestDelete(t *testing.T) {
-	tr := NewRadixTree[any]()
-	tr, _, _ = tr.Insert([]byte("foo"), nil)
-	tr, _, _ = tr.Insert([]byte("foo/bar"), nil)
-	tr, _, _ = tr.Insert([]byte("foo/baz"), nil)
-	tr, _, _ = tr.Insert([]byte("foo/car"), nil)
-	tr, _, _ = tr.Insert([]byte("foo/jaz"), nil)
-	tr, _, _ = tr.Delete([]byte("foo/bar"))
-	tr, _, _ = tr.Delete([]byte("foo/baz"))
-	tr, _, _ = tr.Delete([]byte("foo/car"))
-	tr, _, _ = tr.Delete([]byte("foo/jaz"))
-	tr.DFS(func(n Node[any]) {
-		fmt.Println(n.getId())
-		fmt.Println(n.getArtNodeType())
-		if n.getArtNodeType() == leafType {
-			fmt.Println("Node Leaf")
-			fmt.Println(string(n.getKey()))
-		} else {
-			fmt.Println("Node Not Leaf")
-			fmt.Println(string(n.getPartial()))
-			fmt.Println("Partial len", n.getPartialLen())
-			fmt.Println("Children ", n.getNumChildren())
-		}
-	})
-}
-
 func TestARTree_InsertAndSearchWords(t *testing.T) {
 	t.Parallel()
 
