@@ -10,7 +10,6 @@ import (
 type NodeLeaf[T any] struct {
 	id       uint64
 	value    T
-	keyLen   uint32
 	key      []byte
 	mutateCh chan struct{}
 }
@@ -57,11 +56,11 @@ func (n *NodeLeaf[T]) setValue(value T) {
 }
 
 func (n *NodeLeaf[T]) getKeyLen() uint32 {
-	return n.keyLen
+	return uint32(len(n.key))
 }
 
 func (n *NodeLeaf[T]) setKeyLen(keyLen uint32) {
-	n.keyLen = keyLen
+	// no-op
 }
 
 func (n *NodeLeaf[T]) getKey() []byte {
@@ -125,9 +124,8 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 
 func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &NodeLeaf[T]{
-		keyLen: n.getKeyLen(),
-		key:    make([]byte, len(n.getKey())),
-		value:  n.getValue(),
+		key:   make([]byte, len(n.getKey())),
+		value: n.getValue(),
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())

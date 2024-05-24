@@ -73,19 +73,29 @@ func TestInsert_UpdateFeedback(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	r := NewRadixTree[bool]()
-	s := []string{"", "A", "AB"}
-
-	for _, ss := range s {
-		r, _, _ = r.Insert([]byte(ss), true)
-	}
-	var ok bool
-	for _, ss := range s {
-		r, _, ok = r.Delete([]byte(ss))
-		if !ok {
-			t.Fatalf("bad %q", ss)
+	tr := NewRadixTree[any]()
+	tr, _, _ = tr.Insert([]byte("foo"), nil)
+	tr, _, _ = tr.Insert([]byte("foo/bar"), nil)
+	tr, _, _ = tr.Insert([]byte("foo/baz"), nil)
+	tr, _, _ = tr.Insert([]byte("foo/car"), nil)
+	tr, _, _ = tr.Insert([]byte("foo/jaz"), nil)
+	tr, _, _ = tr.Delete([]byte("foo/bar"))
+	tr, _, _ = tr.Delete([]byte("foo/baz"))
+	tr, _, _ = tr.Delete([]byte("foo/car"))
+	tr, _, _ = tr.Delete([]byte("foo/jaz"))
+	tr.DFS(func(n Node[any]) {
+		fmt.Println(n.getId())
+		fmt.Println(n.getArtNodeType())
+		if n.getArtNodeType() == leafType {
+			fmt.Println("Node Leaf")
+			fmt.Println(string(n.getKey()))
+		} else {
+			fmt.Println("Node Not Leaf")
+			fmt.Println(string(n.getPartial()))
+			fmt.Println("Partial len", n.getPartialLen())
+			fmt.Println("Children ", n.getNumChildren())
 		}
-	}
+	})
 }
 
 func TestARTree_InsertAndSearchWords(t *testing.T) {
@@ -1164,6 +1174,44 @@ func BenchmarkMixedOperations(b *testing.B) {
 			}
 		}
 	}
+}
+
+func loadTestFile(path string) [][]byte {
+	file, err := os.Open(path)
+	if err != nil {
+		panic("Couldn't open " + path)
+	}
+	defer file.Close()
+
+	var words [][]byte
+	reader := bufio.NewReader(file)
+	for {
+		if line, err := reader.ReadBytes(byte('\n')); err != nil {
+			break
+		} else {
+			if len(line) > 0 {
+				words = append(words, line[:len(line)-1])
+			}
+		}
+	}
+	return words
+}
+
+func TestTreeInsertAndDeleteAllUUIDs(t *testing.T) {
+	uuids := loadTestFile("test-text/uuid.txt")
+	tree := NewRadixTree[any]()
+	for _, w := range uuids {
+		tree, _, _ = tree.Insert(w, w)
+	}
+
+	for _, w := range uuids {
+		newT, v, deleted := tree.Delete(w)
+		tree = newT
+		require.True(t, deleted)
+		require.Equal(t, w, v)
+	}
+
+	require.Equal(t, uint64(0), tree.size)
 }
 
 func BenchmarkGroupedOperations(b *testing.B) {
