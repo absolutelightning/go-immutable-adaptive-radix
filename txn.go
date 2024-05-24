@@ -102,7 +102,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			if t.trackMutate {
 				t.trackId(node.getId())
 			}
-			return t.makeLeaf(key, value), zero
+			ch, id := t.tree.chp.GetChannel()
+			node.setId(uint64(id))
+			node.setMutateCh(ch.Ch)
+			node.setKeyLen(uint32(len(key)))
+			node.setKey(key)
+			node.setValue(value)
+			return node, zero
 		}
 	}
 
@@ -337,7 +343,7 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
-		t.tree.idg,
+		t.tree.chp,
 	}
 	t.writable = nil
 	return nt
@@ -348,9 +354,8 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	for id := range t.trackIds {
-		if _, ok := t.tree.idg.chanMap[id]; ok {
-			close(t.tree.idg.chanMap[id])
-			delete(t.tree.idg.chanMap, id)
+		if chEntry, ok := t.tree.chp.QueryChannel(int(id)); ok {
+			t.tree.chp.PutChannel(chEntry)
 		}
 	}
 }
@@ -473,10 +478,10 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	// safe to replace this leaf with another after you get your node for
 	// writing. You MUST replace it, because the channel associated with
 	// this leaf will be closed when this transaction is committed.
-	newId, ch := t.tree.idg.GenerateID()
+	nch, id := t.tree.chp.GetChannel()
 	nc := n.clone(false, false)
-	nc.setId(newId)
-	nc.setMutateCh(ch)
+	nc.setId(uint64(id))
+	nc.setMutateCh(nch.Ch)
 
 	// Mark this node as writable.
 	t.writable.Add(nc, nil)
@@ -499,9 +504,9 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
-	id, ch := t.tree.idg.GenerateID()
-	n.setId(id)
-	n.setMutateCh(ch)
+	ch, id := t.tree.chp.GetChannel()
+	n.setId(uint64(id))
+	n.setMutateCh(ch.Ch)
 	if !n.isLeaf() {
 		n.setPartial(make([]byte, maxPrefixLen))
 		n.setPartialLen(maxPrefixLen)
