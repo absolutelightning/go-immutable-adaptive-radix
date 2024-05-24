@@ -311,6 +311,11 @@ func TestIterateLowerBound(t *testing.T) {
 			"dbfbad",
 			[]string{"dcafb", "dcf", "deabfa", "degab", "df", "dge", "ea", "eagbffe", "ec", "efbbdeg", "f", "fbceag", "fffbgfb", "gbc", "gbge", "gggbaa"},
 		},
+		{
+			[]string{"cda", "cdacg", "deeadeg"},
+			"bgfged",
+			[]string{"cda", "cdacg", "deeadeg"},
+		},
 	}
 
 	for idx, test := range cases {
