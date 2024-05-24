@@ -273,27 +273,17 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil
 	}
 
-	// If the child is a leaf, delete from this node
-	if isLeaf[T](child) {
-		if leafMatches(child.getKey(), key) == 0 {
-			if t.trackMutate {
-				t.trackId(child.getId())
-			}
-			nc := t.writeNode(node)
-			newNode := t.removeChild(nc, key[depth])
-			return t.writeNode(newNode), child
-		}
-		return node, nil
-	}
-
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
-	if t.trackMutate {
-		t.trackId(node.getId())
+	nodeClone := t.writeNode(node)
+	nodeClone.setChild(idx, newChild)
+	if newChild == nil {
+		if t.trackMutate {
+			t.trackId(node.getId())
+		}
+		nodeClone = t.removeChild(nodeClone, key[depth])
 	}
-	nClone := t.writeNode(node)
-	nClone.setChild(idx, newChild)
-	return nClone, val
+	return nodeClone, val
 }
 
 func (t *Txn[T]) Root() Node[T] {
