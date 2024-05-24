@@ -91,15 +91,16 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
 	}
+	if keepWatch {
+		newNode.setMutateCh(n.getMutateCh())
+	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
-	if keepWatch {
-		newNode.mutateCh = n.getMutateCh()
-	} else {
-		newNode.mutateCh = make(chan struct{})
-	}
 	copy(newNode.keys[:], n.keys[:])
+	if keepWatch {
+		newNode.setMutateCh(n.getMutateCh())
+	}
 	if deep {
 		for i := 0; i < 4; i++ {
 			if n.children[i] != nil {
@@ -107,7 +108,12 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 			}
 		}
 	} else {
-		copy(newNode.children[:], n.children[:])
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 4; i++ {
+			newNode.setChild(i, cpy[i])
+		}
+
 	}
 	return newNode
 }
@@ -156,6 +162,9 @@ func (n *Node4[T]) getMutateCh() chan struct{} {
 }
 
 func (n *Node4[T]) setMutateCh(ch chan struct{}) {
+	if ch == nil {
+		ch = make(chan struct{})
+	}
 	n.mutateCh = ch
 }
 

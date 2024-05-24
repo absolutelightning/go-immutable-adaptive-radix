@@ -342,6 +342,7 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 	copy(n.children[pos:], n.children[pos+1:])
 	n.numChildren--
 
+	newChildZero := n.children[0]
 	// Remove nodes with only a single child
 	if n.numChildren == 1 {
 		if n.children[0] == nil {
@@ -350,6 +351,7 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 		// Is not leaf
 		if !n.children[0].isLeaf() {
 			// Concatenate the prefixes
+			newChildZero = t.writeNode(n.children[0])
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {
 				n.getPartial()[prefix] = n.keys[0]
@@ -357,15 +359,15 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 			}
 			if prefix < maxPrefixLen {
 				subPrefix := min(int(n.children[0].getPartialLen()), maxPrefixLen-prefix)
-				copy(n.getPartial()[prefix:], n.children[0].getPartial()[:subPrefix])
+				copy(n.getPartial()[prefix:], newChildZero.getPartial()[:subPrefix])
 				prefix += subPrefix
 			}
 
 			// Store the prefix in the child
-			copy(n.children[0].getPartial(), n.partial[:min(prefix, maxPrefixLen)])
-			n.children[0].setPartialLen(n.children[0].getPartialLen() + n.getPartialLen() + 1)
+			copy(newChildZero.getPartial(), n.partial[:min(prefix, maxPrefixLen)])
+			newChildZero.setPartialLen(n.children[0].getPartialLen() + n.getPartialLen() + 1)
 		}
-		return n.children[0]
+		return newChildZero
 	}
 	return n
 }

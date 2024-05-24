@@ -96,9 +96,7 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	if keepWatch {
-		newNode.mutateCh = n.getMutateCh()
-	} else {
-		newNode.mutateCh = make(chan struct{})
+		newNode.setMutateCh(n.getMutateCh())
 	}
 	copy(newNode.keys[:], n.keys[:])
 	if deep {
@@ -108,7 +106,11 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 			}
 		}
 	} else {
-		copy(newNode.children[:], n.children[:])
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 16; i++ {
+			newNode.setChild(i, cpy[i])
+		}
 	}
 	nodeT := Node[T](newNode)
 	return nodeT
@@ -157,6 +159,9 @@ func (n *Node16[T]) getMutateCh() chan struct{} {
 }
 
 func (n *Node16[T]) setMutateCh(ch chan struct{}) {
+	if ch == nil {
+		ch = make(chan struct{})
+	}
 	n.mutateCh = ch
 }
 

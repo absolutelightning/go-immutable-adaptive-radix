@@ -130,9 +130,7 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 		value:  n.getValue(),
 	}
 	if keepWatch {
-		newNode.mutateCh = n.getMutateCh()
-	} else {
-		newNode.mutateCh = make(chan struct{})
+		newNode.setMutateCh(n.getMutateCh())
 	}
 	copy(newNode.key[:], n.key[:])
 	nodeT := Node[T](newNode)
@@ -164,6 +162,9 @@ func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
 }
 
 func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
+	if ch == nil {
+		ch = make(chan struct{})
+	}
 	n.mutateCh = ch
 }
 
