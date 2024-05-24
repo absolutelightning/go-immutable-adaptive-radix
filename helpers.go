@@ -378,7 +378,11 @@ func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 	pos := sort.Search(int(n.numChildren), func(i int) bool {
 		return n.keys[i] >= c
 	})
-
+	if t.trackMutate {
+		if n.children[pos] != nil {
+			t.trackId(n.children[pos].getId())
+		}
+	}
 	copy(n.keys[pos:], n.keys[pos+1:])
 	copy(n.children[pos:], n.children[pos+1:])
 	n.numChildren--
@@ -400,10 +404,18 @@ func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 	pos := n.keys[c]
 	n.keys[c] = 0
+	if t.trackMutate {
+		if n.children[pos-1] != nil {
+			t.trackId(n.children[pos-1].getId())
+		}
+	}
 	n.children[pos-1] = nil
 	n.numChildren--
 
 	if n.numChildren == 12 {
+		if t.trackMutate {
+			t.trackId(n.getId())
+		}
 		newNode := t.allocNode(node16)
 		t.copyHeader(newNode, n)
 		child := 0
@@ -421,6 +433,11 @@ func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 }
 
 func (t *Txn[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
+	if t.trackMutate {
+		if n.children[c] != nil {
+			t.trackId(n.children[c].getId())
+		}
+	}
 	n.children[c] = nil
 	n.numChildren--
 
