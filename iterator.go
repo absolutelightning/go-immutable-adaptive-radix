@@ -144,10 +144,11 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		return watch
 	}
 
+	i.stack = []Node[T]{node}
+	i.node = node
+
 	for {
 		// Check if the node matches the prefix
-		i.stack = []Node[T]{node}
-		i.node = node
 		watch = node.getMutateCh()
 
 		if node.isLeaf() {
@@ -160,7 +161,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
-				node = nil
 				break
 			}
 			depth += int(node.getPartialLen())
@@ -179,6 +179,9 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			// If the prefix is exhausted, break the loop
 			break
 		}
+
+		i.stack = []Node[T]{node}
+		i.node = node
 
 		// Move to the next level in the tree
 		node = child

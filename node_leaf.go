@@ -9,12 +9,11 @@ import (
 )
 
 type NodeLeaf[T any] struct {
-	id          uint64
-	value       T
-	key         []byte
-	mutateCh    chan struct{}
-	refCount    int32
-	oldMutateCh chan struct{}
+	id       uint64
+	value    T
+	key      []byte
+	mutateCh chan struct{}
+	refCount int32
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -196,12 +195,4 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *NodeLeaf[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
-}
-
-func (n *NodeLeaf[T]) getOldMutateCh() chan struct{} {
-	return n.oldMutateCh
-}
-
-func (n *NodeLeaf[T]) setOldMutateCh(ch chan struct{}) {
-	n.oldMutateCh = ch
 }

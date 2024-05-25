@@ -17,7 +17,6 @@ type Node16[T any] struct {
 	keys        [16]byte
 	children    [16]Node[T]
 	mutateCh    chan struct{}
-	oldMutateCh chan struct{}
 	refCount    int32
 }
 
@@ -210,12 +209,4 @@ func (n *Node16[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *Node16[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
-}
-
-func (n *Node16[T]) getOldMutateCh() chan struct{} {
-	return n.oldMutateCh
-}
-
-func (n *Node16[T]) setOldMutateCh(ch chan struct{}) {
-	n.oldMutateCh = ch
 }

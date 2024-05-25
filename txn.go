@@ -79,6 +79,9 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	if old == 0 {
 		t.size++
 	}
+	if t.trackMutate {
+		t.trackId(t.tree.root)
+	}
 	t.tree.root = newRoot
 	return oldVal, old == 1
 }
@@ -96,17 +99,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
-			if node.decrementRefCount() > 0 {
-				t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
-				return t.makeLeaf(key, value), zero
-			}
-			if t.trackMutate {
-				t.trackId(node)
-			}
-			node.setValue(value)
-			node.setKeyLen(uint32(len(key)))
-			node.setKey(key)
-			return node, zero
+			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			return t.makeLeaf(key, value), zero
 		}
 	}
 
@@ -116,19 +110,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
-			if node.decrementRefCount() > 0 {
-				t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-				return t.makeLeaf(key, value), node.getValue()
-			}
-			if t.trackMutate {
-				t.trackId(node)
-			}
-			valRet := node.getValue()
-			node.setKey(key)
-			node.setKeyLen(uint32(len(key)))
-			node.setValue(value)
-			return node, valRet
+			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			return t.makeLeaf(key, value), node.getValue()
 		}
 
 		// New value, we must split the leaf into a node4
@@ -165,15 +148,12 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// Determine if the prefixes differ, since we need to split
 		prefixDiff := prefixMismatch[T](node, key, len(key), depth)
 		if prefixDiff >= int(node.getPartialLen()) {
-			if t.trackMutate {
-				t.trackId(node)
-			}
 			depth += int(node.getPartialLen())
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 				if node.decrementRefCount() > 0 {
-					t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
+					t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 					node = node.clone(false, false)
 				}
 				node.setChild(idx, newChild)
@@ -184,7 +164,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			node = t.addChild(node, key[depth], newLeaf)
 			if node.decrementRefCount() > 0 {
-				t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
+				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 				return node.clone(false, false), zero
 			}
 			return node, zero
@@ -202,6 +182,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= maxPrefixLen {
 			if node.decrementRefCount() > 0 {
+				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 				node = node.clone(true, false)
 			}
 			newNode = t.addChild(newNode, node.getPartial()[prefixDiff], node)
@@ -210,6 +191,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			copy(node.getPartial(), node.getPartial()[prefixDiff+1:prefixDiff+1+length])
 		} else {
 			if node.decrementRefCount() > 0 {
+				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 				node = node.clone(false, false)
 			}
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
@@ -228,18 +210,14 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		return newNode, zero
 	}
 
-	if t.trackMutate {
-		t.trackId(node)
-	}
-
 	if depth < len(key) {
 		// Find a child to recurse to
 		child, idx := t.findChild(node, key[depth])
 		if child != nil {
 			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
-			if node.decrementRefCount() > 0 {
-				node = node.clone(false, false)
-			}
+			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
+			node = node.clone(false, false)
 			node.setChild(idx, newChild)
 			return node, val
 		}
@@ -248,7 +226,12 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
+		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 		return t.addChild(node, key[depth], newLeaf), zero
+	}
+	if node.decrementRefCount() > 0 {
+		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+		node = node.clone(false, false)
 	}
 	return node, zero
 }
@@ -264,6 +247,9 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	}
 	t.tree.root = newRoot
 	if l != nil {
+		if t.trackMutate {
+			t.trackId(t.tree.root)
+		}
 		t.size--
 		old := l.getValue()
 		return old, true
@@ -283,9 +269,10 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-			t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
 			return nil, node
 		}
+		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+		node = node.clone(false, false)
 		return node, nil
 	}
 
@@ -310,26 +297,20 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		if t.trackMutate {
 			t.trackId(node)
 		}
-		if node.decrementRefCount() > 0 {
-			t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-			node = node.clone(false, false)
-		}
+		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+		node = node.clone(false, false)
 		node.setChild(idx, newChild)
 		if newChild == nil {
 			if t.trackMutate {
 				t.trackId(node)
+				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			}
 			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
-			t.tree.idg.delChns[child.getOldMutateCh()] = struct{}{}
 			node = t.removeChild(node, key[depth])
 		}
 	}
-	if node.decrementRefCount() > 0 {
-		t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
-		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		node = node.clone(false, false)
-	}
+	t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+	node = node.clone(false, false)
 	return node, val
 }
 
@@ -374,22 +355,28 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	}
 	t.writable = nil
 	return nt
+
 }
 
 // slowNotify does a complete comparison of the before and after trees in order
 // to trigger notifications. This doesn't require any additional state but it
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
-	t.tree.DFS(func(n Node[T]) {
-		if n.getOldMutateCh() != nil {
-			close(n.getOldMutateCh())
-			n.setOldMutateCh(nil)
+	// isClosed returns true if the given channel is closed.
+	isClosed := func(ch chan struct{}) bool {
+		select {
+		case <-ch:
+			return true
+		default:
+			return false
 		}
-	})
+	}
+
 	for ch := range t.tree.idg.delChns {
 		if ch != nil {
-			close(ch)
-			delete(t.tree.idg.delChns, ch)
+			if !isClosed(ch) {
+				close(ch)
+			}
 		}
 	}
 }
@@ -425,7 +412,6 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
 			if t.trackMutate {
 				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-				t.tree.idg.delChns[node.getOldMutateCh()] = struct{}{}
 			}
 			return nil, 1
 		}
@@ -520,8 +506,8 @@ func (t *Txn[T]) trackId(node Node[T]) {
 	//if t.trackIds == nil {
 	//	t.trackIds = make(map[uint64]struct{})
 	//}
-	if t.trackMutate && node.getOldMutateCh() == nil {
-		node.setOldMutateCh(node.getMutateCh())
+	if t.trackMutate {
+		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 		node.createNewMutateChn()
 	}
 }

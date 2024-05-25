@@ -346,10 +346,8 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 	if n.numChildren == 1 {
 		// Is not leaf
 		if t.trackMutate {
-			t.tree.idg.delChns[n.children[0].getOldMutateCh()] = struct{}{}
 			t.tree.idg.delChns[n.children[0].getMutateCh()] = struct{}{}
 			t.tree.idg.delChns[n.getMutateCh()] = struct{}{}
-			t.tree.idg.delChns[n.getOldMutateCh()] = struct{}{}
 		}
 		newChildZero := n.children[0].clone(false, false)
 		if !n.children[0].isLeaf() {

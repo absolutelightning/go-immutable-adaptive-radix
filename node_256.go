@@ -13,7 +13,6 @@ type Node256[T any] struct {
 	children    [256]Node[T]
 	mutateCh    chan struct{}
 	refCount    int32
-	oldMutateCh chan struct{}
 }
 
 func (n *Node256[T]) getId() uint64 {
@@ -202,12 +201,4 @@ func (n *Node256[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *Node256[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
-}
-
-func (n *Node256[T]) getOldMutateCh() chan struct{} {
-	return n.oldMutateCh
-}
-
-func (n *Node256[T]) setOldMutateCh(ch chan struct{}) {
-	n.oldMutateCh = ch
 }
