@@ -79,6 +79,7 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	newRoot, oldVal := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
 	if old == 0 {
 		t.size++
+		t.tree.size++
 	}
 	if t.trackMutate {
 		newRoot.setMutateCh(oldRootCh)
@@ -256,6 +257,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 			t.trackId(t.tree.root)
 		}
 		t.size--
+		t.tree.size--
 		old := l.getValue()
 		newRoot.setMutateCh(oldRootCh)
 		t.tree.root = newRoot
