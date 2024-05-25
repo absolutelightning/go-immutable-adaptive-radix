@@ -75,11 +75,13 @@ func (t *Txn[T]) Get(k []byte) (T, bool) {
 
 func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	var old int
+	oldRootCh := t.tree.root.getMutateCh()
 	newRoot, oldVal := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
 	if old == 0 {
 		t.size++
 	}
 	if t.trackMutate {
+		newRoot.setMutateCh(oldRootCh)
 		t.trackId(t.tree.root)
 	}
 	t.tree.root = newRoot
@@ -88,6 +90,10 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T) {
 	var zero T
+
+	if t.trackMutate {
+		t.trackId(node)
+	}
 
 	// If we are at a nil node, inject a leaf
 	if node == nil {
@@ -99,7 +105,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			return t.makeLeaf(key, value), zero
 		}
 	}
@@ -139,10 +144,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		return newNode, zero
 	}
 
-	if t.trackMutate {
-		t.trackId(node)
-	}
-
 	// Check if given node has a prefix
 	if node.getPartialLen() > 0 {
 		// Determine if the prefixes differ, since we need to split
@@ -155,7 +156,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 				if t.trackMutate {
 					t.trackId(child)
 				}
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 				node.setChild(idx, newChild)
 				return node, val
 			}
@@ -163,7 +163,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			// No child, node goes within us
 			newLeaf := t.makeLeaf(key, value)
 			node = t.addChild(node, key[depth], newLeaf)
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			return node, zero
 		}
 
@@ -171,10 +170,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
-
-		if t.trackMutate {
-			t.trackId(node)
-		}
 
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= maxPrefixLen {
@@ -214,11 +209,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
-		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 		return t.addChild(node, key[depth], newLeaf), zero
 	}
 	if node.decrementRefCount() > 0 {
-		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 		node = node.clone(false, false)
 	}
 	return node, zero
@@ -226,22 +219,24 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	var zero T
+	oldRootCh := t.tree.root.getMutateCh()
 	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
-	if l != nil && t.trackMutate {
-		t.trackId(t.tree.root)
-	}
 	if newRoot == nil {
 		newRoot = t.allocNode(leafType)
+		newRoot.setMutateCh(oldRootCh)
 	}
-	t.tree.root = newRoot
 	if l != nil {
 		if t.trackMutate {
 			t.trackId(t.tree.root)
 		}
 		t.size--
 		old := l.getValue()
+		newRoot.setMutateCh(oldRootCh)
+		t.tree.root = newRoot
 		return old, true
 	}
+	newRoot.setMutateCh(oldRootCh)
+	t.tree.root = newRoot
 	return zero, false
 }
 
@@ -252,6 +247,10 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	}
 
 	node.incrementRefCount()
+
+	if t.trackMutate {
+		t.trackId(node)
+	}
 
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
@@ -351,12 +350,12 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	// isClosed returns true if the given channel is closed.
-	isClosed := func(ch chan struct{}) bool {
+	isClosed := func(ch <-chan struct{}) bool {
 		select {
-		case <-ch:
-			return true
+		case _, ok := <-ch:
+			return !ok // If `ok` is false, the channel is closed.
 		default:
-			return false
+			return false // The channel is not closed.
 		}
 	}
 
@@ -495,8 +494,10 @@ func (t *Txn[T]) trackId(node Node[T]) {
 	//	t.trackIds = make(map[uint64]struct{})
 	//}
 	if t.trackMutate {
-		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		node.createNewMutateChn()
+		if _, ok := t.tree.idg.trackIds[node.getId()]; !ok {
+			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			node.createNewMutateChn()
+		}
 	}
 }
 

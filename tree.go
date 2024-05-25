@@ -21,15 +21,17 @@ const (
 type nodeType int
 
 type IDGenerator struct {
-	counter uint64
-	delChns map[chan struct{}]struct{}
+	counter  uint64
+	delChns  map[chan struct{}]struct{}
+	trackIds map[uint64]struct{}
 }
 
 // NewIDGenerator initializes a new IDGenerator
 func NewIDGenerator() *IDGenerator {
 	return &IDGenerator{
-		counter: 0,
-		delChns: make(map[chan struct{}]struct{})}
+		counter:  0,
+		delChns:  make(map[chan struct{}]struct{}),
+		trackIds: make(map[uint64]struct{})}
 }
 
 // GenerateID generates a new atomic ID
@@ -54,6 +56,9 @@ func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
 	rt.root = &NodeLeaf[T]{}
 	rt.idg = NewIDGenerator()
+	id, ch := rt.idg.GenerateID()
+	rt.root.setId(id)
+	rt.root.setMutateCh(ch)
 	return rt
 }
 
