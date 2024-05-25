@@ -3,6 +3,8 @@
 
 package adaptive
 
+import "sync/atomic"
+
 type Node256[T any] struct {
 	id          uint64
 	partialLen  uint32
@@ -10,6 +12,7 @@ type Node256[T any] struct {
 	partial     []byte
 	children    [256]Node[T]
 	mutateCh    chan struct{}
+	refCount    int32
 }
 
 func (n *Node256[T]) getId() uint64 {
@@ -34,6 +37,14 @@ func (n *Node256[T]) getKeyLen() uint32 {
 
 func (n *Node256[T]) setKeyLen(keyLen uint32) {
 
+}
+
+func (n *Node256[T]) incrementRefCount() int32 {
+	return atomic.AddInt32(&n.refCount, 1)
+}
+
+func (n *Node256[T]) decrementRefCount() int32 {
+	return atomic.AddInt32(&n.refCount, -1)
 }
 
 func (n *Node256[T]) getArtNodeType() nodeType {
@@ -102,6 +113,8 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 	newNode.setPartial(newPartial)
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
+	} else {
+		newNode.setMutateCh(make(chan struct{}))
 	}
 	if deep {
 		for i := 0; i < 256; i++ {
@@ -115,7 +128,6 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 		for i := 0; i < 256; i++ {
 			newNode.setChild(i, cpy[i])
 		}
-
 	}
 	return newNode
 }
@@ -184,4 +196,9 @@ func (n *Node256[T]) ReverseIterator() *ReverseIterator[T] {
 			node:  nodeT,
 		},
 	}
+}
+
+func (n *Node256[T]) createNewMutateChn() chan struct{} {
+	n.setMutateCh(make(chan struct{}))
+	return n.getMutateCh()
 }

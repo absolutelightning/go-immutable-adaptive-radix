@@ -144,10 +144,11 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		return watch
 	}
 
+	i.stack = []Node[T]{node}
+	i.node = node
+
 	for {
 		// Check if the node matches the prefix
-		i.stack = []Node[T]{node}
-		i.node = node
 		watch = node.getMutateCh()
 
 		if node.isLeaf() {
@@ -160,7 +161,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
-				node = nil
 				break
 			}
 			depth += int(node.getPartialLen())
@@ -175,10 +175,13 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			break
 		}
 
-		if depth == len(prefix)-1 {
+		if depth == len(prefix) {
 			// If the prefix is exhausted, break the loop
 			break
 		}
+
+		i.stack = []Node[T]{node}
+		i.node = node
 
 		// Move to the next level in the tree
 		node = child
@@ -256,7 +259,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			prefixCmp = bytes.Compare(node.getPartial()[:node.getPartialLen()], prefix[depth:])
 		}
 
-		if prefixCmp > 0 {
+		if prefixCmp > 0 && !i.seenMismatch {
 			// Prefix is larger, that means the lower bound is greater than the search
 			// and from now on we need to follow the minimum path to the smallest
 			// leaf under this subtree.
@@ -264,7 +267,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			return
 		}
 
-		if prefixCmp < 0 {
+		if prefixCmp < 0 && !i.seenMismatch {
 			// Prefix is smaller than search prefix, that means there is no lower
 			// bound
 			i.node = nil
