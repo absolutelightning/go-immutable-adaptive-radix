@@ -330,40 +330,40 @@ func getKey(key []byte) []byte {
 func (t *Txn[T]) removeChild(n Node[T], c byte) Node[T] {
 	switch n.getArtNodeType() {
 	case node4:
-		return t.removeChild4(n.(*Node4[T]), c)
+		return t.removeChild4(n, c)
 	case node16:
-		return t.removeChild16(n.(*Node16[T]), c)
+		return t.removeChild16(n, c)
 	case node48:
-		return t.removeChild48(n.(*Node48[T]), c)
+		return t.removeChild48(n, c)
 	case node256:
-		return t.removeChild256(n.(*Node256[T]), c)
+		return t.removeChild256(n, c)
 	default:
 		panic("invalid node type")
 	}
 }
 
-func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
-	pos := sort.Search(int(n.numChildren), func(i int) bool {
-		return n.keys[i] >= c
+func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
+	pos := sort.Search(int(n.getNumChildren()), func(i int) bool {
+		return n.getKeyAtIdx(i) >= c
 	})
 
-	copy(n.keys[pos:], n.keys[pos+1:])
-	copy(n.children[pos:], n.children[pos+1:])
-	n.numChildren--
+	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
+	copy(n.getChildren()[pos:], n.getChildren()[pos+1:])
+	n.setNumChildren(n.getNumChildren() - 1)
 
 	// Remove nodes with only a single child
-	if n.numChildren == 1 {
+	if n.getNumChildren() == 1 {
 		// Is not leaf
 		if t.trackMutate {
-			t.tree.idg.delChns[n.children[0].getMutateCh()] = struct{}{}
+			t.tree.idg.delChns[n.getChildren()[0].getMutateCh()] = struct{}{}
 			t.tree.idg.delChns[n.getMutateCh()] = struct{}{}
 		}
-		newChildZero := n.children[0].clone(false, false)
-		if !n.children[0].isLeaf() {
+		newChildZero := n.getChildren()[0].clone(false, false)
+		if !n.getChildren()[0].isLeaf() {
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {
-				n.getPartial()[prefix] = n.keys[0]
+				n.getPartial()[prefix] = n.getKeyAtIdx(0)
 				prefix++
 			}
 			if prefix < maxPrefixLen {
@@ -373,7 +373,7 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 			}
 
 			// Store the prefix in the child
-			copy(newChildZero.getPartial(), n.partial[:min(prefix, maxPrefixLen)])
+			copy(newChildZero.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			newChildZero.setPartialLen(newChildZero.getPartialLen() + n.getPartialLen() + 1)
 		}
 		return newChildZero
@@ -381,47 +381,47 @@ func (t *Txn[T]) removeChild4(n *Node4[T], c byte) Node[T] {
 	return n
 }
 
-func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
-	pos := sort.Search(int(n.numChildren), func(i int) bool {
-		return n.keys[i] >= c
+func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
+	pos := sort.Search(int(n.getNumChildren()), func(i int) bool {
+		return n.getKeyAtIdx(i) >= c
 	})
 	if t.trackMutate {
-		if n.children[pos] != nil {
-			t.trackId(n.children[pos])
+		if n.getChild(pos) != nil {
+			t.trackId(n.getChild(pos))
 		}
 		t.trackId(n)
 	}
-	copy(n.keys[pos:], n.keys[pos+1:])
-	copy(n.children[pos:], n.children[pos+1:])
-	n.numChildren--
+	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
+	copy(n.getChildren()[pos:], n.getChildren()[pos+1:])
+	n.setNumChildren(n.getNumChildren() - 1)
 
-	if n.numChildren == 3 {
+	if n.getNumChildren() == 3 {
 		if t.trackMutate {
 			t.trackId(n)
 		}
 		newNode := t.allocNode(node4)
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
-		copy(n4.keys[:], n.keys[:4])
-		copy(n4.children[:], n.children[:4])
+		copy(n4.keys[:], n.getKeys()[:4])
+		copy(n4.children[:], n.getChildren()[:4])
 		return newNode
 	}
 	return n
 }
 
-func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
-	pos := n.keys[c]
-	n.keys[c] = 0
+func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
+	pos := n.getKeyAtIdx(int(c))
+	n.setKeyAtIdx(int(c), 0)
 	if t.trackMutate {
-		if n.children[pos-1] != nil {
-			t.trackId(n.children[pos-1])
+		if n.getChild(int(pos)-1) != nil {
+			t.trackId(n.getChild(int(pos) - 1))
 		}
 		t.trackId(n)
 	}
-	n.children[pos-1] = nil
-	n.numChildren--
+	n.setChild(int(pos-1), nil)
+	n.setNumChildren(n.getNumChildren() - 1)
 
-	if n.numChildren == 12 {
+	if n.getNumChildren() == 12 {
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -429,10 +429,10 @@ func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 		t.copyHeader(newNode, n)
 		child := 0
 		for i := 0; i < 256; i++ {
-			pos = n.keys[i]
+			pos = n.getKeyAtIdx(i)
 			if pos != 0 {
 				newNode.setKeyAtIdx(child, byte(i))
-				newNode.setChild(child, n.children[pos-1])
+				newNode.setChild(child, n.getChild(int(pos-1)))
 				child++
 			}
 		}
@@ -441,19 +441,19 @@ func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 	return n
 }
 
-func (t *Txn[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
+func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	if t.trackMutate {
-		if n.children[c] != nil {
-			t.trackId(n.children[c])
+		if n.getChild(int(c)) != nil {
+			t.trackId(n.getChild(int(c)))
 		}
 		t.trackId(n)
 	}
-	n.children[c] = nil
-	n.numChildren--
+	n.setChild(int(c), nil)
+	n.setNumChildren(n.getNumChildren() - 1)
 
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
-	if n.numChildren == 37 {
+	if n.getNumChildren() == 37 {
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -462,8 +462,8 @@ func (t *Txn[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
 
 		pos := 0
 		for i := 0; i < 256; i++ {
-			if n.children[i] != nil {
-				newNode.setChild(pos, n.children[i])
+			if n.getChild(i) != nil {
+				newNode.setChild(pos, n.getChild(i))
 				newNode.setKeyAtIdx(i, byte(pos+1))
 				pos++
 			}
