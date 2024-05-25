@@ -612,9 +612,8 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.Commit()
-			//r = txn.CommitOnly()
-			//txn.slowNotify()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
@@ -634,12 +633,12 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		select {
 		case <-leafWatch:
 		default:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 		select {
 		case <-missingWatch:
 		default:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 		select {
 		case <-otherWatch:
@@ -670,13 +669,11 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			//r = txn.CommitOnly()
-			//txn.slowNotify()
-			r = txn.Commit()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
-			// We don't merge child in Adaptive Radix Trees
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 
 		// Verify root and parent triggered, and leaf affected
@@ -693,13 +690,12 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		select {
 		case <-leafWatch:
 		default:
-			// We don't merge child in Adaptive Radix Trees
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 		select {
 		case <-missingWatch:
 		default:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 		select {
 		case <-otherWatch:
@@ -761,10 +757,8 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			// TODO discuss
-			//r = txn.CommitOnly()
-			//txn.slowNotify()
-			r = txn.Commit()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
@@ -833,7 +827,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		select {
 		case <-leafWatch:
 		default:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 		select {
 		case <-otherWatch:
@@ -874,7 +868,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.Commit()
 		}
 		if hasAnyClosedMutateCh(r) {
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 
 		// Verify root and parent triggered, not leaf affected
@@ -921,13 +915,11 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			// TODO discuss
-			//r = txn.CommitOnly()
-			//txn.slowNotify()
-			r = txn.Commit()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 
 		select {
@@ -938,7 +930,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		select {
 		case <-parentWatch:
 		default:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		}
 		select {
 		case <-leafWatch:

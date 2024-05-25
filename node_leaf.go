@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"sync/atomic"
 )
 
 type NodeLeaf[T any] struct {
@@ -12,6 +13,7 @@ type NodeLeaf[T any] struct {
 	value    T
 	key      []byte
 	mutateCh chan struct{}
+	refCount int32
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -20,6 +22,14 @@ func (n *NodeLeaf[T]) getId() uint64 {
 
 func (n *NodeLeaf[T]) setId(id uint64) {
 	n.id = id
+}
+
+func (n *NodeLeaf[T]) incrementRefCount() int32 {
+	return atomic.AddInt32(&n.refCount, 1)
+}
+
+func (n *NodeLeaf[T]) decrementRefCount() int32 {
+	return atomic.AddInt32(&n.refCount, -1)
 }
 
 func (n *NodeLeaf[T]) getPartialLen() uint32 {
@@ -129,6 +139,8 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
+	} else {
+		newNode.setMutateCh(make(chan struct{}))
 	}
 	copy(newNode.key[:], n.key[:])
 	nodeT := Node[T](newNode)
@@ -178,4 +190,9 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 			node:  nodeT,
 		},
 	}
+}
+
+func (n *NodeLeaf[T]) createNewMutateChn() chan struct{} {
+	n.setMutateCh(make(chan struct{}))
+	return n.getMutateCh()
 }

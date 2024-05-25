@@ -21,25 +21,24 @@ const (
 type nodeType int
 
 type IDGenerator struct {
-	counter uint64
-	chanMap map[uint64]chan struct{}
+	counter  uint64
+	delChns  map[chan struct{}]struct{}
+	trackIds map[uint64]struct{}
 }
 
 // NewIDGenerator initializes a new IDGenerator
 func NewIDGenerator() *IDGenerator {
-	return &IDGenerator{counter: 0, chanMap: make(map[uint64]chan struct{})}
+	return &IDGenerator{
+		counter:  0,
+		delChns:  make(map[chan struct{}]struct{}),
+		trackIds: make(map[uint64]struct{})}
 }
 
 // GenerateID generates a new atomic ID
 func (gen *IDGenerator) GenerateID() (uint64, chan struct{}) {
 	ch := make(chan struct{})
 	id := atomic.AddUint64(&gen.counter, 1)
-	gen.chanMap[id] = ch
 	return id, ch
-}
-
-func (gen *IDGenerator) GetChan(id uint64) chan struct{} {
-	return gen.chanMap[id]
 }
 
 type RadixTree[T any] struct {
@@ -57,6 +56,9 @@ func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
 	rt.root = &NodeLeaf[T]{}
 	rt.idg = NewIDGenerator()
+	id, ch := rt.idg.GenerateID()
+	rt.root.setId(id)
+	rt.root.setMutateCh(ch)
 	return rt
 }
 
@@ -164,6 +166,8 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	for {
 		// Might be a leaf
 		watch = n.getMutateCh()
+		n.incrementRefCount()
+
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
@@ -190,6 +194,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if child == nil {
 			return zero, false, watch
 		}
+		n.decrementRefCount()
 		n = child
 		depth++
 	}
@@ -268,7 +273,7 @@ func (t *RadixTree[T]) Walk(fn WalkFn[T]) {
 }
 
 func (t *RadixTree[T]) DFS(fn DfsFn[T]) {
-	dfs(t.root, fn)
+	t.DFSNode(t.root, fn)
 }
 
 // recursiveWalk is used to do a pre-order walk of a node
@@ -294,14 +299,14 @@ type DfsFn[T any] func(n Node[T])
 
 // recursiveWalk is used to do a pre-order walk of a node
 // recursively. Returns true if the walk should be aborted
-func dfs[T any](n Node[T], fn DfsFn[T]) {
+func (t *RadixTree[T]) DFSNode(n Node[T], fn DfsFn[T]) {
 	// Visit the leaf values if any
 	fn(n)
 
 	// Recurse on the children
 	for _, e := range n.getChildren() {
 		if e != nil {
-			dfs(e, fn)
+			t.DFSNode(e, fn)
 		}
 	}
 }
