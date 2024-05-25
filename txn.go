@@ -152,10 +152,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
-				if node.decrementRefCount() > 0 {
-					t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-					node = node.clone(false, false)
+				if t.trackMutate {
+					t.trackId(child)
 				}
+				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 				node.setChild(idx, newChild)
 				return node, val
 			}
@@ -163,15 +163,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			// No child, node goes within us
 			newLeaf := t.makeLeaf(key, value)
 			node = t.addChild(node, key[depth], newLeaf)
-			if node.decrementRefCount() > 0 {
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-				return node.clone(false, false), zero
-			}
+			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			return node, zero
-		}
-
-		if t.trackMutate {
-			t.trackId(node)
 		}
 
 		// Create a new node
@@ -179,26 +172,22 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 
+		if t.trackMutate {
+			t.trackId(node)
+		}
+
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= maxPrefixLen {
-			if node.decrementRefCount() > 0 {
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-				node = node.clone(true, false)
-			}
 			newNode = t.addChild(newNode, node.getPartial()[prefixDiff], node)
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial(), node.getPartial()[prefixDiff+1:prefixDiff+1+length])
 		} else {
-			if node.decrementRefCount() > 0 {
+			if t.trackMutate {
 				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-				node = node.clone(false, false)
 			}
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
 			l := minimum[T](node)
-			if l == nil {
-				return node, zero
-			}
 			newNode = t.addChild(newNode, l.key[depth+prefixDiff], node)
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial(), l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
@@ -217,7 +206,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
-			node = node.clone(false, false)
 			node.setChild(idx, newChild)
 			return node, val
 		}

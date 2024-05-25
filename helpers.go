@@ -76,6 +76,9 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
+		if t.trackMutate {
+			t.trackId(n)
+		}
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -102,6 +105,9 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
+		if t.trackMutate {
+			t.trackId(n)
+		}
 		newNode := t.allocNode(node48)
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -125,6 +131,9 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
+		if t.trackMutate {
+			t.trackId(n)
+		}
 		newNode := t.allocNode(node256)
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
@@ -380,6 +389,7 @@ func (t *Txn[T]) removeChild16(n *Node16[T], c byte) Node[T] {
 		if n.children[pos] != nil {
 			t.trackId(n.children[pos])
 		}
+		t.trackId(n)
 	}
 	copy(n.keys[pos:], n.keys[pos+1:])
 	copy(n.children[pos:], n.children[pos+1:])
@@ -406,6 +416,7 @@ func (t *Txn[T]) removeChild48(n *Node48[T], c uint8) Node[T] {
 		if n.children[pos-1] != nil {
 			t.trackId(n.children[pos-1])
 		}
+		t.trackId(n)
 	}
 	n.children[pos-1] = nil
 	n.numChildren--
@@ -435,6 +446,7 @@ func (t *Txn[T]) removeChild256(n *Node256[T], c uint8) Node[T] {
 		if n.children[c] != nil {
 			t.trackId(n.children[c])
 		}
+		t.trackId(n)
 	}
 	n.children[c] = nil
 	n.numChildren--
