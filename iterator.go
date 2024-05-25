@@ -175,7 +175,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			break
 		}
 
-		if depth == len(prefix)-1 {
+		if depth == len(prefix) {
 			// If the prefix is exhausted, break the loop
 			break
 		}

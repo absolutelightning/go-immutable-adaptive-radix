@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"sort"
+	"sync/atomic"
 )
 
 type Node16[T any] struct {
@@ -16,6 +17,8 @@ type Node16[T any] struct {
 	keys        [16]byte
 	children    [16]Node[T]
 	mutateCh    chan struct{}
+	oldMutateCh chan struct{}
+	refCount    int32
 }
 
 func (n *Node16[T]) getId() uint64 {
@@ -87,6 +90,14 @@ func (n *Node16[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
+func (n *Node16[T]) incrementRefCount() int32 {
+	return atomic.AddInt32(&n.refCount, 1)
+}
+
+func (n *Node16[T]) decrementRefCount() int32 {
+	return atomic.AddInt32(&n.refCount, -1)
+}
+
 func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
@@ -97,6 +108,8 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode.setPartial(newPartial)
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
+	} else {
+		newNode.setMutateCh(make(chan struct{}))
 	}
 	copy(newNode.keys[:], n.keys[:])
 	if deep {
@@ -192,4 +205,17 @@ func (n *Node16[T]) ReverseIterator() *ReverseIterator[T] {
 			node:  nodeT,
 		},
 	}
+}
+
+func (n *Node16[T]) createNewMutateChn() chan struct{} {
+	n.setMutateCh(make(chan struct{}))
+	return n.getMutateCh()
+}
+
+func (n *Node16[T]) getOldMutateCh() chan struct{} {
+	return n.oldMutateCh
+}
+
+func (n *Node16[T]) setOldMutateCh(ch chan struct{}) {
+	n.oldMutateCh = ch
 }
