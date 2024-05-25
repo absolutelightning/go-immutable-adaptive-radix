@@ -324,8 +324,13 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			node = t.removeChild(node, key[depth])
 		}
 	}
-	t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-	node = node.clone(false, false)
+	if node.decrementRefCount() > 0 {
+		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+		if t.trackMutate {
+			t.trackId(node)
+		}
+		node = node.clone(false, false)
+	}
 	return node, val
 }
 
