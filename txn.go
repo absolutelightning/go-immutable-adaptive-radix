@@ -301,8 +301,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	node = t.writeNode(node)
 
-	node.incrementRefCount()
-
 	if t.trackMutate {
 		t.trackId(node)
 	}
