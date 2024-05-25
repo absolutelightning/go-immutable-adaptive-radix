@@ -37,6 +37,30 @@ type Txn[T any] struct {
 	writable *simplelru.LRU[Node[T], any]
 }
 
+func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
+	if t.writable == nil {
+		lru, err := simplelru.NewLRU[Node[T], any](defaultModifiedCache, nil)
+		if err != nil {
+			panic(err)
+		}
+		t.writable = lru
+	}
+
+	if _, ok := t.writable.Get(n); ok {
+		if t.trackMutate {
+			t.trackId(n)
+		}
+		return n
+	}
+	if t.trackMutate {
+		t.trackId(n)
+	}
+	nc := n.clone(false, false)
+	// Mark this node as writable.
+	t.writable.Add(nc, nil)
+	return nc
+}
+
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	treeClone := t.Clone(false)
@@ -92,6 +116,7 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T) {
 	var zero T
 
+	node = t.writeNode(node)
 	if t.trackMutate {
 		t.trackId(node)
 	}
@@ -274,6 +299,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil
 	}
 
+	node = t.writeNode(node)
+
 	node.incrementRefCount()
 
 	if t.trackMutate {
@@ -287,7 +314,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			return nil, node
 		}
 		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		node = node.clone(false, false)
+		node = t.writeNode(node)
 		return node, nil
 	}
 
@@ -306,6 +333,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil
 	}
 
+	node = t.writeNode(node)
+
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 	if val != nil {
@@ -313,7 +342,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			t.trackId(node)
 		}
 		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		node = node.clone(false, false)
+		node = t.writeNode(node)
 		node.setChild(idx, newChild)
 		if newChild == nil {
 			if t.trackMutate {
@@ -324,13 +353,12 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			node = t.removeChild(node, key[depth])
 		}
 	}
-	if node.decrementRefCount() > 0 {
-		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		if t.trackMutate {
-			t.trackId(node)
-		}
-		node = node.clone(false, false)
+	t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+	if t.trackMutate {
+		t.trackId(node)
 	}
+	node = t.writeNode(node)
+	node = node.clone(false, false)
 	return node, val
 }
 
