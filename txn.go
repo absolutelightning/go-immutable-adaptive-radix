@@ -115,8 +115,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-			return t.makeLeaf(key, value), node.getValue()
+			if node.decrementRefCount() > 0 {
+				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+				return t.makeLeaf(key, value), node.getValue()
+			}
+			oldVal := node.getValue()
+			node.setValue(value)
+			return node, oldVal
 		}
 
 		// New value, we must split the leaf into a node4
@@ -156,12 +161,24 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 				if t.trackMutate {
 					t.trackId(child)
 				}
+				if node.decrementRefCount() > 0 {
+					if t.trackMutate {
+						t.trackId(node)
+					}
+					node = node.clone(false, false)
+				}
 				node.setChild(idx, newChild)
 				return node, val
 			}
 
 			// No child, node goes within us
 			newLeaf := t.makeLeaf(key, value)
+			if node.decrementRefCount() > 0 {
+				if t.trackMutate {
+					t.trackId(node)
+				}
+				node = node.clone(false, false)
+			}
 			node = t.addChild(node, key[depth], newLeaf)
 			return node, zero
 		}
@@ -201,6 +218,12 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
+			if node.decrementRefCount() > 0 {
+				if t.trackMutate {
+					t.trackId(node)
+				}
+				node = node.clone(false, false)
+			}
 			node.setChild(idx, newChild)
 			return node, val
 		}
@@ -212,6 +235,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		return t.addChild(node, key[depth], newLeaf), zero
 	}
 	if node.decrementRefCount() > 0 {
+		if t.trackMutate {
+			t.trackId(node)
+		}
 		node = node.clone(false, false)
 	}
 	return node, zero
@@ -223,7 +249,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 	if newRoot == nil {
 		newRoot = t.allocNode(leafType)
-		newRoot.setMutateCh(oldRootCh)
+		newRoot.setMutateCh(make(chan struct{}))
 	}
 	if l != nil {
 		if t.trackMutate {
