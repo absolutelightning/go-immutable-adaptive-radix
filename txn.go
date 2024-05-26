@@ -207,7 +207,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 					t.trackId(child)
 				}
 				node.setChild(idx, newChild)
-				if doClone {
+				if newChild != child && doClone {
 					oldRef.incrementLazyRefCount(-1)
 					oldRef.processLazyRef()
 				}
@@ -273,7 +273,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
 			node.setChild(idx, newChild)
-			if doClone {
+			if newChild != child && doClone {
 				oldRef.incrementLazyRefCount(-1)
 				oldRef.processLazyRef()
 			}
