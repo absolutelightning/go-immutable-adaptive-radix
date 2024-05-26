@@ -124,9 +124,6 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 		for i := 0; i < 256; i++ {
 			if n.children[i] != nil {
 				newNode.children[i] = n.children[i].clone(keepWatch, deep)
-				if newNode.children[i] != nil {
-					newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
-				}
 			}
 		}
 	} else {
@@ -134,9 +131,6 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 		copy(cpy, n.children[:])
 		for i := 0; i < 256; i++ {
 			newNode.setChild(i, cpy[i])
-			if cpy[i] != nil {
-				newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
-			}
 		}
 	}
 	return newNode

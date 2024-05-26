@@ -134,9 +134,6 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 		copy(cpy, n.children[:])
 		for i := 0; i < 48; i++ {
 			newNode.setChild(i, cpy[i])
-			if cpy[i] != nil {
-				newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
-			}
 		}
 	}
 	return newNode

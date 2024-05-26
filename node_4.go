@@ -117,7 +117,7 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 	if deep {
 		for i := 0; i < 4; i++ {
 			if n.children[i] != nil {
-				newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
+				newNode.children[i] = n.children[i].clone(keepWatch, deep)
 			}
 		}
 	} else {
@@ -125,9 +125,6 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 		copy(cpy, n.children[:])
 		for i := 0; i < 4; i++ {
 			newNode.setChild(i, cpy[i])
-			if cpy[i] != nil {
-				newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
-			}
 		}
 
 	}
