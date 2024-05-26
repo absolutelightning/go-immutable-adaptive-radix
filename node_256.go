@@ -29,14 +29,8 @@ func (n *Node256[T]) setId(id uint64) {
 }
 
 func (n *Node256[T]) decrementRefCount() int32 {
-	val := atomic.AddInt32(&n.refCount, n.lazyRefCount-1)
-	for i := 0; i < 256; i++ {
-		if n.children[i] != nil {
-			n.children[i].incrementLazyRefCount(n.lazyRefCount)
-		}
-	}
-	atomic.StoreInt32(&n.lazyRefCount, 0)
-	return val
+	n.processLazyRef()
+	return atomic.AddInt32(&n.lazyRefCount, -1)
 }
 
 func (n *Node256[T]) setPartialLen(partialLen uint32) {
@@ -52,14 +46,8 @@ func (n *Node256[T]) setKeyLen(keyLen uint32) {
 }
 
 func (n *Node256[T]) incrementRefCount() int32 {
-	val := atomic.AddInt32(&n.refCount, n.lazyRefCount+1)
-	for i := 0; i < 256; i++ {
-		if n.children[i] != nil {
-			n.children[i].incrementLazyRefCount(n.lazyRefCount)
-		}
-	}
-	atomic.StoreInt32(&n.lazyRefCount, 0)
-	return val
+	n.processLazyRef()
+	return atomic.AddInt32(&n.refCount, 1)
 }
 
 func (n *Node256[T]) getArtNodeType() nodeType {
@@ -229,14 +217,8 @@ func (n *Node256[T]) incrementLazyRefCount(val int32) int32 {
 }
 
 func (n *Node256[T]) getRefCount() int32 {
-	val := atomic.AddInt32(&n.refCount, n.lazyRefCount)
-	for i := 0; i < 256; i++ {
-		if n.children[i] != nil {
-			n.children[i].incrementLazyRefCount(n.lazyRefCount)
-		}
-	}
-	atomic.StoreInt32(&n.lazyRefCount, 0)
-	return val
+	n.processLazyRef()
+	return atomic.LoadInt32(&n.refCount)
 }
 
 func (n *Node256[T]) processLazyRef() {
