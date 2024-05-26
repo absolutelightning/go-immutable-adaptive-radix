@@ -30,7 +30,7 @@ func (n *Node256[T]) setId(id uint64) {
 
 func (n *Node256[T]) decrementRefCount() int32 {
 	n.processLazyRef()
-	return atomic.AddInt32(&n.lazyRefCount, -1)
+	return atomic.AddInt32(&n.refCount, -1)
 }
 
 func (n *Node256[T]) setPartialLen(partialLen uint32) {

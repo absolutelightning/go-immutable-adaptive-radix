@@ -89,7 +89,7 @@ func (n *Node48[T]) decrementRefCount() int32 {
 
 func (n *Node48[T]) incrementRefCount() int32 {
 	n.processLazyRef()
-	return atomic.AddInt32(&n.lazyRefCount, 1)
+	return atomic.AddInt32(&n.refCount, 1)
 }
 
 func (n *Node48[T]) matchPrefix(prefix []byte) bool {
