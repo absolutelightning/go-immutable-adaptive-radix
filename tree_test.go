@@ -207,6 +207,40 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 	}
 }
 
+func TestDebug(t *testing.T) {
+	r := NewRadixTree[any]()
+
+	keys := []string{
+		"sneakiness",
+		"sneaking",
+		"sneakingly",
+		"sneakingness",
+		"sneakish",
+		"sneakishly",
+		"sneakishness",
+		"Zwinglianist", "zwitter", "zwitterion", "zwitterionic", "zyga",
+		"zygadenine", "Zygadenus", "Zygaena", "zygaenid", "Zygaenidae", "zygal", "zygantra", "zygantrum", "zygapophyseal",
+		"zygapophysis", "zygion", "zygite", "Zygnema", "Zygnemaceae",
+	}
+	for _, k := range keys {
+		fmt.Println("inserting ", k)
+		r, _, _ = r.Insert([]byte(k), nil)
+		fmt.Println("after insert")
+		r.DFS(func(n Node[any]) {
+			fmt.Println(n.getRefCount())
+			if n.isLeaf() {
+				fmt.Println(string(n.getKey()))
+			} else {
+				fmt.Println(string(n.getPartial()))
+			}
+			if n.getRefCount() != 1 {
+				t.Fatalf("bad ref count: %d", n.getRefCount())
+			}
+		})
+	}
+
+}
+
 func TestLongestPrefix(t *testing.T) {
 	r := NewRadixTree[any]()
 
