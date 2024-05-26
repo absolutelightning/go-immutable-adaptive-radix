@@ -467,7 +467,6 @@ func TestIteratePrefix(t *testing.T) {
 }
 
 func TestTrackMutate_DeletePrefix(t *testing.T) {
-	t.Skip()
 
 	r := NewRadixTree[any]()
 
@@ -582,7 +581,6 @@ func isClosed(ch chan struct{}) bool {
 }
 
 func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
-	t.Skip()
 	for i := 0; i < 3; i++ {
 		r := NewRadixTree[any]()
 
@@ -720,7 +718,6 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 }
 
 func TestTrackMutate_GetWatch(t *testing.T) {
-	t.Skip()
 	for i := 0; i < 3; i++ {
 		r := NewRadixTree[any]()
 
