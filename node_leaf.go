@@ -9,11 +9,12 @@ import (
 )
 
 type NodeLeaf[T any] struct {
-	id       uint64
-	value    T
-	key      []byte
-	mutateCh chan struct{}
-	refCount int32
+	id           uint64
+	value        T
+	key          []byte
+	mutateCh     chan struct{}
+	refCount     int32
+	lazyRefCount int32
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -195,4 +196,19 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *NodeLeaf[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
+}
+
+func (n *NodeLeaf[T]) getRefCount() int32 {
+	val := atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	n.lazyRefCount = 0
+	return val
+}
+
+func (n *NodeLeaf[T]) incrementLazyRefCount(val int32) int32 {
+	return atomic.AddInt32(&n.lazyRefCount, val)
+}
+
+func (n *NodeLeaf[T]) processLazyRef() {
+	atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	atomic.StoreInt32(&n.lazyRefCount, 0)
 }

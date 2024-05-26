@@ -74,15 +74,20 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setKeyAtIdx(idx, c)
 		n.setChild(idx, child)
 		n.setNumChildren(n.getNumChildren() + 1)
+		child.incrementRefCount()
 		return n
 	} else {
 		if t.trackMutate {
 			t.trackId(n)
 		}
+		n.incrementLazyRefCount(-1)
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
+		for i := 0; i < int(newNode.getNumChildren()); i++ {
+			newNode.getChild(i).incrementRefCount()
+		}
 		t.copyHeader(newNode, n)
 		return t.addChild16(newNode, c, child)
 	}
@@ -100,6 +105,7 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		copy(n.getChildren()[idx+1:], n.getChildren()[idx:idx+length])
 
 		// Insert element
+		child.incrementRefCount()
 		n.setKeyAtIdx(idx, c)
 		n.setChild(idx, child)
 		n.setNumChildren(n.getNumChildren() + 1)
@@ -108,9 +114,13 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		if t.trackMutate {
 			t.trackId(n)
 		}
+		n.incrementLazyRefCount(-1)
 		newNode := t.allocNode(node48)
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
+		for i := 0; i < int(newNode.getNumChildren()); i++ {
+			newNode.getChild(i).incrementRefCount()
+		}
 		for i := 0; i < int(n.getNumChildren()); i++ {
 			newNode.setKeyAtIdx(int(n.getKeyAtIdx(i)), byte(i+1))
 		}
@@ -129,15 +139,18 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setChild(pos, child)
 		n.setKeyAtIdx(int(c), byte(pos+1))
 		n.setNumChildren(n.getNumChildren() + 1)
+		child.incrementRefCount()
 		return n
 	} else {
 		if t.trackMutate {
 			t.trackId(n)
 		}
+		n.incrementLazyRefCount(-1)
 		newNode := t.allocNode(node256)
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
 				newNode.setChild(i, n.getChild(int(n.getKeyAtIdx(i))-1))
+				newNode.getChild(i).incrementRefCount()
 			}
 		}
 		t.copyHeader(newNode, n)
@@ -149,6 +162,7 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 func (t *Txn[T]) addChild256(n Node[T], c byte, child Node[T]) Node[T] {
 	n.setNumChildren(n.getNumChildren() + 1)
 	n.setChild(int(c), child)
+	child.incrementRefCount()
 	return n
 }
 

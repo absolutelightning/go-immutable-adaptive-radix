@@ -55,6 +55,7 @@ type WalkFn[T any] func(k []byte, v T) bool
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
 	rt.root = &NodeLeaf[T]{}
+	rt.root.incrementRefCount()
 	rt.idg = NewIDGenerator()
 	id, ch := rt.idg.GenerateID()
 	rt.root.setId(id)
@@ -166,7 +167,6 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	for {
 		// Might be a leaf
 		watch = n.getMutateCh()
-		n.incrementRefCount()
 
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
@@ -194,7 +194,6 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if child == nil {
 			return zero, false, watch
 		}
-		n.decrementRefCount()
 		n = child
 		depth++
 	}

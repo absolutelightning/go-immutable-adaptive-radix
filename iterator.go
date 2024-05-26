@@ -57,7 +57,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			leafCh := currentNode.(*NodeLeaf[T])
 			if i.lowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
-					node.decrementRefCount()
 					return getKey(leafCh.key), leafCh.value, true
 				}
 				continue
@@ -65,7 +64,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if len(i.Path()) >= 2 && !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
-			node.decrementRefCount()
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
@@ -124,7 +122,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = newStack
 			}
 		}
-		node.decrementRefCount()
 	}
 	i.pos = nil
 	return nil, zero, false
@@ -168,7 +165,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
-				node.decrementRefCount()
 				break
 			}
 			depth += int(node.getPartialLen())
@@ -178,7 +174,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		child, _ := findChild[T](node, prefix[depth])
 		if child == nil {
 			// If the child node doesn't exist, break the loop
-			node.decrementRefCount()
 			node = nil
 			i.node = nil
 			break
@@ -191,8 +186,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 		i.stack = []Node[T]{node}
 		i.node = node
-
-		node.decrementRefCount()
 
 		// Move to the next level in the tree
 		node = child

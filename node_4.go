@@ -10,14 +10,15 @@ import (
 )
 
 type Node4[T any] struct {
-	id          uint64
-	partialLen  uint32
-	numChildren uint8
-	partial     []byte
-	keys        [4]byte
-	children    [4]Node[T]
-	mutateCh    chan struct{}
-	refCount    int32
+	id           uint64
+	partialLen   uint32
+	numChildren  uint8
+	partial      []byte
+	keys         [4]byte
+	children     [4]Node[T]
+	mutateCh     chan struct{}
+	refCount     int32
+	lazyRefCount int32
 }
 
 func (n *Node4[T]) getId() uint64 {
@@ -28,12 +29,26 @@ func (n *Node4[T]) setId(id uint64) {
 	n.id = id
 }
 
-func (n *Node4[T]) incrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, 1)
+func (n *Node4[T]) decrementRefCount() int32 {
+	val := atomic.AddInt32(&n.refCount, n.lazyRefCount-1)
+	for i := 0; i < 4; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+	return val
 }
 
-func (n *Node4[T]) decrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, -1)
+func (n *Node4[T]) incrementRefCount() int32 {
+	val := atomic.AddInt32(&n.refCount, n.lazyRefCount+1)
+	for i := 0; i < 4; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+	return val
 }
 
 func (n *Node4[T]) getPartialLen() uint32 {
@@ -113,7 +128,7 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 	if deep {
 		for i := 0; i < 4; i++ {
 			if n.children[i] != nil {
-				newNode.children[i] = n.children[i].clone(keepWatch, deep)
+				newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
 			}
 		}
 	} else {
@@ -121,6 +136,9 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 		copy(cpy, n.children[:])
 		for i := 0; i < 4; i++ {
 			newNode.setChild(i, cpy[i])
+			if cpy[i] != nil {
+				newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
+			}
 		}
 
 	}
@@ -209,4 +227,29 @@ func (n *Node4[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *Node4[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
+}
+
+func (n *Node4[T]) incrementLazyRefCount(val int32) int32 {
+	return atomic.AddInt32(&n.lazyRefCount, val)
+}
+
+func (n *Node4[T]) getRefCount() int32 {
+	val := atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	for i := 0; i < 4; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+	return val
+}
+
+func (n *Node4[T]) processLazyRef() {
+	atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	for i := 0; i < 4; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
 }

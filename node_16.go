@@ -10,14 +10,15 @@ import (
 )
 
 type Node16[T any] struct {
-	id          uint64
-	partialLen  uint32
-	numChildren uint8
-	partial     []byte
-	keys        [16]byte
-	children    [16]Node[T]
-	mutateCh    chan struct{}
-	refCount    int32
+	id           uint64
+	partialLen   uint32
+	numChildren  uint8
+	partial      []byte
+	keys         [16]byte
+	children     [16]Node[T]
+	mutateCh     chan struct{}
+	refCount     int32
+	lazyRefCount int32
 }
 
 func (n *Node16[T]) getId() uint64 {
@@ -89,12 +90,26 @@ func (n *Node16[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node16[T]) incrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, 1)
+func (n *Node16[T]) decrementRefCount() int32 {
+	val := atomic.AddInt32(&n.refCount, n.lazyRefCount-1)
+	for i := 0; i < 16; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+	return val
 }
 
-func (n *Node16[T]) decrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, -1)
+func (n *Node16[T]) incrementRefCount() int32 {
+	val := atomic.AddInt32(&n.refCount, n.lazyRefCount+1)
+	for i := 0; i < 16; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+	return val
 }
 
 func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
@@ -122,6 +137,9 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 		copy(cpy, n.children[:])
 		for i := 0; i < 16; i++ {
 			newNode.setChild(i, cpy[i])
+			if cpy[i] != nil {
+				newNode.children[i].incrementLazyRefCount(-newNode.children[i].getRefCount() + 1)
+			}
 		}
 	}
 	nodeT := Node[T](newNode)
@@ -209,4 +227,29 @@ func (n *Node16[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *Node16[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
+}
+
+func (n *Node16[T]) incrementLazyRefCount(val int32) int32 {
+	return atomic.AddInt32(&n.lazyRefCount, val)
+}
+
+func (n *Node16[T]) getRefCount() int32 {
+	val := atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	for i := 0; i < 16; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+	return val
+}
+
+func (n *Node16[T]) processLazyRef() {
+	atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	for i := 0; i < 16; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
 }
