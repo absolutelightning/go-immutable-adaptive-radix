@@ -529,7 +529,6 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 
 	// Set the value and key length
 	l.setValue(value)
-	l.incrementRefCount()
 	l.setKeyLen(uint32(len(key)))
 	l.setKey(key)
 	l.setMutateCh(make(chan struct{}))
