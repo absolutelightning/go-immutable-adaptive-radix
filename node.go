@@ -22,6 +22,8 @@ type Node[T any] interface {
 	incrementRefCount() int32
 	decrementRefCount() int32
 	getRefCount() int32
+	getOldRef() Node[T]
+	setOldRef(Node[T])
 	incrementLazyRefCount(int32) int32
 	createNewMutateChn() chan struct{}
 	getKey() []byte

@@ -11,7 +11,6 @@ import (
 type Node48[T any] struct {
 	id           uint64
 	partialLen   uint32
-	artNodeType  uint8
 	numChildren  uint8
 	partial      []byte
 	keys         [256]byte
@@ -19,6 +18,7 @@ type Node48[T any] struct {
 	refCount     int32
 	lazyRefCount int32
 	mutateCh     chan struct{}
+	oldRef       Node[T]
 }
 
 func (n *Node48[T]) getId() uint64 {
@@ -242,4 +242,21 @@ func (n *Node48[T]) processLazyRef() {
 		}
 	}
 	atomic.StoreInt32(&n.lazyRefCount, 0)
+}
+
+func (n *Node48[T]) setOldRef(or Node[T]) {
+	n.oldRef = or
+}
+
+func (n *Node48[T]) getOldRef() Node[T] {
+	return n.oldRef
+}
+
+func (n *Node48[T]) changeRefCount() int32 {
+	atomic.AddInt32(&n.refCount, -1)
+	return n.decrementRefCount()
+}
+
+func (n *Node48[T]) changeRefCountNoDecrement() int32 {
+	return atomic.LoadInt32(&n.refCount)
 }

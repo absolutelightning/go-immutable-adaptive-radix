@@ -104,7 +104,7 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	}
 
 	art.DFS(func(n Node[int]) {
-		if n.getRefCount() > 1 {
+		if n.getRefCount() != 1 {
 			if n.isLeaf() {
 				fmt.Println(string(n.getKey()))
 			} else {

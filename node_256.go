@@ -14,6 +14,7 @@ type Node256[T any] struct {
 	mutateCh     chan struct{}
 	refCount     int32
 	lazyRefCount int32
+	oldRef       Node[T]
 }
 
 func (n *Node256[T]) getId() uint64 {
@@ -229,4 +230,21 @@ func (n *Node256[T]) processLazyRef() {
 		}
 	}
 	atomic.StoreInt32(&n.lazyRefCount, 0)
+}
+
+func (n *Node256[T]) setOldRef(or Node[T]) {
+	n.oldRef = or
+}
+
+func (n *Node256[T]) getOldRef() Node[T] {
+	return n.oldRef
+}
+
+func (n *Node256[T]) changeRefCount() int32 {
+	atomic.AddInt32(&n.refCount, -1)
+	return n.decrementRefCount()
+}
+
+func (n *Node256[T]) changeRefCountNoDecrement() int32 {
+	return atomic.LoadInt32(&n.refCount)
 }

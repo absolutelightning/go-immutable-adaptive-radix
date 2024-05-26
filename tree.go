@@ -72,6 +72,7 @@ func (t *RadixTree[T]) Len() int {
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	newRoot := t.root.clone(true, deep)
 	newRoot.setId(t.root.getId())
+	newRoot.incrementRefCount()
 	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
 }
 

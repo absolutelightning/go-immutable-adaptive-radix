@@ -74,13 +74,14 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setKeyAtIdx(idx, c)
 		n.setChild(idx, child)
 		n.setNumChildren(n.getNumChildren() + 1)
-		child.incrementRefCount()
+		child.incrementLazyRefCount(1)
 		return n
 	} else {
 		if t.trackMutate {
 			t.trackId(n)
 		}
 		n.incrementLazyRefCount(-1)
+		n.processLazyRef()
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -105,7 +106,7 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		copy(n.getChildren()[idx+1:], n.getChildren()[idx:idx+length])
 
 		// Insert element
-		child.incrementRefCount()
+		child.incrementLazyRefCount(1)
 		n.setKeyAtIdx(idx, c)
 		n.setChild(idx, child)
 		n.setNumChildren(n.getNumChildren() + 1)
@@ -115,6 +116,7 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 			t.trackId(n)
 		}
 		n.incrementLazyRefCount(-1)
+		n.processLazyRef()
 		newNode := t.allocNode(node48)
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -139,13 +141,14 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setChild(pos, child)
 		n.setKeyAtIdx(int(c), byte(pos+1))
 		n.setNumChildren(n.getNumChildren() + 1)
-		child.incrementRefCount()
+		child.incrementLazyRefCount(1)
 		return n
 	} else {
 		if t.trackMutate {
 			t.trackId(n)
 		}
 		n.incrementLazyRefCount(-1)
+		n.processLazyRef()
 		newNode := t.allocNode(node256)
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
@@ -162,7 +165,7 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 func (t *Txn[T]) addChild256(n Node[T], c byte, child Node[T]) Node[T] {
 	n.setNumChildren(n.getNumChildren() + 1)
 	n.setChild(int(c), child)
-	child.incrementRefCount()
+	child.incrementLazyRefCount(1)
 	return n
 }
 
@@ -265,10 +268,11 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 		return maximum[T](node.getChild(int(node.getNumChildren() - 1)))
 	case node48:
 		idx = 255
-		for idx >= 0 && node.getChild(idx) == nil {
+		for idx >= 0 && node.getKeyAtIdx(idx) == 0 {
 			idx--
 		}
-		if idx >= 0 {
+		idx = int(node.getKeyAtIdx(idx) - 1)
+		if idx < 48 {
 			return maximum[T](node.getChild(idx))
 		}
 	case node256:

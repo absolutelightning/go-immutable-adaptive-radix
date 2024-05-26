@@ -15,6 +15,7 @@ type NodeLeaf[T any] struct {
 	mutateCh     chan struct{}
 	refCount     int32
 	lazyRefCount int32
+	oldRef       Node[T]
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -199,9 +200,8 @@ func (n *NodeLeaf[T]) createNewMutateChn() chan struct{} {
 }
 
 func (n *NodeLeaf[T]) getRefCount() int32 {
-	val := atomic.AddInt32(&n.refCount, n.lazyRefCount)
-	n.lazyRefCount = 0
-	return val
+	n.processLazyRef()
+	return atomic.LoadInt32(&n.refCount)
 }
 
 func (n *NodeLeaf[T]) incrementLazyRefCount(val int32) int32 {
@@ -211,4 +211,21 @@ func (n *NodeLeaf[T]) incrementLazyRefCount(val int32) int32 {
 func (n *NodeLeaf[T]) processLazyRef() {
 	atomic.AddInt32(&n.refCount, n.lazyRefCount)
 	atomic.StoreInt32(&n.lazyRefCount, 0)
+}
+
+func (n *NodeLeaf[T]) setOldRef(or Node[T]) {
+	n.oldRef = or
+}
+
+func (n *NodeLeaf[T]) getOldRef() Node[T] {
+	return n.oldRef
+}
+
+func (n *NodeLeaf[T]) changeRefCount() int32 {
+	atomic.AddInt32(&n.refCount, -1)
+	return n.decrementRefCount()
+}
+
+func (n *NodeLeaf[T]) changeRefCountNoDecrement() int32 {
+	return atomic.LoadInt32(&n.refCount)
 }
