@@ -851,16 +851,8 @@ func TestDebug(t *testing.T) {
 		"Zyzzogeton",
 	}
 	for _, k := range keys {
-		fmt.Println("inserting ", k)
 		r, _, _ = r.Insert([]byte(k), nil)
-		fmt.Println("after insert")
 		r.DFS(func(n Node[any]) {
-			fmt.Println(n.getRefCount())
-			if n.isLeaf() {
-				fmt.Println(string(n.getKey()))
-			} else {
-				fmt.Println(string(n.getPartial()))
-			}
 			if n.getRefCount() != 1 {
 				t.Fatalf("bad ref count: %d", n.getRefCount())
 			}
