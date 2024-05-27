@@ -55,7 +55,6 @@ type WalkFn[T any] func(k []byte, v T) bool
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
 	rt.root = &NodeLeaf[T]{}
-	rt.root.incrementRefCount()
 	rt.idg = NewIDGenerator()
 	id, ch := rt.idg.GenerateID()
 	rt.root.setId(id)
@@ -72,7 +71,8 @@ func (t *RadixTree[T]) Len() int {
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	newRoot := t.root.clone(true, deep)
 	newRoot.setId(t.root.getId())
-	newRoot.incrementRefCount()
+	newRoot.incrementLazyRefCount(t.root.getRefCount() + 1)
+	newRoot.processLazyRef()
 	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
 }
 
@@ -158,14 +158,15 @@ func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
 func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	n := t.root
+	n.incrementLazyRefCount(1)
 	watch := n.getMutateCh()
 	if t.root == nil {
+		n.incrementLazyRefCount(-1)
 		return zero, false, watch
 	}
 	var child Node[T]
 	depth := 0
 
-	n.incrementLazyRefCount(1)
 	for {
 		// Might be a leaf
 		watch = n.getMutateCh()
@@ -173,6 +174,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
+				n.incrementLazyRefCount(-1)
 				return n.getValue(), true, watch
 			}
 			break
@@ -182,21 +184,26 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
+				n.incrementLazyRefCount(-1)
 				return zero, false, watch
 			}
 			depth += int(n.getPartialLen())
 		}
 
 		if depth >= len(key) {
+			n.incrementLazyRefCount(-1)
 			return zero, false, watch
 		}
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
+			n.incrementLazyRefCount(-1)
 			return zero, false, watch
 		}
+		n.incrementLazyRefCount(-1)
 		n = child
+		n.incrementLazyRefCount(1)
 		depth++
 	}
 	n.incrementLazyRefCount(-1)

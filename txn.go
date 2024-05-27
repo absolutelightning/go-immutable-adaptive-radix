@@ -117,7 +117,7 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T) {
 	var zero T
 
-	doClone := node.getRefCount() > 1
+	node.processLazyRef()
 
 	if t.trackMutate {
 		t.trackId(node)
@@ -128,6 +128,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if node.getKeyLen() == 0 {
 			nl := t.makeLeaf(key, value)
 			node.processLazyRef()
+			nl.processLazyRef()
 			return nl, zero
 		}
 	}
@@ -138,11 +139,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
+			doClone := node.getRefCount() > 1
 			if doClone {
 				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 				nl := t.makeLeaf(key, value)
 				node.incrementLazyRefCount(-1)
-				node.processLazyRef()
 				val := node.getValue()
 				return nl, val
 			}
@@ -158,6 +159,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if t.trackMutate {
 			t.trackId(node)
 		}
+
+		doClone := node.getRefCount() > 1
 
 		if doClone {
 			node = t.writeNode(node)
@@ -187,6 +190,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	oldRef.processLazyRef()
 	// Check if given node has a prefix
 	if node.getPartialLen() > 0 {
+		doClone := node.getRefCount() > 1
 		if doClone {
 			node = t.writeNode(node)
 		}
@@ -225,6 +229,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		// Create a new node
 		newNode := t.allocNode(node4)
+		newNode.incrementLazyRefCount(node.getRefCount())
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 
@@ -235,14 +240,14 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial(), node.getPartial()[prefixDiff+1:prefixDiff+1+length])
 		} else {
-			if t.trackMutate {
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-			}
 			node.setPartialLen(node.getPartialLen() - uint32(prefixDiff+1))
 			l := minimum[T](node)
 			newNode = t.addChild(newNode, l.key[depth+prefixDiff], node)
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial(), l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
+		}
+		if t.trackMutate {
+			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 		}
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value)
@@ -254,6 +259,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		return newNodeWithChildAdded, zero
 	}
 
+	doClone := node.getRefCount() > 1
 	if doClone {
 		node = t.writeNode(node)
 	}
@@ -320,6 +326,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil
 	}
 
+	node.processLazyRef()
+
 	if t.trackMutate {
 		t.trackId(node)
 	}
@@ -333,6 +341,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return node, nil
 	}
 
+	node.incrementLazyRefCount(1)
+
 	// Bail if the prefix does not match
 	if node.getPartialLen() > 0 {
 		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
@@ -342,17 +352,19 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		depth += int(node.getPartialLen())
 	}
 
-	doClone := node.getRefCount() > 1
-
 	// Find child node
 	child, idx := t.findChild(node, key[depth])
 	if child == nil {
+		node.incrementLazyRefCount(-1)
 		return nil, nil
 	}
 
 	oldRef := node
 
+	doClone := node.getRefCount() > 1
+
 	if doClone {
+		node.incrementLazyRefCount(-1)
 		node = t.writeNode(node)
 	}
 
@@ -379,6 +391,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		t.trackId(node)
 	}
 	oldRef.processLazyRef()
+	if !doClone {
+		node.incrementLazyRefCount(-1)
+	}
 	return node, val
 }
 
@@ -417,6 +432,8 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
+	t.tree.root.incrementLazyRefCount(-1)
+	t.tree.root.processLazyRef()
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 		t.tree.idg,

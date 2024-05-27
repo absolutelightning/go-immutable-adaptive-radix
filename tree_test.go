@@ -104,7 +104,7 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	}
 
 	art.DFS(func(n Node[int]) {
-		if n.getRefCount() != 1 {
+		if n.getRefCount() != 0 {
 			t.Fatalf("bad ref count: %d", n.getRefCount())
 		}
 	})
@@ -201,7 +201,7 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 	}
 
 	art.DFS(func(n Node[int]) {
-		if n.getRefCount() != 1 {
+		if n.getRefCount() != 0 {
 			t.Fatalf("bad ref count: %d", n.getRefCount())
 		}
 	})
@@ -853,7 +853,7 @@ func TestDebug(t *testing.T) {
 	for _, k := range keys {
 		r, _, _ = r.Insert([]byte(k), nil)
 		r.DFS(func(n Node[any]) {
-			if n.getRefCount() != 1 {
+			if n.getRefCount() != 0 {
 				t.Fatalf("bad ref count: %d", n.getRefCount())
 			}
 		})
