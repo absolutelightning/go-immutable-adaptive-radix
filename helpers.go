@@ -76,12 +76,12 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		if t.trackMutate {
-			t.trackId(n)
-		}
 		n.processLazyRef()
 		newNode := t.allocNode(node16)
 		n.processLazyRef()
+		if t.trackMutate {
+			t.trackId(n)
+		}
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
@@ -111,9 +111,6 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		if t.trackMutate {
-			t.trackId(n)
-		}
 		newNode := t.allocNode(node48)
 		n.processLazyRef()
 		// Copy the child pointers and populate the key map
@@ -142,9 +139,6 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		if t.trackMutate {
-			t.trackId(n)
-		}
 		newNode := t.allocNode(node256)
 		n.processLazyRef()
 		for i := 0; i < 256; i++ {

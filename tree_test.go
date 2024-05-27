@@ -1449,7 +1449,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 		select {
 		case <-leafWatch:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		default:
 		}
 		select {

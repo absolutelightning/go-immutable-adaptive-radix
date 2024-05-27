@@ -47,13 +47,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	}
 
 	if _, ok := t.writable.Get(n); ok {
-		if t.trackMutate {
-			t.trackId(n)
-		}
 		return n
-	}
-	if t.trackMutate {
-		t.trackId(n)
 	}
 	nc := n.clone(false, false)
 	nc.incrementRefCount()
@@ -119,16 +113,15 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	node.processLazyRef()
 
-	if t.trackMutate {
-		t.trackId(node)
-	}
-
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
 			nl := t.makeLeaf(key, value)
 			node.processLazyRef()
 			nl.processLazyRef()
+			if t.trackMutate {
+				t.trackId(node)
+			}
 			return nl, zero
 		}
 	}
@@ -140,8 +133,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
 			doClone := node.getRefCount() > 1
+			if t.trackMutate {
+				t.trackId(node)
+			}
 			if doClone {
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 				nl := t.makeLeaf(key, value)
 				node.incrementLazyRefCount(-1)
 				val := node.getValue()
@@ -155,10 +150,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		// New value, we must split the leaf into a node4
 		newLeaf2 := t.makeLeaf(key, value)
-
-		if t.trackMutate {
-			t.trackId(node)
-		}
 
 		doClone := node.getRefCount() > 1
 
@@ -201,10 +192,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
-				if t.trackMutate {
-					t.trackId(child)
-				}
 				node.setChild(idx, newChild)
+				if !doClone && t.trackMutate {
+					t.trackId(oldRef)
+				}
 				if doClone {
 					oldRef.incrementLazyRefCount(-1)
 				}
@@ -214,9 +205,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 			// No child, node goes within us
 			newLeaf := t.makeLeaf(key, value)
-			if t.trackMutate {
-				t.trackId(node)
-			}
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
 			if newNode != node && doClone {
@@ -245,9 +233,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			length := min(maxPrefixLen, int(node.getPartialLen()))
 			copy(node.getPartial(), l.key[depth+prefixDiff+1:depth+prefixDiff+1+length])
 		}
-		if t.trackMutate {
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		}
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value)
 		newNodeWithChildAdded := t.addChild(newNode, key[depth+prefixDiff], newLeaf)
@@ -261,6 +246,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	doClone := node.getRefCount() > 1
 	if doClone {
 		node = t.writeNode(node)
+	} else {
+		if t.trackMutate {
+			t.trackId(node)
+		}
 	}
 
 	if depth < len(key) {
@@ -268,8 +257,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		child, idx := t.findChild(node, key[depth])
 		if child != nil {
 			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
 			node.setChild(idx, newChild)
 			if doClone {
 				oldRef.incrementLazyRefCount(-1)
@@ -288,9 +275,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		}
 		oldRef.processLazyRef()
 		return newNodeToRet, zero
-	}
-	if t.trackMutate {
-		t.trackId(node)
 	}
 	return node, zero
 }
@@ -327,14 +311,12 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	node.processLazyRef()
 
-	if t.trackMutate {
-		t.trackId(node)
-	}
-
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			if t.trackMutate {
+				t.trackId(node)
+			}
 			return nil, node
 		}
 		return node, nil
@@ -365,11 +347,15 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 	if val != nil {
 		if t.trackMutate {
-			t.trackId(node)
+			t.trackId(oldRef)
 		}
 
 		if doClone {
 			node = t.writeNode(node)
+		} else {
+			if t.trackMutate {
+				t.trackId(node)
+			}
 		}
 
 		node.setChild(idx, newChild)
@@ -377,16 +363,13 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			oldRef.incrementLazyRefCount(-1)
 		}
 		if newChild == nil {
-			if t.trackMutate {
-				t.trackId(node)
-			}
 			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
 			node = t.removeChild(node, key[depth])
 			oldRef.processLazyRef()
 		}
 	}
 	if t.trackMutate {
-		t.trackId(node)
+		t.trackId(oldRef)
 	}
 	oldRef.processLazyRef()
 	if !doClone {
@@ -494,7 +477,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	if isLeaf[T](node) {
 		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
 			if t.trackMutate {
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+				t.trackId(node)
 			}
 			return nil, 1
 		}
