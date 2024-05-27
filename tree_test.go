@@ -199,6 +199,12 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 		lineNumber += 1
 		require.Equal(t, art.size, uint64(len(lines)-lineNumber+1))
 	}
+
+	art.DFS(func(n Node[int]) {
+		if n.getRefCount() != 1 {
+			t.Fatalf("bad ref count: %d", n.getRefCount())
+		}
+	})
 }
 
 func TestDebug(t *testing.T) {

@@ -330,8 +330,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			return nil, node
 		}
-		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		node = t.writeNode(node)
 		return node, nil
 	}
 
@@ -344,13 +342,19 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		depth += int(node.getPartialLen())
 	}
 
+	doClone := node.getRefCount() > 1
+
 	// Find child node
 	child, idx := t.findChild(node, key[depth])
 	if child == nil {
 		return nil, nil
 	}
 
-	node = t.writeNode(node)
+	oldRef := node
+
+	if doClone {
+		node = t.writeNode(node)
+	}
 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
@@ -358,19 +362,22 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		if t.trackMutate {
 			t.trackId(node)
 		}
-		t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-		node = t.writeNode(node)
 		node.setChild(idx, newChild)
+		if doClone {
+			oldRef.incrementLazyRefCount(-1)
+		}
 		if newChild == nil {
 			if t.trackMutate {
 				t.trackId(node)
-				t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 			}
 			t.tree.idg.delChns[child.getMutateCh()] = struct{}{}
-			node = t.removeChild(node, key[depth])
+			newNode := t.removeChild(node, key[depth])
+			if newNode != node && doClone {
+				oldRef.incrementLazyRefCount(-1)
+			}
+			oldRef.processLazyRef()
 		}
 	}
-	t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
 	if t.trackMutate {
 		t.trackId(node)
 	}

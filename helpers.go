@@ -387,7 +387,9 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			// Store the prefix in the child
 			copy(newChildZero.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			newChildZero.setPartialLen(newChildZero.getPartialLen() + n.getPartialLen() + 1)
+			newChildZero.incrementLazyRefCount(1)
 		}
+		n.incrementLazyRefCount(-1)
 		return newChildZero
 	}
 	return n
@@ -408,6 +410,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 3 {
+		n.incrementLazyRefCount(-1)
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -416,6 +419,11 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.getKeys()[:4])
 		copy(n4.children[:], n.getChildren()[:4])
+		for i := 0; i < 4; i++ {
+			if n4.getChild(i) != nil {
+				n4.getChild(i).incrementLazyRefCount(1)
+			}
+		}
 		return newNode
 	}
 	return n
@@ -434,6 +442,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 12 {
+		n.incrementLazyRefCount(-1)
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -445,6 +454,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 			if pos != 0 {
 				newNode.setKeyAtIdx(child, byte(i))
 				newNode.setChild(child, n.getChild(int(pos-1)))
+				newNode.getChild(child).incrementLazyRefCount(1)
 				child++
 			}
 		}
@@ -466,6 +476,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
 	if n.getNumChildren() == 37 {
+		n.incrementLazyRefCount(-1)
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -477,6 +488,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 			if n.getChild(i) != nil {
 				newNode.setChild(pos, n.getChild(i))
 				newNode.setKeyAtIdx(i, byte(pos+1))
+				newNode.getChild(pos).incrementLazyRefCount(1)
 				pos++
 			}
 		}
