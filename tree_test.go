@@ -105,13 +105,7 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 
 	art.DFS(func(n Node[int]) {
 		if n.getRefCount() != 1 {
-			if n.isLeaf() {
-				fmt.Println(string(n.getKey()))
-			} else {
-				fmt.Println(string(n.getPartial()))
-			}
-			fmt.Println(n.getRefCount())
-			//t.Fatalf("bad ref count: %d", n.getRefCount())
+			t.Fatalf("bad ref count: %d", n.getRefCount())
 		}
 	})
 

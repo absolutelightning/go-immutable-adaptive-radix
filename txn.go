@@ -56,6 +56,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 		t.trackId(n)
 	}
 	nc := n.clone(false, false)
+	nc.incrementRefCount()
 	// Mark this node as writable.
 	t.writable.Add(nc, nil)
 	return nc
@@ -158,11 +159,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			t.trackId(node)
 		}
 
-		oldRef := node
-
 		if doClone {
 			node = t.writeNode(node)
-			node.incrementLazyRefCount(1)
 		}
 
 		// Determine longest prefix
@@ -180,9 +178,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		}
 
-		if doClone {
-			oldRef.incrementLazyRefCount(-1)
-		}
 		node.processLazyRef()
 		newLeaf2.processLazyRef()
 		return newNode, zero
@@ -194,7 +189,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.getPartialLen() > 0 {
 		if doClone {
 			node = t.writeNode(node)
-			node.incrementLazyRefCount(1)
 		}
 		// Determine if the prefixes differ, since we need to split
 		prefixDiff := prefixMismatch[T](node, key, len(key), depth)
@@ -209,8 +203,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 				node.setChild(idx, newChild)
 				if doClone {
 					oldRef.incrementLazyRefCount(-1)
-					oldRef.processLazyRef()
 				}
+				oldRef.processLazyRef()
 				return node, val
 			}
 
@@ -221,7 +215,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			if doClone {
+			if newNode != node && doClone {
 				oldRef.incrementLazyRefCount(-1)
 			}
 			newLeaf.processLazyRef()
@@ -253,16 +247,15 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value)
 		newNodeWithChildAdded := t.addChild(newNode, key[depth+prefixDiff], newLeaf)
-		if doClone {
+		if doClone && newNodeWithChildAdded == newNode {
 			oldRef.incrementLazyRefCount(-1)
-			oldRef.processLazyRef()
 		}
+		oldRef.processLazyRef()
 		return newNodeWithChildAdded, zero
 	}
 
 	if doClone {
 		node = t.writeNode(node)
-		node.incrementLazyRefCount(1)
 	}
 
 	if depth < len(key) {
@@ -275,8 +268,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			node.setChild(idx, newChild)
 			if doClone {
 				oldRef.incrementLazyRefCount(-1)
-				oldRef.processLazyRef()
 			}
+			oldRef.processLazyRef()
 			return node, val
 		}
 	}
@@ -285,10 +278,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		newNodeToRet := t.addChild(node, key[depth], newLeaf)
-		if doClone {
+		if newNodeToRet != node && doClone {
 			oldRef.incrementLazyRefCount(-1)
-			oldRef.processLazyRef()
 		}
+		oldRef.processLazyRef()
 		return newNodeToRet, zero
 	}
 	if t.trackMutate {

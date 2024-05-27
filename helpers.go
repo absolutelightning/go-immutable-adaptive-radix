@@ -84,10 +84,11 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
-		for i := 0; i < int(newNode.getNumChildren()); i++ {
-			newNode.getChild(i).incrementRefCount()
+		for i := 0; i < int(n.getNumChildren()); i++ {
+			newNode.getChild(i).incrementLazyRefCount(1)
 		}
 		t.copyHeader(newNode, n)
+		n.incrementLazyRefCount(-1)
 		return t.addChild16(newNode, c, child)
 	}
 }
@@ -115,12 +116,13 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		newNode := t.allocNode(node48)
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
-		for i := 0; i < int(newNode.getNumChildren()); i++ {
-			newNode.getChild(i).incrementRefCount()
+		for i := 0; i < int(n.getNumChildren()); i++ {
+			newNode.getChild(i).incrementLazyRefCount(1)
 		}
 		for i := 0; i < int(n.getNumChildren()); i++ {
 			newNode.setKeyAtIdx(int(n.getKeyAtIdx(i)), byte(i+1))
 		}
+		n.incrementLazyRefCount(-1)
 		t.copyHeader(newNode, n)
 		return t.addChild48(newNode, c, child)
 	}
@@ -145,9 +147,10 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
 				newNode.setChild(i, n.getChild(int(n.getKeyAtIdx(i))-1))
-				newNode.getChild(i).incrementRefCount()
+				newNode.getChild(i).incrementLazyRefCount(1)
 			}
 		}
+		n.incrementLazyRefCount(-1)
 		t.copyHeader(newNode, n)
 		return t.addChild256(newNode, c, child)
 	}

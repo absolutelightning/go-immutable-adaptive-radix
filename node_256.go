@@ -3,7 +3,9 @@
 
 package adaptive
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+)
 
 type Node256[T any] struct {
 	id           uint64
