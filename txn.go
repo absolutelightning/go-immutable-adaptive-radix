@@ -361,17 +361,17 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	oldRef := node
 
 	doClone := node.getRefCount() > 1
-
-	if doClone {
-		node = t.writeNode(node)
-	}
-
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 	if val != nil {
 		if t.trackMutate {
 			t.trackId(node)
 		}
+
+		if doClone {
+			node = t.writeNode(node)
+		}
+
 		node.setChild(idx, newChild)
 		if doClone {
 			oldRef.incrementLazyRefCount(-1)
