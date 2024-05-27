@@ -229,7 +229,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		// Create a new node
 		newNode := t.allocNode(node4)
-		newNode.incrementLazyRefCount(node.getRefCount())
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 

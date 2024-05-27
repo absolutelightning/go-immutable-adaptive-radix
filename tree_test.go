@@ -94,6 +94,12 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 		lines = append(lines, scanner.Text())
 	}
 
+	art.DFS(func(n Node[int]) {
+		if n.getRefCount() != 0 {
+			t.Fatalf("bad ref count: %d", n.getRefCount())
+		}
+	})
+
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber = 1
 	for _, line := range lines {
