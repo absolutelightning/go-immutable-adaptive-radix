@@ -363,7 +363,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	doClone := node.getRefCount() > 1
 
 	if doClone {
-		node.incrementLazyRefCount(-1)
 		node = t.writeNode(node)
 	}
 
