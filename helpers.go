@@ -76,12 +76,12 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		if t.trackMutate {
-			t.trackId(n)
-		}
 		n.processLazyRef()
 		newNode := t.allocNode(node16)
 		n.processLazyRef()
+		if t.trackMutate {
+			t.trackId(n)
+		}
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
@@ -111,9 +111,6 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		if t.trackMutate {
-			t.trackId(n)
-		}
 		newNode := t.allocNode(node48)
 		n.processLazyRef()
 		// Copy the child pointers and populate the key map
@@ -142,9 +139,6 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		if t.trackMutate {
-			t.trackId(n)
-		}
 		newNode := t.allocNode(node256)
 		n.processLazyRef()
 		for i := 0; i < 256; i++ {
@@ -369,11 +363,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	// Remove nodes with only a single child
 	if n.getNumChildren() == 1 {
 		// Is not leaf
-		if t.trackMutate {
-			t.tree.idg.delChns[n.getChildren()[0].getMutateCh()] = struct{}{}
-			t.tree.idg.delChns[n.getMutateCh()] = struct{}{}
-		}
-		newChildZero := n.getChildren()[0].clone(false, false)
+		newChildZero := n.getChildren()[0].clone(true, false)
 		if !n.getChildren()[0].isLeaf() {
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
@@ -402,12 +392,6 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	pos := sort.Search(int(n.getNumChildren()), func(i int) bool {
 		return n.getKeyAtIdx(i) >= c
 	})
-	if t.trackMutate {
-		if n.getChild(pos) != nil {
-			t.trackId(n.getChild(pos))
-		}
-		t.trackId(n)
-	}
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	copy(n.getChildren()[pos:], n.getChildren()[pos+1:])
 	n.setNumChildren(n.getNumChildren() - 1)
@@ -435,12 +419,6 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	pos := n.getKeyAtIdx(int(c))
 	n.setKeyAtIdx(int(c), 0)
-	if t.trackMutate {
-		if n.getChild(int(pos)-1) != nil {
-			t.trackId(n.getChild(int(pos) - 1))
-		}
-		t.trackId(n)
-	}
 	n.setChild(int(pos-1), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
 
@@ -467,12 +445,6 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 }
 
 func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
-	if t.trackMutate {
-		if n.getChild(int(c)) != nil {
-			t.trackId(n.getChild(int(c)))
-		}
-		t.trackId(n)
-	}
 	n.setChild(int(c), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
 
