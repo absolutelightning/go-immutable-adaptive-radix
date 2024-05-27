@@ -38,6 +38,10 @@ func (i *Iterator[T]) Path() string {
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
+	if i.stack == nil && i.node != nil {
+		i.stack = []Node[T]{i.node}
+	}
+
 	// Iterate through the stack until it's empty
 	for len(i.stack) > 0 {
 		node := i.stack[0]
@@ -150,10 +154,11 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	i.stack = []Node[T]{node}
 	i.node = node
 
+	parent := node
+
 	for {
 		// Check if the node matches the prefix
 		node.incrementLazyRefCount(1)
-		watch = node.getMutateCh()
 
 		if node.isLeaf() {
 			node.incrementLazyRefCount(-1)
@@ -167,7 +172,13 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
 				node.incrementLazyRefCount(-1)
-				break
+				if bytes.HasPrefix(node.getPartial(), prefix[depth:]) {
+					i.node = node
+					break
+				} else {
+					i.node = nil
+					break
+				}
 			}
 			depth += int(node.getPartialLen())
 		}
@@ -185,6 +196,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		if depth == len(prefix) {
 			// If the prefix is exhausted, break the loop
 			node.incrementLazyRefCount(-1)
+			i.node = nil
 			break
 		}
 
@@ -193,6 +205,8 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 		// Move to the next level in the tree
 		node.incrementLazyRefCount(-1)
+		parent = node
+		watch = parent.getMutateCh()
 		node = child
 		depth++
 	}

@@ -69,6 +69,7 @@ func (t *RadixTree[T]) Len() int {
 
 // Clone is used to return the clone of tree
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
+	t.root.processLazyRef()
 	newRoot := t.root.clone(true, deep)
 	newRoot.setId(t.root.getId())
 	newRoot.incrementLazyRefCount(t.root.getRefCount() + 1)
@@ -158,6 +159,7 @@ func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
 func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	n := t.root
+	n.processLazyRef()
 	n.incrementLazyRefCount(1)
 	watch := n.getMutateCh()
 	if t.root == nil {
@@ -203,6 +205,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		}
 		n.incrementLazyRefCount(-1)
 		n = child
+		n.processLazyRef()
 		n.incrementLazyRefCount(1)
 		depth++
 	}

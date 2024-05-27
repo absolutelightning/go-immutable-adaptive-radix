@@ -1406,6 +1406,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		leafWatch, _, ok := r.GetWatch([]byte("foobar"))
+
 		if !ok {
 			t.Fatalf("should be found")
 		}
@@ -1449,7 +1450,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 		select {
 		case <-leafWatch:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		default:
 		}
 		select {
@@ -1556,7 +1557,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 		select {
 		case <-leafWatch:
-			//t.Fatalf("bad")
+			t.Fatalf("bad")
 		default:
 		}
 		select {
