@@ -9,15 +9,16 @@ import (
 )
 
 type Node48[T any] struct {
-	id          uint64
-	partialLen  uint32
-	artNodeType uint8
-	numChildren uint8
-	partial     []byte
-	keys        [256]byte
-	children    [48]Node[T]
-	refCount    int32
-	mutateCh    chan struct{}
+	id           uint64
+	partialLen   uint32
+	numChildren  uint8
+	partial      []byte
+	keys         [256]byte
+	children     [48]Node[T]
+	refCount     int32
+	lazyRefCount int32
+	mutateCh     chan struct{}
+	oldRef       Node[T]
 }
 
 func (n *Node48[T]) getId() uint64 {
@@ -79,6 +80,16 @@ func (n *Node48[T]) PathIterator(path []byte) *PathIterator[T] {
 		path:  getTreeKey(path),
 		stack: []Node[T]{nodeT},
 	}
+}
+
+func (n *Node48[T]) decrementRefCount() int32 {
+	n.processLazyRef()
+	return atomic.AddInt32(&n.refCount, -1)
+}
+
+func (n *Node48[T]) incrementRefCount() int32 {
+	n.processLazyRef()
+	return atomic.AddInt32(&n.refCount, 1)
 }
 
 func (n *Node48[T]) matchPrefix(prefix []byte) bool {
@@ -151,14 +162,6 @@ func (n *Node48[T]) getValue() T {
 	return zero
 }
 
-func (n *Node48[T]) incrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, 1)
-}
-
-func (n *Node48[T]) decrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, -1)
-}
-
 func (n *Node48[T]) getKeyAtIdx(idx int) byte {
 	return n.keys[idx]
 }
@@ -213,4 +216,44 @@ func (n *Node48[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *Node48[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
+}
+
+func (n *Node48[T]) incrementLazyRefCount(val int32) int32 {
+	return atomic.AddInt32(&n.lazyRefCount, val)
+}
+
+func (n *Node48[T]) getRefCount() int32 {
+	n.processLazyRef()
+	return atomic.LoadInt32(&n.refCount)
+}
+
+func (n *Node48[T]) setRefCount(val int32) {
+	atomic.StoreInt32(&n.refCount, val)
+}
+
+func (n *Node48[T]) processLazyRef() {
+	atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	for i := 0; i < 48; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+}
+
+func (n *Node48[T]) setOldRef(or Node[T]) {
+	n.oldRef = or
+}
+
+func (n *Node48[T]) getOldRef() Node[T] {
+	return n.oldRef
+}
+
+func (n *Node48[T]) changeRefCount() int32 {
+	atomic.AddInt32(&n.refCount, -1)
+	return n.decrementRefCount()
+}
+
+func (n *Node48[T]) changeRefCountNoDecrement() int32 {
+	return atomic.LoadInt32(&n.refCount)
 }

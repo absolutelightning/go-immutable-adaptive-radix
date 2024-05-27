@@ -47,7 +47,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			return nil, zero, false
 		}
 
-		node.incrementRefCount()
+		node.incrementLazyRefCount(1)
 
 		currentNode := node.(Node[T])
 
@@ -57,7 +57,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			leafCh := currentNode.(*NodeLeaf[T])
 			if i.lowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
-					node.decrementRefCount()
 					return getKey(leafCh.key), leafCh.value, true
 				}
 				continue
@@ -65,7 +64,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if len(i.Path()) >= 2 && !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
-			node.decrementRefCount()
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
@@ -124,7 +122,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = newStack
 			}
 		}
-		node.decrementRefCount()
+		node.incrementLazyRefCount(-1)
 	}
 	i.pos = nil
 	return nil, zero, false
@@ -152,13 +150,13 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	i.stack = []Node[T]{node}
 	i.node = node
 
-	node.incrementRefCount()
-
 	for {
 		// Check if the node matches the prefix
+		node.incrementLazyRefCount(1)
 		watch = node.getMutateCh()
 
 		if node.isLeaf() {
+			node.incrementLazyRefCount(-1)
 			return watch
 		}
 
@@ -168,7 +166,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
-				node.decrementRefCount()
+				node.incrementLazyRefCount(-1)
 				break
 			}
 			depth += int(node.getPartialLen())
@@ -178,7 +176,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		child, _ := findChild[T](node, prefix[depth])
 		if child == nil {
 			// If the child node doesn't exist, break the loop
-			node.decrementRefCount()
+			node.incrementLazyRefCount(-1)
 			node = nil
 			i.node = nil
 			break
@@ -186,15 +184,15 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 		if depth == len(prefix) {
 			// If the prefix is exhausted, break the loop
+			node.incrementLazyRefCount(-1)
 			break
 		}
 
 		i.stack = []Node[T]{node}
 		i.node = node
 
-		node.decrementRefCount()
-
 		// Move to the next level in the tree
+		node.incrementLazyRefCount(-1)
 		node = child
 		depth++
 	}
@@ -262,6 +260,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		if node == nil {
 			break
 		}
+		node.incrementLazyRefCount(1)
 
 		var prefixCmp int
 		if int(node.getPartialLen()) < len(prefix) {
@@ -328,6 +327,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		}
 
 		// Move to the next level in the tree
+		node.incrementLazyRefCount(-1)
 		node = node.getChild(idx)
 		depth++
 	}

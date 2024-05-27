@@ -10,14 +10,16 @@ import (
 )
 
 type Node16[T any] struct {
-	id          uint64
-	partialLen  uint32
-	numChildren uint8
-	partial     []byte
-	keys        [16]byte
-	children    [16]Node[T]
-	mutateCh    chan struct{}
-	refCount    int32
+	id           uint64
+	partialLen   uint32
+	numChildren  uint8
+	partial      []byte
+	keys         [16]byte
+	children     [16]Node[T]
+	mutateCh     chan struct{}
+	refCount     int32
+	lazyRefCount int32
+	oldRef       Node[T]
 }
 
 func (n *Node16[T]) getId() uint64 {
@@ -89,12 +91,14 @@ func (n *Node16[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node16[T]) incrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, 1)
+func (n *Node16[T]) decrementRefCount() int32 {
+	n.processLazyRef()
+	return atomic.AddInt32(&n.refCount, -1)
 }
 
-func (n *Node16[T]) decrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, -1)
+func (n *Node16[T]) incrementRefCount() int32 {
+	n.processLazyRef()
+	return atomic.AddInt32(&n.refCount, 1)
 }
 
 func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
@@ -209,4 +213,40 @@ func (n *Node16[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *Node16[T]) createNewMutateChn() chan struct{} {
 	n.setMutateCh(make(chan struct{}))
 	return n.getMutateCh()
+}
+
+func (n *Node16[T]) incrementLazyRefCount(val int32) int32 {
+	return atomic.AddInt32(&n.lazyRefCount, val)
+}
+
+func (n *Node16[T]) getRefCount() int32 {
+	n.processLazyRef()
+	return atomic.LoadInt32(&n.refCount)
+}
+
+func (n *Node16[T]) processLazyRef() {
+	atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	for i := 0; i < 16; i++ {
+		if n.children[i] != nil {
+			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	atomic.StoreInt32(&n.lazyRefCount, 0)
+}
+
+func (n *Node16[T]) setOldRef(or Node[T]) {
+	n.oldRef = or
+}
+
+func (n *Node16[T]) getOldRef() Node[T] {
+	return n.oldRef
+}
+
+func (n *Node16[T]) changeRefCount() int32 {
+	atomic.AddInt32(&n.refCount, -1)
+	return n.decrementRefCount()
+}
+
+func (n *Node16[T]) changeRefCountNoDecrement() int32 {
+	return atomic.LoadInt32(&n.refCount)
 }

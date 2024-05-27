@@ -79,11 +79,17 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		if t.trackMutate {
 			t.trackId(n)
 		}
+		n.processLazyRef()
 		newNode := t.allocNode(node16)
+		n.processLazyRef()
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
+		for i := 0; i < int(n.getNumChildren()); i++ {
+			newNode.getChild(i).incrementLazyRefCount(1)
+		}
 		t.copyHeader(newNode, n)
+		n.incrementLazyRefCount(-1)
 		return t.addChild16(newNode, c, child)
 	}
 }
@@ -109,11 +115,16 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 			t.trackId(n)
 		}
 		newNode := t.allocNode(node48)
+		n.processLazyRef()
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		for i := 0; i < int(n.getNumChildren()); i++ {
+			newNode.getChild(i).incrementLazyRefCount(1)
+		}
+		for i := 0; i < int(n.getNumChildren()); i++ {
 			newNode.setKeyAtIdx(int(n.getKeyAtIdx(i)), byte(i+1))
 		}
+		n.incrementLazyRefCount(-1)
 		t.copyHeader(newNode, n)
 		return t.addChild48(newNode, c, child)
 	}
@@ -135,11 +146,14 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 			t.trackId(n)
 		}
 		newNode := t.allocNode(node256)
+		n.processLazyRef()
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
 				newNode.setChild(i, n.getChild(int(n.getKeyAtIdx(i))-1))
+				newNode.getChild(i).incrementLazyRefCount(1)
 			}
 		}
+		n.incrementLazyRefCount(-1)
 		t.copyHeader(newNode, n)
 		return t.addChild256(newNode, c, child)
 	}
@@ -251,10 +265,11 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 		return maximum[T](node.getChild(int(node.getNumChildren() - 1)))
 	case node48:
 		idx = 255
-		for idx >= 0 && node.getChild(idx) == nil {
+		for idx >= 0 && node.getKeyAtIdx(idx) == 0 {
 			idx--
 		}
-		if idx >= 0 {
+		idx = int(node.getKeyAtIdx(idx) - 1)
+		if idx < 48 {
 			return maximum[T](node.getChild(idx))
 		}
 	case node256:
@@ -375,7 +390,9 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			// Store the prefix in the child
 			copy(newChildZero.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			newChildZero.setPartialLen(newChildZero.getPartialLen() + n.getPartialLen() + 1)
+			newChildZero.incrementLazyRefCount(1)
 		}
+		n.incrementLazyRefCount(-1)
 		return newChildZero
 	}
 	return n
@@ -396,6 +413,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 3 {
+		n.incrementLazyRefCount(-1)
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -404,6 +422,11 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.getKeys()[:4])
 		copy(n4.children[:], n.getChildren()[:4])
+		for i := 0; i < 4; i++ {
+			if n4.getChild(i) != nil {
+				n4.getChild(i).incrementLazyRefCount(1)
+			}
+		}
 		return newNode
 	}
 	return n
@@ -422,6 +445,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 12 {
+		n.incrementLazyRefCount(-1)
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -433,6 +457,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 			if pos != 0 {
 				newNode.setKeyAtIdx(child, byte(i))
 				newNode.setChild(child, n.getChild(int(pos-1)))
+				newNode.getChild(child).incrementLazyRefCount(1)
 				child++
 			}
 		}
@@ -454,6 +479,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
 	if n.getNumChildren() == 37 {
+		n.incrementLazyRefCount(-1)
 		if t.trackMutate {
 			t.trackId(n)
 		}
@@ -465,6 +491,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 			if n.getChild(i) != nil {
 				newNode.setChild(pos, n.getChild(i))
 				newNode.setKeyAtIdx(i, byte(pos+1))
+				newNode.getChild(pos).incrementLazyRefCount(1)
 				pos++
 			}
 		}
