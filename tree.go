@@ -165,6 +165,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	var child Node[T]
 	depth := 0
 
+	n.incrementLazyRefCount(1)
 	for {
 		// Might be a leaf
 		watch = n.getMutateCh()
@@ -198,6 +199,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		n = child
 		depth++
 	}
+	n.incrementLazyRefCount(-1)
 	return zero, false, nil
 }
 

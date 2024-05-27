@@ -72,6 +72,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 		if n == nil {
 			break
 		}
+		n.incrementLazyRefCount(1)
 		// Compare current prefix with the search key's same-length prefix.
 		var prefixCmp int
 		if int(n.getPartialLen()) < len(prefix) {

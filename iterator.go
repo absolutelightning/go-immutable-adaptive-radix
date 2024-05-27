@@ -47,7 +47,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			return nil, zero, false
 		}
 
-		node.incrementRefCount()
+		node.incrementLazyRefCount(1)
 
 		currentNode := node.(Node[T])
 
@@ -122,6 +122,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = newStack
 			}
 		}
+		node.incrementLazyRefCount(-1)
 	}
 	i.pos = nil
 	return nil, zero, false
@@ -149,10 +150,9 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	i.stack = []Node[T]{node}
 	i.node = node
 
-	node.incrementRefCount()
-
 	for {
 		// Check if the node matches the prefix
+		node.incrementLazyRefCount(1)
 		watch = node.getMutateCh()
 
 		if node.isLeaf() {
@@ -188,6 +188,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		i.node = node
 
 		// Move to the next level in the tree
+		node.incrementLazyRefCount(-1)
 		node = child
 		depth++
 	}
@@ -255,6 +256,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		if node == nil {
 			break
 		}
+		node.incrementLazyRefCount(1)
 
 		var prefixCmp int
 		if int(node.getPartialLen()) < len(prefix) {
@@ -321,6 +323,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		}
 
 		// Move to the next level in the tree
+		node.incrementLazyRefCount(-1)
 		node = node.getChild(idx)
 		depth++
 	}
