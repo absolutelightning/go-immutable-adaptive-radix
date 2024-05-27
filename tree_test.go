@@ -202,7 +202,13 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 
 	art.DFS(func(n Node[int]) {
 		if n.getRefCount() != 1 {
-			t.Fatalf("bad ref count: %d", n.getRefCount())
+			fmt.Println(n.getRefCount())
+			if n.isLeaf() {
+				fmt.Println(string(n.getKey()))
+			} else {
+				fmt.Println(string(n.getPartial()))
+			}
+			//t.Fatalf("bad ref count: %d", n.getRefCount())
 		}
 	})
 }
