@@ -117,6 +117,7 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &Node48[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		mu:          &sync.RWMutex{},
 	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
