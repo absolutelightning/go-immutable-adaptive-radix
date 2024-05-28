@@ -132,20 +132,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
-			doClone := node.getRefCount() > 1
 			if t.trackMutate {
 				t.trackChannel(node)
 			}
-			if doClone {
-				nl := t.makeLeaf(key, value)
-				node.incrementLazyRefCount(-1)
-				val := node.getValue()
-				return nl, val
-			}
-			oldV := node.getValue()
-			node.setValue(value)
-			node.processLazyRef()
-			return node, oldV
+			nl := t.makeLeaf(key, value)
+			node.incrementLazyRefCount(-1)
+			val := node.getValue()
+			return nl, val
 		}
 
 		// New value, we must split the leaf into a node4
