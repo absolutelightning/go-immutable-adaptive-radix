@@ -207,6 +207,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
+			if newNode != node && t.trackMutate {
+				t.trackId(node)
+			}
 			if newNode != node && doClone {
 				oldRef.incrementLazyRefCount(-1)
 			}
@@ -245,11 +248,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	doClone := node.getRefCount() > 1
 	if doClone {
-		node = t.writeNode(node)
-	} else {
 		if t.trackMutate {
 			t.trackId(node)
 		}
+		node = t.writeNode(node)
 	}
 
 	if depth < len(key) {
@@ -270,6 +272,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		newNodeToRet := t.addChild(node, key[depth], newLeaf)
+		if newNodeToRet != node && t.trackMutate && !doClone {
+			t.trackId(node)
+		}
 		if newNodeToRet != node && doClone {
 			oldRef.incrementLazyRefCount(-1)
 		}
