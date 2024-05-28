@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"sync"
 	"sync/atomic"
 )
 
@@ -19,6 +20,7 @@ type Node48[T any] struct {
 	lazyRefCount int32
 	mutateCh     chan struct{}
 	oldRef       Node[T]
+	mu           *sync.RWMutex
 }
 
 func (n *Node48[T]) getId() uint64 {
@@ -106,6 +108,8 @@ func (n *Node48[T]) matchPrefix(prefix []byte) bool {
 }
 
 func (n *Node48[T]) getChild(index int) Node[T] {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.children[index]
 }
 
@@ -148,6 +152,8 @@ func (n *Node48[T]) setKeyLen(keyLen uint32) {
 }
 
 func (n *Node48[T]) setChild(index int, child Node[T]) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.children[index] = child
 }
 

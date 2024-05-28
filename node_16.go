@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"sort"
+	"sync"
 	"sync/atomic"
 )
 
@@ -20,6 +21,7 @@ type Node16[T any] struct {
 	refCount     int32
 	lazyRefCount int32
 	oldRef       Node[T]
+	mu           *sync.RWMutex
 }
 
 func (n *Node16[T]) getId() uint64 {
@@ -141,6 +143,8 @@ func (n *Node16[T]) setKeyLen(keyLen uint32) {
 }
 
 func (n *Node16[T]) setChild(index int, child Node[T]) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.children[index] = child
 }
 func (n *Node16[T]) getKey() []byte {
@@ -163,6 +167,8 @@ func (n *Node16[T]) setKeyAtIdx(idx int, key byte) {
 }
 
 func (n *Node16[T]) getChildren() []Node[T] {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.children[:]
 }
 

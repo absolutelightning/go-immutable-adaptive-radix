@@ -49,6 +49,9 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	if _, ok := t.writable.Get(n); ok {
 		return n
 	}
+	if t.trackMutate {
+		t.trackChannel(n)
+	}
 	nc := n.clone(false, false)
 	nc.incrementRefCount()
 	// Mark this node as writable.
@@ -147,9 +150,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		doClone := node.getRefCount() > 1
 
 		if doClone {
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
 			node = t.writeNode(node)
 		}
 
@@ -179,9 +179,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.getPartialLen() > 0 {
 		doClone := node.getRefCount() > 1
 		if doClone {
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
 			node = t.writeNode(node)
 		}
 		// Determine if the prefixes differ, since we need to split
@@ -206,7 +203,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			if newNode != node && t.trackMutate {
+			if newNode != node && t.trackMutate && !doClone {
 				t.trackChannel(node)
 			}
 			if newNode != node && doClone {
@@ -247,9 +244,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	doClone := node.getRefCount() > 1
 	if doClone {
-		if t.trackMutate {
-			t.trackChannel(node)
-		}
 		node = t.writeNode(node)
 	}
 
@@ -354,9 +348,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		if t.trackMutate {
 			t.trackChannel(oldRef)
 		}
-		if doClone {
-			node = t.writeNode(node)
-		}
+		node = t.writeNode(node)
 		node.setChild(idx, newChild)
 		if doClone {
 			oldRef.incrementLazyRefCount(-1)
@@ -503,6 +495,8 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 			}
 		}
 	}
+
+	node = t.writeNode(node)
 
 	for idx, ch := range newChIndxMap {
 		node.setChild(idx, ch)
