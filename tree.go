@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"sync"
 	"sync/atomic"
 )
 
@@ -54,7 +55,9 @@ type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
-	rt.root = &NodeLeaf[T]{}
+	rt.root = &NodeLeaf[T]{
+		mu: &sync.RWMutex{},
+	}
 	rt.idg = NewIDGenerator()
 	id, ch := rt.idg.GenerateID()
 	rt.root.setId(id)

@@ -185,10 +185,14 @@ func (n *Node48[T]) getKeys() []byte {
 	return n.keys[:]
 }
 func (n *Node48[T]) getMutateCh() chan struct{} {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.mutateCh
 }
 
 func (n *Node48[T]) setMutateCh(ch chan struct{}) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	if ch == nil {
 		ch = make(chan struct{})
 	}
