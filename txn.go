@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"github.com/hashicorp/golang-lru/v2/simplelru"
+	"sync"
 )
 
 const defaultModifiedCache = 8192
@@ -150,9 +151,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		doClone := node.getRefCount() > 1
 
 		if doClone {
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
 			node = t.writeNode(node)
 		}
 
@@ -206,7 +204,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			if newNode != node && t.trackMutate {
+			if newNode != node && t.trackMutate && !doClone {
 				t.trackChannel(node)
 			}
 			if newNode != node && doClone {
@@ -247,9 +245,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	doClone := node.getRefCount() > 1
 	if doClone {
-		if t.trackMutate {
-			t.trackChannel(node)
-		}
 		node = t.writeNode(node)
 	}
 
@@ -354,9 +349,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		if t.trackMutate {
 			t.trackChannel(oldRef)
 		}
-		if doClone {
-			node = t.writeNode(node)
-		}
+		node = t.writeNode(node)
 		node.setChild(idx, newChild)
 		if doClone {
 			oldRef.incrementLazyRefCount(-1)
@@ -504,6 +497,8 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		}
 	}
 
+	node = t.writeNode(node)
+
 	for idx, ch := range newChIndxMap {
 		node.setChild(idx, ch)
 	}
@@ -533,13 +528,21 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	case leafType:
 		n = &NodeLeaf[T]{}
 	case node4:
-		n = &Node4[T]{}
+		n = &Node4[T]{
+			mu: &sync.RWMutex{},
+		}
 	case node16:
-		n = &Node16[T]{}
+		n = &Node16[T]{
+			mu: &sync.RWMutex{},
+		}
 	case node48:
-		n = &Node48[T]{}
+		n = &Node48[T]{
+			mu: &sync.RWMutex{},
+		}
 	case node256:
-		n = &Node256[T]{}
+		n = &Node256[T]{
+			mu: &sync.RWMutex{},
+		}
 	default:
 		panic("Unknown node type")
 	}
@@ -569,6 +572,7 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	if t.trackMutate {
 		if _, ok := t.tree.idg.trackIds[node.getId()]; !ok {
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			node.createNewMutateChn()
 		}
 	}
 }
