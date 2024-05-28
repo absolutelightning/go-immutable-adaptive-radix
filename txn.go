@@ -319,6 +319,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil
 	}
 
+	doClone := node.getRefCount() > 1
+
 	node.processLazyRef()
 
 	// Handle hitting a leaf node
@@ -352,7 +354,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	oldRef := node
 
-	doClone := node.getRefCount() > 1
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 	if val != nil {
