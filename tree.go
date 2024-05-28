@@ -205,7 +205,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		n = child
 		depth++
 	}
-	return zero, false, nil
+	return zero, false, watch
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
