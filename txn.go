@@ -189,6 +189,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+				if !doClone && t.trackMutate {
+					t.trackChannel(node)
+				}
 				node.setChild(idx, newChild)
 				if !doClone && t.trackMutate {
 					t.trackChannel(oldRef)
@@ -253,6 +256,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		child, idx := t.findChild(node, key[depth])
 		if child != nil {
 			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+			if !doClone {
+				t.trackChannel(node)
+			}
 			node.setChild(idx, newChild)
 			if doClone {
 				oldRef.incrementLazyRefCount(-1)
@@ -349,7 +355,11 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		if t.trackMutate {
 			t.trackChannel(oldRef)
 		}
-		node = t.writeNode(node)
+		if doClone {
+			node = t.writeNode(node)
+		} else {
+			t.trackChannel(node)
+		}
 		node.setChild(idx, newChild)
 		if doClone {
 			oldRef.incrementLazyRefCount(-1)
@@ -501,6 +511,8 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 
 	if doClone {
 		node = t.writeNode(node)
+	} else {
+		t.trackChannel(node)
 	}
 
 	for idx, ch := range newChIndxMap {
@@ -530,7 +542,9 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	var n Node[T]
 	switch ntype {
 	case leafType:
-		n = &NodeLeaf[T]{}
+		n = &NodeLeaf[T]{
+			mu: &sync.RWMutex{},
+		}
 	case node4:
 		n = &Node4[T]{
 			mu: &sync.RWMutex{},
@@ -576,6 +590,7 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	if t.trackMutate {
 		if _, ok := t.tree.idg.trackIds[node.getId()]; !ok {
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			node.setMutateCh(make(chan struct{}))
 		}
 	}
 }
