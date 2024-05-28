@@ -497,7 +497,11 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		}
 	}
 
-	node = t.writeNode(node)
+	doClone := node.getRefCount() > 1
+
+	if doClone {
+		node = t.writeNode(node)
+	}
 
 	for idx, ch := range newChIndxMap {
 		node.setChild(idx, ch)
