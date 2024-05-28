@@ -368,7 +368,8 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	// Remove nodes with only a single child
 	if n.getNumChildren() == 1 {
 		// Is not leaf
-		newChildZero := n.getChildren()[0].clone(true, false)
+		t.trackChannel(n)
+		newChildZero := n.getChild(0).clone(true, false)
 		if !n.getChildren()[0].isLeaf() {
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
@@ -403,9 +404,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 
 	if n.getNumChildren() == 3 {
 		n.incrementLazyRefCount(-1)
-		if t.trackMutate {
-			t.trackChannel(n)
-		}
+		t.trackChannel(n)
 		newNode := t.allocNode(node4)
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
@@ -429,9 +428,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 
 	if n.getNumChildren() == 12 {
 		n.incrementLazyRefCount(-1)
-		if t.trackMutate {
-			t.trackChannel(n)
-		}
+		t.trackChannel(n)
 		newNode := t.allocNode(node16)
 		t.copyHeader(newNode, n)
 		child := 0
@@ -457,9 +454,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	// trashing if we sit on the 48/49 boundary
 	if n.getNumChildren() == 37 {
 		n.incrementLazyRefCount(-1)
-		if t.trackMutate {
-			t.trackChannel(n)
-		}
+		t.trackChannel(n)
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
 
