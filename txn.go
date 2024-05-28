@@ -49,9 +49,6 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	if _, ok := t.writable.Get(n); ok {
 		return n
 	}
-	if t.trackMutate {
-		t.trackChannel(n)
-	}
 	nc := n.clone(false, false)
 	nc.incrementRefCount()
 	// Mark this node as writable.
@@ -182,6 +179,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.getPartialLen() > 0 {
 		doClone := node.getRefCount() > 1
 		if doClone {
+			if t.trackMutate {
+				t.trackChannel(node)
+			}
 			node = t.writeNode(node)
 		}
 		// Determine if the prefixes differ, since we need to split
@@ -569,6 +569,7 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	if t.trackMutate {
 		if _, ok := t.tree.idg.trackIds[node.getId()]; !ok {
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
+			node.createNewMutateChn()
 		}
 	}
 }
