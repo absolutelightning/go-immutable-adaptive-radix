@@ -209,7 +209,8 @@ func (n *NodeLeaf[T]) incrementLazyRefCount(val int32) int32 {
 }
 
 func (n *NodeLeaf[T]) processLazyRef() {
-	atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	val := atomic.LoadInt32(&n.lazyRefCount)
+	atomic.AddInt32(&n.refCount, val)
 	atomic.StoreInt32(&n.lazyRefCount, 0)
 }
 
