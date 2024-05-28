@@ -51,8 +51,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			return nil, zero, false
 		}
 
-		node.incrementLazyRefCount(1)
-
 		currentNode := node.(Node[T])
 
 		i.pos = currentNode
@@ -126,7 +124,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = newStack
 			}
 		}
-		node.incrementLazyRefCount(-1)
 	}
 	i.pos = nil
 	return nil, zero, false
@@ -158,10 +155,8 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 	for {
 		// Check if the node matches the prefix
-		node.incrementLazyRefCount(1)
 
 		if node.isLeaf() {
-			node.incrementLazyRefCount(-1)
 			return watch
 		}
 
@@ -171,7 +166,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
-				node.incrementLazyRefCount(-1)
 				if bytes.HasPrefix(node.getPartial(), prefix[depth:]) {
 					i.node = node
 					break
@@ -187,7 +181,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		child, _ := findChild[T](node, prefix[depth])
 		if child == nil {
 			// If the child node doesn't exist, break the loop
-			node.incrementLazyRefCount(-1)
 			node = nil
 			i.node = nil
 			break
@@ -195,7 +188,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 		if depth == len(prefix) {
 			// If the prefix is exhausted, break the loop
-			node.incrementLazyRefCount(-1)
 			i.node = nil
 			break
 		}
@@ -204,7 +196,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		i.node = node
 
 		// Move to the next level in the tree
-		node.incrementLazyRefCount(-1)
 		parent = node
 		watch = parent.getMutateCh()
 		node = child
@@ -274,7 +265,6 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		if node == nil {
 			break
 		}
-		node.incrementLazyRefCount(1)
 
 		var prefixCmp int
 		if int(node.getPartialLen()) < len(prefix) {
@@ -341,7 +331,6 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		}
 
 		// Move to the next level in the tree
-		node.incrementLazyRefCount(-1)
 		node = node.getChild(idx)
 		depth++
 	}
