@@ -102,7 +102,7 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	}
 	if t.trackMutate {
 		newRoot.setMutateCh(oldRootCh)
-		t.trackId(t.tree.root)
+		t.trackChannel(t.tree.root)
 	}
 	t.tree.root = newRoot
 	return oldVal, old == 1
@@ -120,7 +120,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			node.processLazyRef()
 			nl.processLazyRef()
 			if t.trackMutate {
-				t.trackId(node)
+				t.trackChannel(node)
 			}
 			return nl, zero
 		}
@@ -134,7 +134,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			*old = 1
 			doClone := node.getRefCount() > 1
 			if t.trackMutate {
-				t.trackId(node)
+				t.trackChannel(node)
 			}
 			if doClone {
 				nl := t.makeLeaf(key, value)
@@ -154,6 +154,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		doClone := node.getRefCount() > 1
 
 		if doClone {
+			if t.trackMutate {
+				t.trackChannel(node)
+			}
 			node = t.writeNode(node)
 		}
 
@@ -183,6 +186,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.getPartialLen() > 0 {
 		doClone := node.getRefCount() > 1
 		if doClone {
+			if t.trackMutate {
+				t.trackChannel(node)
+			}
 			node = t.writeNode(node)
 		}
 		// Determine if the prefixes differ, since we need to split
@@ -194,7 +200,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 				node.setChild(idx, newChild)
 				if !doClone && t.trackMutate {
-					t.trackId(oldRef)
+					t.trackChannel(oldRef)
 				}
 				if doClone {
 					oldRef.incrementLazyRefCount(-1)
@@ -207,6 +213,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
+			if newNode != node && t.trackMutate {
+				t.trackChannel(node)
+			}
 			if newNode != node && doClone {
 				oldRef.incrementLazyRefCount(-1)
 			}
@@ -245,11 +254,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	doClone := node.getRefCount() > 1
 	if doClone {
-		node = t.writeNode(node)
-	} else {
 		if t.trackMutate {
-			t.trackId(node)
+			t.trackChannel(node)
 		}
+		node = t.writeNode(node)
 	}
 
 	if depth < len(key) {
@@ -270,6 +278,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		newNodeToRet := t.addChild(node, key[depth], newLeaf)
+		if newNodeToRet != node && t.trackMutate && !doClone {
+			t.trackChannel(oldRef)
+		}
 		if newNodeToRet != node && doClone {
 			oldRef.incrementLazyRefCount(-1)
 		}
@@ -289,7 +300,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	}
 	if l != nil {
 		if t.trackMutate {
-			t.trackId(t.tree.root)
+			t.trackChannel(t.tree.root)
 		}
 		t.size--
 		t.tree.size--
@@ -298,7 +309,6 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 		t.tree.root = newRoot
 		return old, true
 	}
-	newRoot.setMutateCh(oldRootCh)
 	t.tree.root = newRoot
 	return zero, false
 }
@@ -309,13 +319,15 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil
 	}
 
+	doClone := node.getRefCount() > 1
+
 	node.processLazyRef()
 
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
 			if t.trackMutate {
-				t.trackId(node)
+				t.trackChannel(node)
 			}
 			return nil, node
 		}
@@ -342,23 +354,19 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	oldRef := node
 
-	doClone := node.getRefCount() > 1
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 	if val != nil {
 
+		if t.trackMutate {
+			t.trackChannel(oldRef)
+		}
 		if doClone {
 			node = t.writeNode(node)
 		}
-
 		node.setChild(idx, newChild)
 		if doClone {
 			oldRef.incrementLazyRefCount(-1)
-		}
-		if newChild != child {
-			if t.trackMutate {
-				t.trackId(oldRef)
-			}
 		}
 		if newChild == nil {
 			node = t.removeChild(node, key[depth])
@@ -366,9 +374,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		}
 	}
 	oldRef.processLazyRef()
-	if !doClone {
-		node.incrementLazyRefCount(-1)
-	}
+	oldRef.incrementLazyRefCount(-1)
 	return node, val
 }
 
@@ -452,7 +458,7 @@ func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
 	newRoot, numDeletions := t.deletePrefix(t.tree.root, key, 0)
 	if numDeletions != 0 {
 		if t.trackMutate {
-			t.trackId(t.tree.root)
+			t.trackChannel(t.tree.root)
 		}
 		t.tree.root = newRoot
 		t.tree.size = t.tree.size - uint64(numDeletions)
@@ -471,7 +477,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	if isLeaf[T](node) {
 		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
 			if t.trackMutate {
-				t.trackId(node)
+				t.trackChannel(node)
 			}
 			return nil, 1
 		}
@@ -487,7 +493,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	}
 
 	if t.trackMutate {
-		t.trackId(node)
+		t.trackChannel(node)
 	}
 
 	numDel := 0
@@ -500,7 +506,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 			newChIndxMap[idx] = newCh
 			numDel += del
 			if del > 0 && t.trackMutate {
-				t.trackId(ch)
+				t.trackChannel(ch)
 			}
 		}
 	}
@@ -555,11 +561,11 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	return n
 }
 
-// trackId safely attempts to track the given mutation channel, setting the
+// trackChannel safely attempts to track the given mutation channel, setting the
 // overflow flag if we can no longer track any more. This limits the amount of
 // state that will accumulate during a transaction and we have a slower algorithm
 // to switch to if we overflow.
-func (t *Txn[T]) trackId(node Node[T]) {
+func (t *Txn[T]) trackChannel(node Node[T]) {
 	// In overflow, make sure we don't store any more objects.
 	// If this would overflow the state we reject it and set the flag (since
 

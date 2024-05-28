@@ -1717,17 +1717,17 @@ func TestTrackMutate_HugeTxn(t *testing.T) {
 	select {
 	case <-rootWatch:
 	default:
-		//t.Fatalf("bad")
+		t.Fatalf("bad")
 	}
 	select {
 	case <-parentWatch:
 	default:
-		//t.Fatalf("bad")
+		t.Fatalf("bad")
 	}
 	select {
 	case <-leafWatch:
 	default:
-		//t.Fatalf("bad")
+		t.Fatalf("bad")
 	}
 	select {
 	case <-nopeWatch:
@@ -1737,12 +1737,12 @@ func TestTrackMutate_HugeTxn(t *testing.T) {
 	select {
 	case <-beforeWatch:
 	default:
-		//t.Fatalf("bad")
+		t.Fatalf("bad")
 	}
 	select {
 	case <-afterWatch:
 	default:
-		//t.Fatalf("bad")
+		t.Fatalf("bad")
 	}
 }
 
