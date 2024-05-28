@@ -214,8 +214,9 @@ func (n *Node48[T]) ReverseIterator() *ReverseIterator[T] {
 }
 
 func (n *Node48[T]) createNewMutateChn() chan struct{} {
-	n.setMutateCh(make(chan struct{}))
-	return n.getMutateCh()
+	muCh := make(chan struct{})
+	n.setMutateCh(muCh)
+	return muCh
 }
 
 func (n *Node48[T]) incrementLazyRefCount(val int32) int32 {

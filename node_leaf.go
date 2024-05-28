@@ -195,8 +195,9 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 }
 
 func (n *NodeLeaf[T]) createNewMutateChn() chan struct{} {
-	n.setMutateCh(make(chan struct{}))
-	return n.getMutateCh()
+	muCh := make(chan struct{})
+	n.setMutateCh(muCh)
+	return muCh
 }
 
 func (n *NodeLeaf[T]) getRefCount() int32 {
