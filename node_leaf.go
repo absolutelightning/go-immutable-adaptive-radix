@@ -140,6 +140,7 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &NodeLeaf[T]{
 		key:   make([]byte, len(n.getKey())),
 		value: n.getValue(),
+		mu:    &sync.RWMutex{},
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
