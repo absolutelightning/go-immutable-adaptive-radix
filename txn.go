@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"github.com/hashicorp/golang-lru/v2/simplelru"
+	"sync"
 )
 
 const defaultModifiedCache = 8192
@@ -527,13 +528,21 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	case leafType:
 		n = &NodeLeaf[T]{}
 	case node4:
-		n = &Node4[T]{}
+		n = &Node4[T]{
+			mu: &sync.RWMutex{},
+		}
 	case node16:
-		n = &Node16[T]{}
+		n = &Node16[T]{
+			mu: &sync.RWMutex{},
+		}
 	case node48:
-		n = &Node48[T]{}
+		n = &Node48[T]{
+			mu: &sync.RWMutex{},
+		}
 	case node256:
-		n = &Node256[T]{}
+		n = &Node256[T]{
+			mu: &sync.RWMutex{},
+		}
 	default:
 		panic("Unknown node type")
 	}
