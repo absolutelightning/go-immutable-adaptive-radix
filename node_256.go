@@ -4,6 +4,7 @@
 package adaptive
 
 import (
+	"sync"
 	"sync/atomic"
 )
 
@@ -17,6 +18,7 @@ type Node256[T any] struct {
 	refCount     int32
 	lazyRefCount int32
 	oldRef       Node[T]
+	mu           *sync.RWMutex
 }
 
 func (n *Node256[T]) getId() uint64 {
@@ -103,6 +105,8 @@ func (n *Node256[T]) matchPrefix(_ []byte) bool {
 }
 
 func (n *Node256[T]) getChild(index int) Node[T] {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	if index < 0 || index >= 256 {
 		return nil
 	}
@@ -113,6 +117,7 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 	newNode := &Node256[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		mu:          &sync.RWMutex{},
 	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
@@ -139,6 +144,8 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 }
 
 func (n *Node256[T]) setChild(index int, child Node[T]) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.children[index] = child
 }
 

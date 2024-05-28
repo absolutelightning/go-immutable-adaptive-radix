@@ -6,6 +6,7 @@ package adaptive
 import (
 	"bytes"
 	"sort"
+	"sync"
 	"sync/atomic"
 )
 
@@ -20,6 +21,7 @@ type Node4[T any] struct {
 	refCount     int32
 	lazyRefCount int32
 	oldRef       Node[T]
+	mu           *sync.RWMutex
 }
 
 func (n *Node4[T]) getId() uint64 {
@@ -97,6 +99,8 @@ func (n *Node4[T]) matchPrefix(prefix []byte) bool {
 }
 
 func (n *Node4[T]) getChild(index int) Node[T] {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.children[index]
 }
 
@@ -104,6 +108,7 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &Node4[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		mu:          &sync.RWMutex{},
 	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
@@ -140,6 +145,8 @@ func (n *Node4[T]) setKeyLen(keyLen uint32) {
 }
 
 func (n *Node4[T]) setChild(index int, child Node[T]) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.children[index] = child
 }
 
