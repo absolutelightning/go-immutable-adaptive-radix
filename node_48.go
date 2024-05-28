@@ -232,7 +232,8 @@ func (n *Node48[T]) setRefCount(val int32) {
 }
 
 func (n *Node48[T]) processLazyRef() {
-	atomic.AddInt32(&n.refCount, n.lazyRefCount)
+	lazyRefCount := atomic.LoadInt32(&n.lazyRefCount)
+	atomic.AddInt32(&n.refCount, lazyRefCount)
 	for i := 0; i < 48; i++ {
 		if n.children[i] != nil {
 			n.children[i].incrementLazyRefCount(n.lazyRefCount)
