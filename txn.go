@@ -409,6 +409,12 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
+	if t.tree.root == nil {
+		var zero T
+		t.tree.root = t.makeLeaf(nil, zero)
+		t.tree.root.setId(0)
+		t.tree.root.setMutateCh(make(chan struct{}))
+	}
 	t.tree.root.incrementLazyRefCount(-1)
 	t.tree.root.processLazyRef()
 	nt := &RadixTree[T]{t.tree.root,
