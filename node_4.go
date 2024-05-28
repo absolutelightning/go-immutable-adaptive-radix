@@ -229,7 +229,7 @@ func (n *Node4[T]) processLazyRef() {
 	atomic.AddInt32(&n.refCount, lazyRefCount)
 	for i := 0; i < 4; i++ {
 		if n.children[i] != nil {
-			n.children[i].incrementLazyRefCount(n.lazyRefCount)
+			n.children[i].incrementLazyRefCount(lazyRefCount)
 		}
 	}
 	atomic.StoreInt32(&n.lazyRefCount, 0)
