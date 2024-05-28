@@ -189,6 +189,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
+				if !doClone && t.trackMutate {
+					t.trackChannel(node)
+				}
 				node.setChild(idx, newChild)
 				if !doClone && t.trackMutate {
 					t.trackChannel(oldRef)
@@ -578,7 +581,7 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	if t.trackMutate {
 		if _, ok := t.tree.idg.trackIds[node.getId()]; !ok {
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-			node.createNewMutateChn()
+			node.setMutateCh(make(chan struct{}))
 		}
 	}
 }

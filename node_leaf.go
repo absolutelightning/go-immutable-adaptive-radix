@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"sync"
 	"sync/atomic"
 )
 
@@ -16,6 +17,7 @@ type NodeLeaf[T any] struct {
 	refCount     int32
 	lazyRefCount int32
 	oldRef       Node[T]
+	mu           *sync.RWMutex
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -170,10 +172,14 @@ func (n *NodeLeaf[T]) getKeys() []byte {
 }
 
 func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.mutateCh
 }
 
 func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	if ch == nil {
 		ch = make(chan struct{})
 	}
