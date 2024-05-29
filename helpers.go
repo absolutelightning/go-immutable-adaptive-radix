@@ -372,8 +372,8 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 
 	if n.getNumChildren() == 1 {
 		// Is not leaf
-		newChildZero := n.getChild(0).clone(true, false)
 		if !n.getChildren()[0].isLeaf() && n.getRefCount() == 2 {
+			newChildZero := n.getChild(0).clone(true, false)
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {
