@@ -115,6 +115,10 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T) {
 	var zero T
 
+	if node == nil {
+		return node, zero
+	}
+
 	node.processLazyRef()
 
 	oldRef := node
