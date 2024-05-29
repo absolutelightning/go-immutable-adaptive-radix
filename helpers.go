@@ -370,29 +370,30 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 
 	n.processLazyRef()
 
-	// Remove nodes with only a single child
-	if n.getNumChildren() == 1 && n.getRefCount() == 2 && !n.getChild(0).isLeaf() {
+	if n.getNumChildren() == 1 {
 		// Is not leaf
-		t.trackChannel(n)
 		newChildZero := n.getChild(0).clone(true, false)
-		newChildZero.incrementLazyRefCount(n.getChild(0).getRefCount() + 1)
-		n.getChild(0).incrementLazyRefCount(-1)
-		// Concatenate the prefixes
-		prefix := int(n.getPartialLen())
-		if prefix < maxPrefixLen {
-			n.getPartial()[prefix] = n.getKeyAtIdx(0)
-			prefix++
-		}
-		if prefix < maxPrefixLen {
-			subPrefix := min(int(newChildZero.getPartialLen()), maxPrefixLen-prefix)
-			copy(n.getPartial()[prefix:], newChildZero.getPartial()[:subPrefix])
-			prefix += subPrefix
-		}
+		if !n.getChildren()[0].isLeaf() && n.getRefCount() == 2 {
+			// Concatenate the prefixes
+			prefix := int(n.getPartialLen())
+			if prefix < maxPrefixLen {
+				n.getPartial()[prefix] = n.getKeyAtIdx(0)
+				prefix++
+			}
+			if prefix < maxPrefixLen {
+				subPrefix := min(int(newChildZero.getPartialLen()), maxPrefixLen-prefix)
+				copy(n.getPartial()[prefix:], newChildZero.getPartial()[:subPrefix])
+				prefix += subPrefix
+			}
 
-		// Store the prefix in the child
-		copy(newChildZero.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
-		newChildZero.setPartialLen(newChildZero.getPartialLen() + n.getPartialLen() + 1)
-		return newChildZero
+			// Store the prefix in the child
+			copy(newChildZero.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
+			newChildZero.setPartialLen(newChildZero.getPartialLen() + n.getPartialLen() + 1)
+			newChildZero.incrementLazyRefCount(1)
+			t.trackChannel(n)
+			n.incrementLazyRefCount(-1)
+			return newChildZero
+		}
 	}
 	return n
 }
