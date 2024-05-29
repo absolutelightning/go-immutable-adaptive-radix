@@ -354,6 +354,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	pos := sort.Search(int(n.getNumChildren()), func(i int) bool {
 		return n.getKeyAtIdx(i) >= c
 	})
+
 	t.trackChannel(n.getChild(pos))
 
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
@@ -408,6 +409,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	pos := sort.Search(int(n.getNumChildren()), func(i int) bool {
 		return n.getKeyAtIdx(i) >= c
 	})
+
 	t.trackChannel(n.getChild(pos))
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	children := n.getChildren()
@@ -422,7 +424,8 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	n.incrementLazyRefCount(-1)
-	if n.getNumChildren() == 3 {
+
+	if n.getNumChildren() == 3 && n.getRefCount() == 1 {
 		t.trackChannel(n)
 		newNode := t.allocNode(node4)
 		n4 := newNode.(*Node4[T])
@@ -447,7 +450,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	t.trackChannel(n.getChild(int(pos - 1)))
 
 	n.incrementLazyRefCount(-1)
-	if n.getNumChildren() == 12 {
+	if n.getNumChildren() == 12 && n.getRefCount() == 1 {
 		t.trackChannel(n)
 		newNode := t.allocNode(node16)
 		t.copyHeader(newNode, n)
@@ -474,7 +477,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
-	if n.getNumChildren() == 37 {
+	if n.getNumChildren() == 37 && n.getRefCount() == 1 {
 		t.trackChannel(n)
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
