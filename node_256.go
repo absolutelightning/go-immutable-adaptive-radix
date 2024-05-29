@@ -124,6 +124,7 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 		mu:          &sync.RWMutex{},
 	}
 	newPartial := make([]byte, maxPrefixLen)
+	newNode.setId(n.getId())
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	if keepWatch {

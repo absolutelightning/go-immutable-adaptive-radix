@@ -116,6 +116,7 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
+	newNode.setId(n.getId())
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	} else {
