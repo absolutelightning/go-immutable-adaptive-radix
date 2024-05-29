@@ -122,9 +122,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if node.getKeyLen() == 0 {
 			nl := t.makeLeaf(key, value)
 			nl.processLazyRef()
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
+			t.trackChannel(node)
 			return nl, zero
 		}
 	}
@@ -135,9 +133,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
+			t.trackChannel(node)
 			nl := t.makeLeaf(key, value)
 			node.incrementLazyRefCount(-1)
 			val := node.getValue()
@@ -192,7 +188,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 					t.trackChannel(node)
 				}
 				node.setChild(idx, newChild)
-				if !doClone && t.trackMutate {
+				if !doClone {
 					t.trackChannel(oldRef)
 				}
 				if doClone {
@@ -292,9 +288,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 		newRoot.setMutateCh(make(chan struct{}))
 	}
 	if l != nil {
-		if t.trackMutate {
-			t.trackChannel(t.tree.root)
-		}
+		t.trackChannel(t.tree.root)
 		t.size--
 		t.tree.size--
 		old := l.getValue()
@@ -319,9 +313,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
+			t.trackChannel(node)
 			return nil, node
 		}
 		return node, nil
@@ -349,8 +341,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
-	if val != nil {
 
+	if newChild == nil {
 		t.trackChannel(child)
 
 		if doClone {
@@ -358,14 +350,18 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		} else {
 			t.trackChannel(oldRef)
 		}
-		node.setChild(idx, newChild)
 		if doClone {
 			oldRef.incrementLazyRefCount(-1)
 		}
-		if newChild == nil {
-			node = t.removeChild(node, key[depth])
-			oldRef.processLazyRef()
+		node = t.removeChild(node, key[depth])
+
+	} else if newChild != child {
+		if doClone {
+			node = t.writeNode(node)
+		} else {
+			t.trackChannel(oldRef)
 		}
+		node.setChild(idx, newChild)
 	}
 	oldRef.processLazyRef()
 	oldRef.incrementLazyRefCount(-1)
