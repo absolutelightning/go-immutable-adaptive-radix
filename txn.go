@@ -285,9 +285,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		newNodeToRet := t.addChild(node, key[depth], newLeaf)
-		if newNodeToRet != node && t.trackMutate && !doClone {
-			t.trackChannel(oldRef)
-		}
 		if newNodeToRet != node && doClone {
 			oldRef.incrementLazyRefCount(-1)
 		}
