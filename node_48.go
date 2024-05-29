@@ -44,10 +44,14 @@ func (n *Node48[T]) getArtNodeType() nodeType {
 }
 
 func (n *Node48[T]) getNumChildren() uint8 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.numChildren
 }
 
 func (n *Node48[T]) setNumChildren(numChildren uint8) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.numChildren = numChildren
 }
 

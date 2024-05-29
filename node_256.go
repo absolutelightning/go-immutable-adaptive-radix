@@ -60,10 +60,14 @@ func (n *Node256[T]) getArtNodeType() nodeType {
 }
 
 func (n *Node256[T]) getNumChildren() uint8 {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	return n.numChildren
 }
 
 func (n *Node256[T]) setNumChildren(numChildren uint8) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
 	n.numChildren = numChildren
 }
 

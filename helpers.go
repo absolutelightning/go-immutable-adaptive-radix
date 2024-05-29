@@ -357,7 +357,11 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	t.trackChannel(n.getChild(pos))
 
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
-	copy(n.getChildren()[pos:], n.getChildren()[pos+1:])
+	children := n.getChildren()
+	copy(children[pos:], children[pos+1:])
+	for itr := 0; itr < int(n.getNumChildren()); itr++ {
+		n.setChild(itr, children[itr])
+	}
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	// Remove nodes with only a single child
@@ -395,7 +399,11 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	})
 	t.trackChannel(n.getChild(pos))
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
-	copy(n.getChildren()[pos:], n.getChildren()[pos+1:])
+	children := n.getChildren()
+	copy(children[pos:], children[pos+1:])
+	for itr := 0; itr < int(n.getNumChildren()); itr++ {
+		n.setChild(itr, children[itr])
+	}
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 3 {
