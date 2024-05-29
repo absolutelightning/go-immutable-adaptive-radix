@@ -352,8 +352,6 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 		return n.getKeyAtIdx(i) >= c
 	})
 
-	t.trackChannel(n.getChild(pos))
-
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	slow := 0
 	children := n.getChildren()
@@ -407,7 +405,6 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		return n.getKeyAtIdx(i) >= c
 	})
 
-	t.trackChannel(n.getChild(pos))
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	children := n.getChildren()
 	slow := 0
@@ -444,7 +441,6 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	n.setKeyAtIdx(int(c), 0)
 	n.setChild(int(pos-1), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
-	t.trackChannel(n.getChild(int(pos - 1)))
 
 	n.incrementLazyRefCount(-1)
 	if n.getNumChildren() == 12 && n.getRefCount() == 1 {
@@ -469,7 +465,6 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	n.setChild(int(c), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
-	t.trackChannel(n.getChild(int(c)))
 	n.incrementLazyRefCount(-1)
 
 	// Resize to a node48 on underflow, not immediately to prevent
