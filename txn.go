@@ -122,9 +122,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if node.getKeyLen() == 0 {
 			nl := t.makeLeaf(key, value)
 			nl.processLazyRef()
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
+			t.trackChannel(node)
 			return nl, zero
 		}
 	}
@@ -135,9 +133,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
+			t.trackChannel(node)
 			nl := t.makeLeaf(key, value)
 			node.incrementLazyRefCount(-1)
 			val := node.getValue()
