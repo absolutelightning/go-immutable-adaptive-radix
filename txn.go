@@ -342,6 +342,15 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 
+	if newChild != child {
+		if doClone {
+			node = t.writeNode(node)
+		} else {
+			t.trackChannel(oldRef)
+		}
+		node.setChild(idx, newChild)
+	}
+
 	if newChild == nil {
 		t.trackChannel(child)
 
@@ -354,15 +363,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			oldRef.incrementLazyRefCount(-1)
 		}
 		node = t.removeChild(node, key[depth])
-
-	} else if newChild != child {
-		if doClone {
-			node = t.writeNode(node)
-		} else {
-			t.trackChannel(oldRef)
-		}
-		node.setChild(idx, newChild)
 	}
+
 	oldRef.processLazyRef()
 	oldRef.incrementLazyRefCount(-1)
 	return node, val
@@ -584,9 +586,15 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	// If this would overflow the state we reject it and set the flag (since
 
 	// Create the map on the fly when we need it.
-	//if t.trackIds == nil {
-	//	t.trackIds = make(map[uint64]struct{})
-	//}
+	if node == nil {
+		return
+	}
+	if t.tree.idg.trackIds == nil {
+		t.tree.idg.trackIds = make(map[uint64]struct{})
+	}
+	if t.tree.idg.delChns == nil {
+		t.tree.idg.delChns = make(map[chan struct{}]struct{})
+	}
 	if t.trackMutate {
 		if _, ok := t.tree.idg.trackIds[node.getId()]; !ok {
 			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
