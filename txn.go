@@ -339,7 +339,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 				return nil, node
 			}
 			node.incrementLazyRefCount(-1)
-			return node, node
+			return nil, node
 		}
 		return node, nil
 	}
@@ -362,6 +362,10 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 
+	if newChild != nil {
+		newChild.processLazyRef()
+	}
+
 	oldRef := node
 
 	doClone := node.getRefCount() > 1
@@ -373,6 +377,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		node = t.writeNode(node)
 	} else {
 		// because deletion will happen on this node
+		defer func() {
+			oldRef.incrementLazyRefCount(-1)
+		}()
 		node.incrementLazyRefCount(1)
 		t.trackChannel(oldRef)
 	}
@@ -381,6 +388,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	node.setChild(idx, newChild)
 
 	if newChild == nil {
+		if doClone {
+			node.incrementLazyRefCount(1)
+		}
 		node = t.removeChild(node, key[depth])
 	}
 
