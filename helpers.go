@@ -356,14 +356,13 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	})
 	t.trackChannel(n.getChild(pos))
 
-	n.setNumChildren(n.getNumChildren() - 1)
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	children := n.getChildren()
 	copy(children[pos:], children[pos+1:])
-	n.setNumChildren(n.getNumChildren() - 1)
 	for itr := 0; itr < int(n.getNumChildren()); itr++ {
 		n.setChild(itr, children[itr])
 	}
+	n.setNumChildren(n.getNumChildren() - 1)
 
 	// Remove nodes with only a single child
 	if n.getNumChildren() == 1 {
@@ -402,10 +401,10 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	children := n.getChildren()
 	copy(children[pos:], children[pos+1:])
-	n.setNumChildren(n.getNumChildren() - 1)
 	for itr := 0; itr < int(n.getNumChildren()); itr++ {
 		n.setChild(itr, children[itr])
 	}
+	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 3 {
 		n.incrementLazyRefCount(-1)
