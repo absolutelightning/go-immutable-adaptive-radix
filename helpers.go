@@ -362,14 +362,18 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	for itr := 0; itr < int(n.getNumChildren()); itr++ {
 		n.setChild(itr, children[itr])
 	}
+	for itr := int(n.getNumChildren()); itr < 4; itr++ {
+		n.setChild(itr, nil)
+	}
 	n.setNumChildren(n.getNumChildren() - 1)
+	n.incrementLazyRefCount(-1)
 
-	// Remove nodes with only a single child
+	n.processLazyRef()
+
 	if n.getNumChildren() == 1 {
 		// Is not leaf
-		t.trackChannel(n)
-		newChildZero := n.getChild(0).clone(true, false)
-		if !n.getChildren()[0].isLeaf() {
+		if !n.getChildren()[0].isLeaf() && n.getRefCount() == 2 {
+			newChildZero := n.getChild(0).clone(true, false)
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {
@@ -386,9 +390,10 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			copy(newChildZero.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			newChildZero.setPartialLen(newChildZero.getPartialLen() + n.getPartialLen() + 1)
 			newChildZero.incrementLazyRefCount(1)
+			t.trackChannel(n)
+			n.incrementLazyRefCount(-1)
+			return newChildZero
 		}
-		n.incrementLazyRefCount(-1)
-		return newChildZero
 	}
 	return n
 }
@@ -404,10 +409,13 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	for itr := 0; itr < int(n.getNumChildren()); itr++ {
 		n.setChild(itr, children[itr])
 	}
+	for itr := int(n.getNumChildren()); itr < 16; itr++ {
+		n.setChild(itr, nil)
+	}
 	n.setNumChildren(n.getNumChildren() - 1)
 
+	n.incrementLazyRefCount(-1)
 	if n.getNumChildren() == 3 {
-		n.incrementLazyRefCount(-1)
 		t.trackChannel(n)
 		newNode := t.allocNode(node4)
 		n4 := newNode.(*Node4[T])
@@ -431,8 +439,8 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 	t.trackChannel(n.getChild(int(pos - 1)))
 
+	n.incrementLazyRefCount(-1)
 	if n.getNumChildren() == 12 {
-		n.incrementLazyRefCount(-1)
 		t.trackChannel(n)
 		newNode := t.allocNode(node16)
 		t.copyHeader(newNode, n)
@@ -455,11 +463,11 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	n.setChild(int(c), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
 	t.trackChannel(n.getChild(int(c)))
+	n.incrementLazyRefCount(-1)
 
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
 	if n.getNumChildren() == 37 {
-		n.incrementLazyRefCount(-1)
 		t.trackChannel(n)
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)

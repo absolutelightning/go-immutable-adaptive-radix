@@ -311,7 +311,8 @@ func (t *RadixTree[T]) DFSNode(n Node[T], fn DfsFn[T]) {
 	fn(n)
 
 	// Recurse on the children
-	for _, e := range n.getChildren() {
+	for itr := 0; itr < int(n.getNumChildren()); itr++ {
+		e := n.getChild(itr)
 		if e != nil {
 			t.DFSNode(e, fn)
 		}
