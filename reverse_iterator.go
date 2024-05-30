@@ -216,7 +216,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
-			for itr := 0; itr < 4; itr++ {
+			for itr := 0; itr < int(n4.getNumChildren()); itr++ {
 				nodeCh := n4.children[itr]
 				if nodeCh == nil {
 					continue
@@ -229,7 +229,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 		case node16:
 			n16 := currentNode.(*Node16[T])
-			for itr := 0; itr < 16; itr++ {
+			for itr := 0; itr < int(n16.getNumChildren()); itr++ {
 				nodeCh := n16.children[itr]
 				if nodeCh == nil {
 					continue
@@ -242,7 +242,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
-			for itr := 0; itr < 256; itr++ {
+			for itr := 0; itr < int(n48.getNumChildren()); itr++ {
 				idx := n48.keys[itr]
 				if idx == 0 {
 					continue
@@ -259,7 +259,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 		case node256:
 			n256 := currentNode.(*Node256[T])
-			for itr := 0; itr < 256; itr++ {
+			for itr := 0; itr < int(n256.getNumChildren()); itr++ {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
 					continue
