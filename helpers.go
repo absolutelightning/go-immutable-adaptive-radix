@@ -372,6 +372,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			copy(nodeToReturn.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			nodeToReturn.setPartialLen(nodeToReturn.getPartialLen() + n.getPartialLen() + 1)
 		}
+		t.trackChannel(n)
 		return nodeToReturn
 	}
 	return n
@@ -395,6 +396,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 3 {
+		t.trackChannel(n)
 		newNode := t.allocNode(node4)
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
@@ -413,6 +415,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 
 	if n.getNumChildren() == 12 {
 		newNode := t.allocNode(node16)
+		t.trackChannel(n)
 		t.copyHeader(newNode, n)
 		child := 0
 		for i := 0; i < 256; i++ {
@@ -437,6 +440,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	if n.getNumChildren() == 37 {
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
+		t.trackChannel(n)
 
 		pos := 0
 		for i := 0; i < 256; i++ {
