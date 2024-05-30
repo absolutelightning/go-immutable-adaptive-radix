@@ -155,11 +155,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			oldRef.incrementLazyRefCount(-1)
 			node = t.writeNode(node)
 		} else {
-			defer func() {
-				oldRef.incrementLazyRefCount(-1)
-				oldRef.processLazyRef()
-			}()
-			node.incrementLazyRefCount(1)
 		}
 
 		// Determine longest prefix
@@ -190,11 +185,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			oldRef.incrementLazyRefCount(-1)
 			node = t.writeNode(node)
 		} else {
-			defer func() {
-				oldRef.incrementLazyRefCount(-1)
-				oldRef.processLazyRef()
-			}()
-			node.incrementLazyRefCount(1)
 		}
 		// Determine if the prefixes differ, since we need to split
 		prefixDiff := prefixMismatch[T](node, key, len(key), depth)
@@ -247,9 +237,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// Insert the new leaf
 		newLeaf := t.makeLeaf(key, value)
 		newNodeWithChildAdded := t.addChild(newNode, key[depth+prefixDiff], newLeaf)
-		if doClone && newNodeWithChildAdded == newNode {
-			oldRef.incrementLazyRefCount(-1)
-		}
 		oldRef.processLazyRef()
 		return newNodeWithChildAdded, zero
 	}
@@ -258,12 +245,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if doClone {
 		oldRef.incrementLazyRefCount(-1)
 		node = t.writeNode(node)
-	} else {
-		defer func() {
-			oldRef.incrementLazyRefCount(-1)
-			oldRef.processLazyRef()
-		}()
-		node.incrementLazyRefCount(1)
 	}
 
 	if depth < len(key) {
@@ -272,9 +253,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if child != nil {
 			newChild, val := t.recursiveInsert(child, key, value, depth+1, old)
 			node.setChild(idx, newChild)
-			if doClone {
-				oldRef.incrementLazyRefCount(-1)
-			}
 			oldRef.processLazyRef()
 			return node, val
 		}
@@ -284,9 +262,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		newNodeToRet := t.addChild(node, key[depth], newLeaf)
-		if newNodeToRet != node && doClone {
-			oldRef.incrementLazyRefCount(-1)
-		}
 		oldRef.processLazyRef()
 		return newNodeToRet, zero
 	}
