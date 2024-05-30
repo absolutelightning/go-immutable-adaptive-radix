@@ -73,8 +73,6 @@ func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	if deep {
 		newRoot = t.root.clone(false, deep)
 	}
-	newRoot.setId(t.root.getId())
-
 	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
 }
 
