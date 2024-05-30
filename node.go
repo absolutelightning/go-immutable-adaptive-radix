@@ -19,6 +19,7 @@ type Node[T any] interface {
 	processLazyRef()
 	setChild(int, Node[T])
 	clone(bool, bool) Node[T]
+	setRefCount(int32)
 	incrementRefCount() int32
 	decrementRefCount() int32
 	getRefCount() int32

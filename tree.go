@@ -78,8 +78,10 @@ func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 		newRoot = t.root.clone(false, deep)
 	}
 	newRoot.setId(t.root.getId())
-	newRoot.incrementLazyRefCount(t.root.getRefCount() + 1)
+	newRoot.setRefCount(t.root.getRefCount())
+	newRoot.incrementLazyRefCount(1)
 	newRoot.processLazyRef()
+
 	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
 }
 

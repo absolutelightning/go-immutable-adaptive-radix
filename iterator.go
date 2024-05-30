@@ -164,13 +164,8 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
-				if bytes.HasPrefix(node.getPartial(), prefix[depth:]) {
-					i.node = node
-					break
-				} else {
-					i.node = nil
-					break
-				}
+				i.node = nil
+				break
 			}
 			depth += int(node.getPartialLen())
 		}

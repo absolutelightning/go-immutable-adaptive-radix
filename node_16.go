@@ -268,3 +268,7 @@ func (n *Node16[T]) changeRefCount() int32 {
 func (n *Node16[T]) changeRefCountNoDecrement() int32 {
 	return atomic.LoadInt32(&n.refCount)
 }
+
+func (n *Node16[T]) setRefCount(rc int32) {
+	atomic.StoreInt32(&n.refCount, rc)
+}

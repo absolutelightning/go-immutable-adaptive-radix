@@ -62,21 +62,21 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
-	treeClone := t.Clone(false)
 	txn := &Txn[T]{
 		size: t.size,
-		tree: treeClone,
+		tree: t.Clone(false),
+		snap: t.root,
 	}
 	return txn
 }
 
 // Clone makes an independent copy of the transaction. The new transaction
 // does not track any nodes and has TrackMutate turned off. The cloned transaction will contain any uncommitted writes in the original transaction but further mutations to either will be independent and result in different radix trees on Commit. A cloned transaction may be passed to another goroutine and mutated there independently however each transaction may only be mutated in a single thread.
-func (t *Txn[T]) Clone() *Txn[T] {
+func (t *Txn[T]) Clone(deep bool) *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 
 	txn := &Txn[T]{
-		tree: t.tree.Clone(false),
+		tree: t.tree.Clone(deep),
 		size: t.size,
 	}
 	return txn
@@ -140,6 +140,12 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := node.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
+			if node.getRefCount() == 1 {
+				t.trackChannel(node)
+				oldVal := node.getValue()
+				node.setValue(value)
+				return node, oldVal
+			}
 			t.trackChannel(node)
 			nl := t.makeLeaf(key, value)
 			node.incrementLazyRefCount(-1)
@@ -327,11 +333,11 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
 			t.trackChannel(node)
-			if node.getRefCount() == 1 {
+			node.decrementRefCount()
+			if node.getRefCount() <= 2 {
 				return nil, node
 			}
-			node.incrementLazyRefCount(-1)
-			return nil, node
+			return node, node
 		}
 		return node, nil
 	}
@@ -493,9 +499,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
-			if t.trackMutate {
-				t.trackChannel(node)
-			}
+			t.trackChannel(node)
 			return nil, 1
 		}
 		return node, 0
@@ -507,10 +511,6 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		if prefixLen < min(maxPrefixLen, len(getKey(key))) {
 			depth += prefixLen
 		}
-	}
-
-	if t.trackMutate {
-		t.trackChannel(node)
 	}
 
 	numDel := 0

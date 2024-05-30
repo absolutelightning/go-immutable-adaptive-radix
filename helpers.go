@@ -363,14 +363,12 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 		slow += 1
 	}
 	n.setNumChildren(n.getNumChildren() - 1)
-	n.incrementLazyRefCount(-1)
-
 	n.processLazyRef()
 
 	if n.getNumChildren() == 1 {
 		nodeToReturn := n.getChild(0)
 		// Is not leaf
-		if !n.getChild(0).isLeaf() && n.getRefCount() == 1 {
+		if !n.getChild(0).isLeaf() && n.getRefCount() <= 2 {
 			nodeToReturn = n.getChild(0).clone(true, false)
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
@@ -391,7 +389,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			n.incrementLazyRefCount(-1)
 			return nodeToReturn
 		}
-		if n.getRefCount() == 1 {
+		if n.getRefCount() <= 2 {
 			n.incrementLazyRefCount(-1)
 			return nodeToReturn
 		}
@@ -416,7 +414,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	}
 	n.setNumChildren(n.getNumChildren() - 1)
 
-	n.incrementLazyRefCount(-1)
+	n.processLazyRef()
 
 	if n.getNumChildren() == 3 && n.getRefCount() == 1 {
 		newNode := t.allocNode(node4)
@@ -440,7 +438,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	n.setChild(int(pos-1), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
 
-	n.incrementLazyRefCount(-1)
+	n.processLazyRef()
 	if n.getNumChildren() == 12 && n.getRefCount() == 1 {
 		newNode := t.allocNode(node16)
 		t.copyHeader(newNode, n)
@@ -462,7 +460,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	n.setChild(int(c), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
-	n.incrementLazyRefCount(-1)
+	n.processLazyRef()
 
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary

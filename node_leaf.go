@@ -239,3 +239,7 @@ func (n *NodeLeaf[T]) changeRefCount() int32 {
 func (n *NodeLeaf[T]) changeRefCountNoDecrement() int32 {
 	return atomic.LoadInt32(&n.refCount)
 }
+
+func (n *NodeLeaf[T]) setRefCount(val int32) {
+	atomic.StoreInt32(&n.refCount, val)
+}
