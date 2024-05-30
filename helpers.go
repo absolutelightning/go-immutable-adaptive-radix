@@ -372,7 +372,6 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			copy(nodeToReturn.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			nodeToReturn.setPartialLen(nodeToReturn.getPartialLen() + n.getPartialLen() + 1)
 		}
-		t.trackChannel(n)
 		return nodeToReturn
 	}
 	return n
@@ -397,7 +396,6 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 
 	if n.getNumChildren() == 3 {
 		newNode := t.allocNode(node4)
-		t.trackChannel(n)
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.getKeys()[:4])
@@ -414,7 +412,6 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 12 {
-		t.trackChannel(n)
 		newNode := t.allocNode(node16)
 		t.copyHeader(newNode, n)
 		child := 0
@@ -438,7 +435,6 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	// Resize to a node48 on underflow, not immediately to prevent
 	// trashing if we sit on the 48/49 boundary
 	if n.getNumChildren() == 37 {
-		t.trackChannel(n)
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
 
