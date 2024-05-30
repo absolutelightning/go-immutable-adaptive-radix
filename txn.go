@@ -341,12 +341,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		oldRef.processLazyRef()
 		// new node copied
 		node = t.writeNode(node)
-	} else {
-		// because deletion will happen on this node
-		defer func() {
-			oldRef.incrementLazyRefCount(-1)
-		}()
-		node.incrementLazyRefCount(1)
+	}
+
+	if newChild != child {
 		t.trackChannel(oldRef)
 	}
 
