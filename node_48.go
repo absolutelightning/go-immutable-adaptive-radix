@@ -5,22 +5,16 @@ package adaptive
 
 import (
 	"bytes"
-	"sync"
-	"sync/atomic"
 )
 
 type Node48[T any] struct {
-	id           uint64
-	partialLen   uint32
-	numChildren  uint8
-	partial      []byte
-	keys         [256]byte
-	children     [48]Node[T]
-	refCount     int32
-	lazyRefCount int32
-	mutateCh     chan struct{}
-	oldRef       Node[T]
-	mu           *sync.RWMutex
+	id          uint64
+	partialLen  uint32
+	numChildren uint8
+	partial     []byte
+	keys        [256]byte
+	children    [48]Node[T]
+	mutateCh    chan struct{}
 }
 
 func (n *Node48[T]) getId() uint64 {
@@ -44,14 +38,10 @@ func (n *Node48[T]) getArtNodeType() nodeType {
 }
 
 func (n *Node48[T]) getNumChildren() uint8 {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.numChildren
 }
 
 func (n *Node48[T]) setNumChildren(numChildren uint8) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.numChildren = numChildren
 }
 
@@ -88,16 +78,6 @@ func (n *Node48[T]) PathIterator(path []byte) *PathIterator[T] {
 	}
 }
 
-func (n *Node48[T]) decrementRefCount() int32 {
-	n.processLazyRef()
-	return atomic.AddInt32(&n.refCount, -1)
-}
-
-func (n *Node48[T]) incrementRefCount() int32 {
-	n.processLazyRef()
-	return atomic.AddInt32(&n.refCount, 1)
-}
-
 func (n *Node48[T]) matchPrefix(prefix []byte) bool {
 	for i := 0; i < 256; i++ {
 		if n.keys[i] == 0 {
@@ -112,8 +92,6 @@ func (n *Node48[T]) matchPrefix(prefix []byte) bool {
 }
 
 func (n *Node48[T]) getChild(index int) Node[T] {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.children[index]
 }
 
@@ -121,7 +99,6 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &Node48[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
-		mu:          &sync.RWMutex{},
 	}
 	newNode.setId(n.getId())
 	newPartial := make([]byte, maxPrefixLen)
@@ -158,8 +135,6 @@ func (n *Node48[T]) setKeyLen(keyLen uint32) {
 }
 
 func (n *Node48[T]) setChild(index int, child Node[T]) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	n.children[index] = child
 }
 
@@ -190,14 +165,10 @@ func (n *Node48[T]) getKeys() []byte {
 	return n.keys[:]
 }
 func (n *Node48[T]) getMutateCh() chan struct{} {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.mutateCh
 }
 
 func (n *Node48[T]) setMutateCh(ch chan struct{}) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	if ch == nil {
 		ch = make(chan struct{})
 	}
@@ -233,45 +204,4 @@ func (n *Node48[T]) createNewMutateChn() chan struct{} {
 	muCh := make(chan struct{})
 	n.setMutateCh(muCh)
 	return muCh
-}
-
-func (n *Node48[T]) incrementLazyRefCount(val int32) int32 {
-	return atomic.AddInt32(&n.lazyRefCount, val)
-}
-
-func (n *Node48[T]) getRefCount() int32 {
-	n.processLazyRef()
-	return atomic.LoadInt32(&n.refCount)
-}
-
-func (n *Node48[T]) setRefCount(val int32) {
-	atomic.StoreInt32(&n.refCount, val)
-}
-
-func (n *Node48[T]) processLazyRef() {
-	lazyRefCount := atomic.LoadInt32(&n.lazyRefCount)
-	atomic.AddInt32(&n.refCount, lazyRefCount)
-	for i := 0; i < 48; i++ {
-		if n.children[i] != nil {
-			n.children[i].incrementLazyRefCount(lazyRefCount)
-		}
-	}
-	atomic.StoreInt32(&n.lazyRefCount, 0)
-}
-
-func (n *Node48[T]) setOldRef(or Node[T]) {
-	n.oldRef = or
-}
-
-func (n *Node48[T]) getOldRef() Node[T] {
-	return n.oldRef
-}
-
-func (n *Node48[T]) changeRefCount() int32 {
-	atomic.AddInt32(&n.refCount, -1)
-	return n.decrementRefCount()
-}
-
-func (n *Node48[T]) changeRefCountNoDecrement() int32 {
-	return atomic.LoadInt32(&n.refCount)
 }

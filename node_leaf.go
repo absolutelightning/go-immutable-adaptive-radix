@@ -5,19 +5,13 @@ package adaptive
 
 import (
 	"bytes"
-	"sync"
-	"sync/atomic"
 )
 
 type NodeLeaf[T any] struct {
-	id           uint64
-	value        T
-	key          []byte
-	mutateCh     chan struct{}
-	refCount     int32
-	lazyRefCount int32
-	oldRef       Node[T]
-	mu           *sync.RWMutex
+	id       uint64
+	value    T
+	key      []byte
+	mutateCh chan struct{}
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -26,14 +20,6 @@ func (n *NodeLeaf[T]) getId() uint64 {
 
 func (n *NodeLeaf[T]) setId(id uint64) {
 	n.id = id
-}
-
-func (n *NodeLeaf[T]) incrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, 1)
-}
-
-func (n *NodeLeaf[T]) decrementRefCount() int32 {
-	return atomic.AddInt32(&n.refCount, -1)
 }
 
 func (n *NodeLeaf[T]) getPartialLen() uint32 {
@@ -140,7 +126,6 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &NodeLeaf[T]{
 		key:   make([]byte, len(n.getKey())),
 		value: n.getValue(),
-		mu:    &sync.RWMutex{},
 	}
 	newNode.setId(n.getId())
 	if keepWatch {
@@ -174,14 +159,10 @@ func (n *NodeLeaf[T]) getKeys() []byte {
 }
 
 func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	return n.mutateCh
 }
 
 func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
-	n.mu.Lock()
-	defer n.mu.Unlock()
 	if ch == nil {
 		ch = make(chan struct{})
 	}
@@ -206,36 +187,4 @@ func (n *NodeLeaf[T]) createNewMutateChn() chan struct{} {
 	muCh := make(chan struct{})
 	n.setMutateCh(muCh)
 	return muCh
-}
-
-func (n *NodeLeaf[T]) getRefCount() int32 {
-	n.processLazyRef()
-	return atomic.LoadInt32(&n.refCount)
-}
-
-func (n *NodeLeaf[T]) incrementLazyRefCount(val int32) int32 {
-	return atomic.AddInt32(&n.lazyRefCount, val)
-}
-
-func (n *NodeLeaf[T]) processLazyRef() {
-	val := atomic.LoadInt32(&n.lazyRefCount)
-	atomic.AddInt32(&n.refCount, val)
-	atomic.StoreInt32(&n.lazyRefCount, 0)
-}
-
-func (n *NodeLeaf[T]) setOldRef(or Node[T]) {
-	n.oldRef = or
-}
-
-func (n *NodeLeaf[T]) getOldRef() Node[T] {
-	return n.oldRef
-}
-
-func (n *NodeLeaf[T]) changeRefCount() int32 {
-	atomic.AddInt32(&n.refCount, -1)
-	return n.decrementRefCount()
-}
-
-func (n *NodeLeaf[T]) changeRefCountNoDecrement() int32 {
-	return atomic.LoadInt32(&n.refCount)
 }

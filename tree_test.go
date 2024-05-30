@@ -95,12 +95,6 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 		lines = append(lines, scanner.Text())
 	}
 
-	art.DFS(func(n Node[int]) {
-		if n.getRefCount() != 0 {
-			t.Fatalf("bad ref count: %d", n.getRefCount())
-		}
-	})
-
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber = 1
 	for _, line := range lines {
@@ -109,12 +103,6 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 		require.Equal(t, lineNumberFetched, lineNumber)
 		lineNumber += 1
 	}
-
-	art.DFS(func(n Node[int]) {
-		if n.getRefCount() != 0 {
-			t.Fatalf("bad ref count: %d", n.getRefCount())
-		}
-	})
 
 	artLeafMin := art.Minimum()
 	artLeafMax := art.Maximum()
@@ -206,11 +194,6 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 		lineNumber += 1
 		require.Equal(t, art.size, uint64(len(lines)-lineNumber+1))
 	}
-	art.DFS(func(n Node[int]) {
-		if n.getRefCount() != 0 {
-			t.Fatalf("bad ref count: %d", n.getRefCount())
-		}
-	})
 
 }
 
@@ -859,11 +842,6 @@ func TestDebug(t *testing.T) {
 	}
 	for _, k := range keys {
 		r, _, _ = r.Insert([]byte(k), nil)
-		r.DFS(func(n Node[any]) {
-			if n.getRefCount() != 0 {
-				t.Fatalf("bad ref count: %d", n.getRefCount())
-			}
-		})
 	}
 
 }
