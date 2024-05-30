@@ -125,8 +125,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			*old = 1
 			t.trackChannel(node)
 			oldVal := node.getValue()
-			node.setValue(value)
-			return node, oldVal
+			return t.makeLeaf(key, value), oldVal
 		}
 
 		// New value, we must split the leaf into a node4
