@@ -368,7 +368,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	if n.getNumChildren() == 1 {
 		nodeToReturn := n.getChild(0)
 		// Is not leaf
-		if !n.getChild(0).isLeaf() && n.getRefCount() <= 2 {
+		if !n.getChild(0).isLeaf() && n.getRefCount() == 1 {
 			nodeToReturn = n.getChild(0).clone(true, false)
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
@@ -386,11 +386,9 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			copy(nodeToReturn.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			nodeToReturn.setPartialLen(nodeToReturn.getPartialLen() + n.getPartialLen() + 1)
 			nodeToReturn.incrementLazyRefCount(1)
-			n.incrementLazyRefCount(-1)
 			return nodeToReturn
 		}
-		if n.getRefCount() <= 2 {
-			n.incrementLazyRefCount(-1)
+		if n.getRefCount() == 1 {
 			return nodeToReturn
 		}
 	}
