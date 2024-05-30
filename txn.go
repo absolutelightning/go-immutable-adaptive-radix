@@ -58,9 +58,10 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
+	tc := t.Clone(false)
 	txn := &Txn[T]{
 		size: t.size,
-		tree: t.Clone(false),
+		tree: tc,
 	}
 	return txn
 }
@@ -113,8 +114,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
-			nl := t.makeLeaf(key, value)
-			return nl, zero
+			return t.makeLeaf(key, value), zero
 		}
 	}
 
@@ -211,8 +211,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
-		newNodeToRet := t.addChild(node, key[depth], newLeaf)
-		return newNodeToRet, zero
+		return t.addChild(node, key[depth], newLeaf), zero
 	}
 	return node, zero
 }
