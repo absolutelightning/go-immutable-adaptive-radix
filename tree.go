@@ -5,7 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"sync"
 	"sync/atomic"
 )
 
@@ -55,9 +54,7 @@ type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0}
-	rt.root = &NodeLeaf[T]{
-		mu: &sync.RWMutex{},
-	}
+	rt.root = &NodeLeaf[T]{}
 	rt.idg = NewIDGenerator()
 	id, ch := rt.idg.GenerateID()
 	rt.root.setId(id)
@@ -71,18 +68,12 @@ func (t *RadixTree[T]) Len() int {
 }
 
 // Clone is used to return the clone of tree
-func (t *RadixTree[T]) Clone(deep, readOnly bool) *RadixTree[T] {
-	t.root.processLazyRef()
+func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	newRoot := t.root.clone(true, deep)
 	if deep {
 		newRoot = t.root.clone(false, deep)
 	}
 	newRoot.setId(t.root.getId())
-	newRoot.setRefCount(t.root.getRefCount())
-	if !readOnly {
-		newRoot.incrementLazyRefCount(1)
-	}
-	newRoot.processLazyRef()
 
 	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
 }

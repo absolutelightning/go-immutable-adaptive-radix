@@ -16,16 +16,8 @@ type Node[T any] interface {
 	isLeaf() bool
 	matchPrefix([]byte) bool
 	getChild(int) Node[T]
-	processLazyRef()
 	setChild(int, Node[T])
 	clone(bool, bool) Node[T]
-	setRefCount(int32)
-	incrementRefCount() int32
-	decrementRefCount() int32
-	getRefCount() int32
-	getOldRef() Node[T]
-	setOldRef(Node[T])
-	incrementLazyRefCount(int32) int32
 	createNewMutateChn() chan struct{}
 	getKey() []byte
 	getValue() T
