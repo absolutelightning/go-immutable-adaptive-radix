@@ -69,7 +69,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
-			for itr := 3; itr >= 0; itr-- {
+			for itr := int(n4.getNumChildren() - 1); itr >= 0; itr-- {
 				nodeCh := n4.children[itr]
 				if nodeCh == nil {
 					continue
@@ -82,7 +82,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node16:
 			n16 := currentNode.(*Node16[T])
-			for itr := 15; itr >= 0; itr-- {
+			for itr := int(n16.getNumChildren() - 1); itr >= 0; itr-- {
 				nodeCh := n16.children[itr]
 				if nodeCh == nil {
 					continue
@@ -95,7 +95,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
-			for itr := 0; itr < 256; itr++ {
+			for itr := 0; itr < int(n48.getNumChildren()-1); itr++ {
 				idx := n48.keys[itr]
 				if idx == 0 {
 					continue
@@ -112,7 +112,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node256:
 			n256 := currentNode.(*Node256[T])
-			for itr := 255; itr >= 0; itr-- {
+			for itr := n256.getNumChildren() - 1; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
 					continue
