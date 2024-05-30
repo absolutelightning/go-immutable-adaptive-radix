@@ -302,7 +302,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		if leafMatches(node.getKey(), key) == 0 {
 			t.trackChannel(node)
 			node.decrementRefCount()
-			if node.getRefCount() <= 2 {
+			if node.getRefCount() == 0 {
 				return nil, node
 			}
 			return node, node
