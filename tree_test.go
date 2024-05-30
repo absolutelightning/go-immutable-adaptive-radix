@@ -20,7 +20,7 @@ func TestRadix_HugeTxn(t *testing.T) {
 	r := NewRadixTree[int]()
 
 	// Insert way more nodes than the cache can fit
-	txn1 := r.Txn(false)
+	txn1 := r.Txn()
 	var expect []string
 	for i := 0; i < defaultModifiedCache*100; i++ {
 		gen, err := uuid.GenerateUUID()
@@ -54,7 +54,7 @@ func TestRadix_HugeTxn(t *testing.T) {
 
 func TestInsert_UpdateFeedback(t *testing.T) {
 	r := NewRadixTree[any]()
-	txn1 := r.Txn(false)
+	txn1 := r.Txn()
 
 	for i := 0; i < 10; i++ {
 		var old interface{}
@@ -1150,7 +1150,7 @@ func TestTrackMutate_DeletePrefix(t *testing.T) {
 	}
 
 	// Verify that deleting prefixes triggers the right set of watches
-	txn := r.Txn(false)
+	txn := r.Txn()
 	txn.TrackMutate(true)
 	ok := txn.DeletePrefix([]byte("foo"))
 
@@ -1253,7 +1253,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		otherWatch := iter.SeekPrefixWatch([]byte("foo/b"))
 
 		// Write to a sub-child should trigger the leaf!
-		txn := r.Txn(false)
+		txn := r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobarbaz"), nil)
 		switch i {
@@ -1310,7 +1310,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		missingWatch = iter.SeekPrefixWatch([]byte("foobarbaz"))
 
 		// Delete to a sub-child should trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Delete([]byte("foobarbaz"))
 		switch i {
@@ -1399,7 +1399,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		// Write to a sub-child should not trigger the leaf!
-		txn := r.Txn(false)
+		txn := r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobarbaz"), nil)
 		switch i {
@@ -1450,7 +1450,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		// Write to a exactly leaf should trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobar"), nil)
 		switch i {
@@ -1507,7 +1507,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		// Delete to a sub-child should not trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Delete([]byte("foobarbaz"))
 		switch i {
@@ -1557,7 +1557,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		// Write to a exactly leaf should trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Delete([]byte("foobar"))
 		switch i {
@@ -1659,7 +1659,7 @@ func TestTrackMutate_HugeTxn(t *testing.T) {
 	}
 
 	// Start the transaction.
-	txn := r.Txn(false)
+	txn := r.Txn()
 	txn.TrackMutate(true)
 
 	// Add new nodes on both sides of the tree and delete enough nodes to
@@ -1732,7 +1732,7 @@ func TestLenTxn(t *testing.T) {
 		t.Fatalf("not starting with empty tree")
 	}
 
-	txn := r.Txn(false)
+	txn := r.Txn()
 	keys := []string{
 		"foo/bar/baz",
 		"foo/baz/bar",
@@ -1749,7 +1749,7 @@ func TestLenTxn(t *testing.T) {
 		t.Fatalf("bad: expected %d, got %d", len(keys), r.Len())
 	}
 
-	txn = r.Txn(false)
+	txn = r.Txn()
 	for _, k := range keys {
 		txn.Delete([]byte(k))
 	}
