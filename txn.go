@@ -50,9 +50,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	if _, ok := t.writable.Get(n); ok {
 		return n
 	}
-	if t.trackMutate {
-		t.trackChannel(n)
-	}
+	t.trackChannel(n)
 	nc := n.clone(false, false)
 	nc.incrementRefCount()
 	// Mark this node as writable.
