@@ -59,10 +59,10 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
-func (t *RadixTree[T]) Txn() *Txn[T] {
+func (t *RadixTree[T]) Txn(readOnly bool) *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
-		tree: t.Clone(false),
+		tree: t.Clone(false, readOnly),
 		snap: t.root,
 	}
 	return txn
@@ -74,7 +74,7 @@ func (t *Txn[T]) Clone(deep bool) *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 
 	txn := &Txn[T]{
-		tree: t.tree.Clone(deep),
+		tree: t.tree.Clone(deep, false),
 		size: t.size,
 	}
 	return txn
@@ -301,11 +301,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
 			t.trackChannel(node)
-			node.decrementRefCount()
-			if node.getRefCount() == 0 {
-				return nil, node
-			}
-			return node, node
+			return nil, node
 		}
 		return node, nil
 	}
@@ -336,10 +332,13 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	doClone := node.getRefCount() > 1
 
+	if newChild != child {
+		t.trackChannel(oldRef)
+	}
+
 	if doClone {
 		oldRef.incrementLazyRefCount(-1)
 		oldRef.processLazyRef()
-		// new node copied
 		node = t.writeNode(node)
 	}
 

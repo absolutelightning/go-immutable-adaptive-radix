@@ -71,7 +71,7 @@ func (t *RadixTree[T]) Len() int {
 }
 
 // Clone is used to return the clone of tree
-func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
+func (t *RadixTree[T]) Clone(deep, readOnly bool) *RadixTree[T] {
 	t.root.processLazyRef()
 	newRoot := t.root.clone(true, deep)
 	if deep {
@@ -79,7 +79,9 @@ func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	}
 	newRoot.setId(t.root.getId())
 	newRoot.setRefCount(t.root.getRefCount())
-	newRoot.incrementLazyRefCount(1)
+	if !readOnly {
+		newRoot.incrementLazyRefCount(1)
+	}
 	newRoot.processLazyRef()
 
 	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
@@ -91,7 +93,7 @@ func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
-	txn := t.Txn()
+	txn := t.Txn(false)
 	old, ok := txn.Insert(key, value)
 	return txn.Commit(), old, ok
 }
@@ -159,7 +161,7 @@ func (t *RadixTree[T]) Maximum() *NodeLeaf[T] {
 }
 
 func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn()
+	txn := t.Txn(false)
 	old, ok := txn.Delete(key)
 	return txn.Commit(), old, ok
 }
@@ -211,7 +213,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
-	txn := t.Txn()
+	txn := t.Txn(false)
 	ok := txn.DeletePrefix(key)
 	return txn.Commit(), ok
 }
