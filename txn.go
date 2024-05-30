@@ -171,11 +171,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 			// No child, node goes within us
 			newLeaf := t.makeLeaf(key, value)
-			newNode := t.addChild(node, key[depth], newLeaf)
+			node = t.writeNode(node)
+			node = t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			return newNode, zero, false
+			return node, zero, false
 		}
 
+		node = t.writeNode(node)
 		// Create a new node
 		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
