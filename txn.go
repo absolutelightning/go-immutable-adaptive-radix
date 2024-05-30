@@ -57,7 +57,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
-func (t *RadixTree[T]) Txn(readOnly bool) *Txn[T] {
+func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
 		tree: t.Clone(false),

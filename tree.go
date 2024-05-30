@@ -84,7 +84,7 @@ func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	old, ok := txn.Insert(key, value)
 	return txn.Commit(), old, ok
 }
@@ -152,7 +152,7 @@ func (t *RadixTree[T]) Maximum() *NodeLeaf[T] {
 }
 
 func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	old, ok := txn.Delete(key)
 	return txn.Commit(), old, ok
 }
@@ -204,7 +204,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	ok := txn.DeletePrefix(key)
 	return txn.Commit(), ok
 }
