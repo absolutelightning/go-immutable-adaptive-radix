@@ -93,14 +93,12 @@ func (t *Txn[T]) Get(k []byte) (T, bool) {
 
 func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	var old int
-	newRoot, oldVal, mutated := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
+	newRoot, oldVal, _ := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
 	if old == 0 {
 		t.size++
 		t.tree.size++
 	}
-	if mutated {
-		t.trackChannel(t.tree.root)
-	}
+	t.trackChannel(t.tree.root)
 	t.tree.root = newRoot
 	return oldVal, old == 1
 }
@@ -109,14 +107,17 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	var zero T
 
 	if node == nil {
-		return node, zero, true
+		node = t.makeLeaf(nil, zero)
+		node.setMutateCh(make(chan struct{}))
+		return node, zero, false
 	}
 
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
-			t.trackChannel(node)
-			return t.makeLeaf(key, value), zero, true
+			node.setKey(key)
+			node.setValue(value)
+			return node, zero, false
 		}
 	}
 
@@ -150,7 +151,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		}
 
-		return newNode, zero, true
+		return newNode, zero, false
 	}
 
 	// Check if given node has a prefix
@@ -175,7 +176,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			return node, zero, false
 		}
 
-		node = t.writeNode(node)
 		// Create a new node
 		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
@@ -215,7 +215,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		node = t.writeNode(node)
-		return t.addChild(node, key[depth], newLeaf), zero, false
+		return t.addChild(node, key[depth], newLeaf), zero, true
 	}
 	return node, zero, false
 }

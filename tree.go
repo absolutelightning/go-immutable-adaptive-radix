@@ -159,9 +159,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	n := t.root
 	watch := n.getMutateCh()
-	if t.root == nil {
-		return zero, false, watch
-	}
+
 	var child Node[T]
 	depth := 0
 
