@@ -3,13 +3,15 @@
 
 package adaptive
 
+import "sync/atomic"
+
 type Node256[T any] struct {
 	id          uint64
 	partialLen  uint32
 	numChildren uint8
 	partial     []byte
 	children    [256]Node[T]
-	mutateCh    chan struct{}
+	mutateCh    atomic.Pointer[chan struct{}]
 }
 
 func (n *Node256[T]) getId() uint64 {
@@ -97,15 +99,13 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
 	}
+	if keepWatch {
+		newNode.setMutateCh(*n.getMutateCh())
+	}
 	newPartial := make([]byte, maxPrefixLen)
 	newNode.setId(n.getId())
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
-	if keepWatch {
-		newNode.setMutateCh(n.getMutateCh())
-	} else {
-		newNode.setMutateCh(make(chan struct{}))
-	}
 	if deep {
 		for i := 0; i < 256; i++ {
 			if n.children[i] != nil {
@@ -151,15 +151,21 @@ func (n *Node256[T]) getChildren() []Node[T] {
 func (n *Node256[T]) getKeys() []byte {
 	return nil
 }
-func (n *Node256[T]) getMutateCh() chan struct{} {
-	return n.mutateCh
-}
-
-func (n *Node256[T]) setMutateCh(ch chan struct{}) {
-	if ch == nil {
-		ch = make(chan struct{})
+func (n *Node256[T]) getMutateCh() *chan struct{} {
+	ch := n.mutateCh.Load()
+	if ch != nil {
+		return ch
 	}
-	n.mutateCh = ch
+
+	// No chan yet, create one
+	newCh := make(chan struct{})
+
+	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
+	if swapped {
+		return &newCh
+	}
+	// We raced with another reader and they won so return the chan they created instead.
+	return n.mutateCh.Load()
 }
 
 func (n *Node256[T]) setValue(T) {
@@ -188,8 +194,6 @@ func (n *Node256[T]) ReverseIterator() *ReverseIterator[T] {
 	}
 }
 
-func (n *Node256[T]) createNewMutateChn() chan struct{} {
-	muCh := make(chan struct{})
-	n.setMutateCh(muCh)
-	return muCh
+func (n *Node256[T]) setMutateCh(ch chan struct{}) {
+	n.mutateCh.Store(&ch)
 }

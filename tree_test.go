@@ -1199,24 +1199,14 @@ func hasAnyClosedMutateCh[T any](r *RadixTree[T]) bool {
 	iter.Next()
 	for ; iter.Front() != nil; iter.Next() {
 		n := iter.Front()
-		if isClosed(n.getMutateCh()) {
+		if isClosed(*n.getMutateCh()) {
 			return true
 		}
-		if n.isLeaf() && isClosed(n.getMutateCh()) {
+		if n.isLeaf() && isClosed(*n.getMutateCh()) {
 			return true
 		}
 	}
 	return false
-}
-
-// isClosed returns true if the given channel is closed.
-func isClosed(ch chan struct{}) bool {
-	select {
-	case <-ch:
-		return true
-	default:
-		return false
-	}
 }
 
 func TestTrackMutate_SeekPrefixWatch(t *testing.T) {

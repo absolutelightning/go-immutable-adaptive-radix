@@ -399,6 +399,8 @@ func TestReverseIterator_SeekPrefixWatch(t *testing.T) {
 	tx.Insert(key, "value")
 	tx.Commit()
 
+	fmt.Println("superman")
+	fmt.Println(ch)
 	// Check if channel closed
 	select {
 	case <-ch:
