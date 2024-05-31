@@ -109,14 +109,19 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	var zero T
 
 	if node == nil {
-		return node, zero, true
+		node = t.makeLeaf(nil, zero)
+		node.setMutateCh(make(chan struct{}))
+		return node, zero, false
 	}
 
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
 			t.trackChannel(node)
-			return t.makeLeaf(key, value), zero, true
+			//node = t.writeNode(node)
+			node.setKey(key)
+			node.setValue(value)
+			return node, zero, false
 		}
 	}
 
