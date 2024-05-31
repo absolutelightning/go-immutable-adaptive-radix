@@ -153,7 +153,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			return newNode, zero, true
+			return newNode, zero, false
 		}
 
 		// Create a new node
