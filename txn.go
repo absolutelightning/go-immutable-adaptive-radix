@@ -73,12 +73,14 @@ func (t *Txn[T]) Get(k []byte) (T, bool) {
 
 func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	var old int
-	newRoot, oldVal, _ := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
+	newRoot, oldVal, mutated := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
 	if old == 0 {
 		t.size++
 		t.tree.size++
 	}
-	t.trackChannel(t.tree.root)
+	if mutated {
+		t.trackChannel(t.tree.root)
+	}
 	t.tree.root = newRoot
 	return oldVal, old == 1
 }

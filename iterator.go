@@ -145,7 +145,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	if prefixKey == nil {
 		i.node = node
 		i.stack = []Node[T]{node}
-		return watch
+		return
 	}
 
 	i.stack = []Node[T]{node}
@@ -162,7 +162,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		if node.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
-			if mismatchIdx < int(node.getPartialLen()) {
+			if mismatchIdx <= min(int(node.getPartialLen()), maxPrefixLen) {
 				// If there's a mismatch, set the node to nil to break the loop
 				i.node = nil
 				break
@@ -170,17 +170,17 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			depth += int(node.getPartialLen())
 		}
 
+		if depth >= len(prefix) {
+			// If the prefix is exhausted, break the loop
+			i.node = nil
+			break
+		}
+
 		// Get the next child node based on the prefix
 		child, _ := findChild[T](node, prefix[depth])
 		if child == nil {
 			// If the child node doesn't exist, break the loop
 			node = nil
-			i.node = nil
-			break
-		}
-
-		if depth == len(prefix) {
-			// If the prefix is exhausted, break the loop
 			i.node = nil
 			break
 		}
