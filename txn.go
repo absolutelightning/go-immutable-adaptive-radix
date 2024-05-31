@@ -127,9 +127,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
 			oldVal := node.getValue()
-			newNode := t.writeNode(node)
-			newNode.setValue(value)
-			return newNode, oldVal, true
+			node = t.writeNode(node)
+			node.setValue(value)
+			return node, oldVal, true
 		}
 
 		// New value, we must split the leaf into a node4
@@ -162,9 +162,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val, mutatedSubTree := t.recursiveInsert(child, key, value, depth+1, old)
-				if mutatedSubTree {
-					node = t.writeNode(node)
-				}
+				node = t.writeNode(node)
 				node.setChild(idx, newChild)
 				return node, val, mutatedSubTree
 			}
@@ -207,11 +205,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		child, idx := t.findChild(node, key[depth])
 		if child != nil {
 			newChild, val, mutatedSubtree := t.recursiveInsert(child, key, value, depth+1, old)
-			if mutatedSubtree {
-				//fmt.Println("mutaed subtree")
-				//debug.PrintStack()
-				node = t.writeNode(node)
-			}
+			node = t.writeNode(node)
 			node.setChild(idx, newChild)
 			return node, val, mutatedSubtree
 		}
@@ -220,6 +214,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
+		node = t.writeNode(node)
 		return t.addChild(node, key[depth], newLeaf), zero, false
 	}
 	return node, zero, false
