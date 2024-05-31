@@ -5,7 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"fmt"
 )
 
 const defaultModifiedCache = 8192
@@ -312,7 +311,6 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	// isClosed returns true if the given channel is closed.
-	fmt.Println(t.trackChnMap)
 	for ch := range t.trackChnMap {
 		if ch != nil && !isClosed(ch) {
 			close(ch)
