@@ -132,7 +132,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		}
 
-		return newNode, zero, false
+		return newNode, zero, true
 	}
 
 	// Check if given node has a prefix
