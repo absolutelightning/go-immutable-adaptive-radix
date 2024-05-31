@@ -102,6 +102,7 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 	depth := 0
 
 	n := t.root
+	last = n
 	for n != nil {
 
 		// Bail if the prefix does not match
