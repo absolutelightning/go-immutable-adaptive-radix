@@ -158,6 +158,8 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			return watch
 		}
 
+		watch = *node.getMutateCh()
+
 		// Determine the child index to proceed based on the next byte of the prefix
 		if node.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix
