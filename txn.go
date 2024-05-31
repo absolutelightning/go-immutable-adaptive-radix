@@ -98,6 +98,7 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 		t.size++
 		t.tree.size++
 	}
+	t.trackChannel(t.tree.root)
 	t.tree.root = newRoot
 	return oldVal, old == 1
 }
@@ -214,7 +215,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		node = t.writeNode(node)
-		return t.addChild(node, key[depth], newLeaf), zero, false
+		return t.addChild(node, key[depth], newLeaf), zero, true
 	}
 	return node, zero, false
 }
