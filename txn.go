@@ -93,14 +93,12 @@ func (t *Txn[T]) Get(k []byte) (T, bool) {
 
 func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	var old int
-	newRoot, oldVal, mutated := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
+	newRoot, oldVal, _ := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
 	if old == 0 {
 		t.size++
 		t.tree.size++
 	}
-	if mutated {
-		t.trackChannel(t.tree.root)
-	}
+	t.trackChannel(t.tree.root)
 	t.tree.root = newRoot
 	return oldVal, old == 1
 }
@@ -171,7 +169,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			return newNode, zero, false
+			return newNode, zero, true
 		}
 
 		// Create a new node
