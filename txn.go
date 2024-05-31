@@ -39,7 +39,7 @@ func (t *Txn[T]) writeNode(n Node[T], mutateChn bool) Node[T] {
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
-		tree: t,
+		tree: t.Clone(false),
 		snap: t,
 	}
 	return txn
@@ -53,6 +53,7 @@ func (t *Txn[T]) Clone(deep bool) *Txn[T] {
 	txn := &Txn[T]{
 		tree: t.tree.Clone(deep),
 		size: t.size,
+		snap: t.snap,
 	}
 	return txn
 }
