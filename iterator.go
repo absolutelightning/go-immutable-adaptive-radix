@@ -192,7 +192,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 		node = child
 		// Move to the next level in the tree
-		watch = *node.getMutateCh()
 		depth++
 	}
 	return watch
