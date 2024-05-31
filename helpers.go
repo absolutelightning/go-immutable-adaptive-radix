@@ -61,6 +61,7 @@ func (t *Txn[T]) addChild(n Node[T], c byte, child Node[T]) Node[T] {
 
 // addChild4 adds a child node to a node4.
 func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
+	n = t.writeNode(n)
 	if n.getNumChildren() < 4 {
 		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
 			return n.getKeyAtIdx(i) > c
@@ -76,7 +77,6 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -88,6 +88,7 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 
 // addChild16 adds a child node to a node16.
 func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
+	n = t.writeNode(n)
 	if n.getNumChildren() < 16 {
 		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
 			return n.getKeyAtIdx(i) > c
@@ -103,7 +104,6 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
 		newNode := t.allocNode(node48)
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -117,6 +117,7 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 
 // addChild48 adds a child node to a node48.
 func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
+	n = t.writeNode(n)
 	if n.getNumChildren() < 48 {
 		pos := 0
 		for n.getChild(pos) != nil {
@@ -127,7 +128,6 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
 		newNode := t.allocNode(node256)
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
@@ -141,6 +141,7 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 
 // addChild256 adds a child node to a node256.
 func (t *Txn[T]) addChild256(n Node[T], c byte, child Node[T]) Node[T] {
+	n = t.writeNode(n)
 	n.setNumChildren(n.getNumChildren() + 1)
 	n.setChild(int(c), child)
 	return n
