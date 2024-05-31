@@ -48,7 +48,7 @@ func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	if deep {
 		newRoot = t.root.clone(false, deep)
 	}
-	return &RadixTree[T]{root: newRoot, size: t.size}
+	return &RadixTree[T]{root: newRoot, size: t.size, maxNodeId: t.maxNodeId}
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {

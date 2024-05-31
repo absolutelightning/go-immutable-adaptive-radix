@@ -52,7 +52,7 @@ func (t *Txn[T]) Clone(deep bool) *Txn[T] {
 	txn := &Txn[T]{
 		tree: t.tree.Clone(deep),
 		size: t.size,
-		snap: t.snap,
+		snap: t.tree,
 	}
 	return txn
 }
