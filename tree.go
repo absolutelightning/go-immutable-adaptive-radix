@@ -5,7 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"sync/atomic"
 )
 
 const maxPrefixLen = 10
@@ -20,31 +19,10 @@ const (
 
 type nodeType int
 
-type IDGenerator struct {
-	counter  uint64
-	delChns  map[chan struct{}]struct{}
-	trackIds map[uint64]struct{}
-}
-
-// NewIDGenerator initializes a new IDGenerator
-func NewIDGenerator() *IDGenerator {
-	return &IDGenerator{
-		counter:  0,
-		delChns:  make(map[chan struct{}]struct{}),
-		trackIds: make(map[uint64]struct{})}
-}
-
-// GenerateID generates a new atomic ID
-func (gen *IDGenerator) GenerateID() (uint64, chan struct{}) {
-	ch := make(chan struct{})
-	id := atomic.AddUint64(&gen.counter, 1)
-	return id, ch
-}
-
 type RadixTree[T any] struct {
-	root Node[T]
-	size uint64
-	idg  *IDGenerator
+	root      Node[T]
+	size      uint64
+	maxNodeId uint64
 }
 
 // WalkFn is used when walking the tree. Takes a
@@ -53,12 +31,9 @@ type RadixTree[T any] struct {
 type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
-	rt := &RadixTree[T]{size: 0}
+	rt := &RadixTree[T]{size: 0, maxNodeId: 0}
 	rt.root = &NodeLeaf[T]{}
-	rt.idg = NewIDGenerator()
-	id, ch := rt.idg.GenerateID()
-	rt.root.setId(id)
-	rt.root.setMutateCh(ch)
+	rt.root.setId(rt.maxNodeId)
 	return rt
 }
 
@@ -73,7 +48,7 @@ func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	if deep {
 		newRoot = t.root.clone(false, deep)
 	}
-	return &RadixTree[T]{root: newRoot, size: t.size, idg: t.idg}
+	return &RadixTree[T]{root: newRoot, size: t.size}
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
@@ -164,7 +139,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	n := t.root
 	watch := n.getMutateCh()
 	if t.root == nil {
-		return zero, false, watch
+		return zero, false, *watch
 	}
 	var child Node[T]
 	depth := 0
@@ -176,7 +151,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true, watch
+				return n.getValue(), true, *watch
 			}
 			break
 		}
@@ -185,24 +160,24 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
-				return zero, false, watch
+				return zero, false, *watch
 			}
 			depth += int(n.getPartialLen())
 		}
 
 		if depth >= len(key) {
-			return zero, false, watch
+			return zero, false, *watch
 		}
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
-			return zero, false, watch
+			return zero, false, *watch
 		}
 		n = child
 		depth++
 	}
-	return zero, false, watch
+	return zero, false, *watch
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {

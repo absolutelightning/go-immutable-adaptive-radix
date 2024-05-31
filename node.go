@@ -18,7 +18,6 @@ type Node[T any] interface {
 	getChild(int) Node[T]
 	setChild(int, Node[T])
 	clone(bool, bool) Node[T]
-	createNewMutateChn() chan struct{}
 	getKey() []byte
 	getValue() T
 	setValue(T)
@@ -29,8 +28,7 @@ type Node[T any] interface {
 	setKeyAtIdx(int, byte)
 	getChildren() []Node[T]
 	getKeys() []byte
-	getMutateCh() chan struct{}
-	setMutateCh(chan struct{})
+	getMutateCh() *chan struct{}
 	getLowerBoundCh(byte) int
 
 	Iterator() *Iterator[T]

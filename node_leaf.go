@@ -5,13 +5,14 @@ package adaptive
 
 import (
 	"bytes"
+	"sync/atomic"
 )
 
 type NodeLeaf[T any] struct {
 	id       uint64
 	value    T
 	key      []byte
-	mutateCh chan struct{}
+	mutateCh atomic.Pointer[chan struct{}]
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -128,11 +129,6 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 		value: n.getValue(),
 	}
 	newNode.setId(n.getId())
-	if keepWatch {
-		newNode.setMutateCh(n.getMutateCh())
-	} else {
-		newNode.setMutateCh(make(chan struct{}))
-	}
 	copy(newNode.key[:], n.key[:])
 	nodeT := Node[T](newNode)
 	return nodeT
@@ -158,15 +154,24 @@ func (n *NodeLeaf[T]) getKeys() []byte {
 	return nil
 }
 
-func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
-	return n.mutateCh
-}
-
-func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
-	if ch == nil {
-		ch = make(chan struct{})
+func (n *NodeLeaf[T]) getMutateCh() *chan struct{} {
+	// This must be lock free but we should ensure that concurrent callers will
+	// end up with the same chan
+	// Fast path if there is already a chan
+	ch := n.mutateCh.Load()
+	if ch != nil {
+		return ch
 	}
-	n.mutateCh = ch
+
+	// No chan yet, create one
+	newCh := make(chan struct{})
+
+	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
+	if swapped {
+		return &newCh
+	}
+	// We raced with another reader and they won so return the chan they created instead.
+	return n.mutateCh.Load()
 }
 
 func (n *NodeLeaf[T]) getLowerBoundCh(c byte) int {
@@ -181,10 +186,4 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 			node:  nodeT,
 		},
 	}
-}
-
-func (n *NodeLeaf[T]) createNewMutateChn() chan struct{} {
-	muCh := make(chan struct{})
-	n.setMutateCh(muCh)
-	return muCh
 }

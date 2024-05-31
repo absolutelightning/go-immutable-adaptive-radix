@@ -5,7 +5,7 @@ package adaptive
 
 import (
 	"bytes"
-	"github.com/hashicorp/golang-lru/v2/simplelru"
+	"fmt"
 )
 
 const defaultModifiedCache = 8192
@@ -17,48 +17,21 @@ type Txn[T any] struct {
 
 	// snap is a snapshot of the node node for use if we have to run the
 	// slow notify algorithm.
-	snap Node[T]
+	snap *RadixTree[T]
 
-	// trackChannels is used to hold channels that need to be notified to
-	// signal mutation of the tree. This will only hold up to
-	// defaultModifiedCache number of entries, after which we will set the
-	// trackOverflow flag, which will cause us to use a more expensive
-	// algorithm to perform the notifications. Mutation tracking is only
-	// performed if trackMutate is true.
-	//trackIds      map[uint64]struct{}
-	trackOverflow bool
-	trackMutate   bool
+	trackMutate bool
 
-	// writable is a cache of writable nodes that have been created during
-	// the course of the transaction. This allows us to re-use the same
-	// nodes for further writes and avoid unnecessary copies of nodes that
-	// have never been exposed outside the transaction. This will only hold
-	// up to defaultModifiedCache number of entries.
-	writable *simplelru.LRU[Node[T], any]
+	trackChnMap map[chan struct{}]struct{}
 }
 
 func (t *Txn[T]) writeNode(n Node[T], mutateChn bool) Node[T] {
-	if t.writable == nil {
-		lru, err := simplelru.NewLRU[Node[T], any](defaultModifiedCache, nil)
-		if err != nil {
-			panic(err)
-		}
-		t.writable = lru
-	}
-
-	if _, ok := t.writable.Get(n); ok {
+	if n.getId() > t.snap.maxNodeId {
 		return n
 	}
-	if mutateChn {
-		t.trackChannel(n)
-		nc := n.clone(false, false)
-		// Mark this node as writable.
-		t.writable.Add(nc, nil)
-		return nc
-	}
+	t.trackChannel(n)
 	nc := n.clone(true, false)
-	// Mark this node as writable.
-	t.writable.Add(nc, nil)
+	t.tree.maxNodeId++
+	nc.setId(t.tree.maxNodeId)
 	return nc
 }
 
@@ -66,7 +39,8 @@ func (t *Txn[T]) writeNode(n Node[T], mutateChn bool) Node[T] {
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
-		tree: t.Clone(false),
+		tree: t,
+		snap: t,
 	}
 	return txn
 }
@@ -228,14 +202,12 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 
 	if newRoot == nil {
 		newRoot = t.allocNode(leafType)
-		newRoot.setMutateCh(make(chan struct{}))
 	}
 	if deleted {
 		t.trackChannel(t.tree.root)
 		t.size--
 		t.tree.size--
 		old := l.getValue()
-		newRoot.setMutateCh(make(chan struct{}))
 		t.tree.root = newRoot
 		return old, true
 	}
@@ -323,14 +295,13 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	if t.tree.root == nil {
 		var zero T
 		t.tree.root = t.makeLeaf(nil, zero)
+		t.tree.maxNodeId = 0
 		t.tree.root.setId(0)
-		t.tree.root.setMutateCh(make(chan struct{}))
 	}
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
-		t.tree.idg,
+		t.tree.maxNodeId,
 	}
-	t.writable = nil
 	return nt
 
 }
@@ -340,20 +311,10 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	// isClosed returns true if the given channel is closed.
-	isClosed := func(ch <-chan struct{}) bool {
-		select {
-		case _, ok := <-ch:
-			return !ok // If `ok` is false, the channel is closed.
-		default:
-			return false // The channel is not closed.
-		}
-	}
-
-	for ch := range t.tree.idg.delChns {
-		if ch != nil {
-			if !isClosed(ch) {
-				close(ch)
-			}
+	fmt.Println(t.trackChnMap)
+	for ch := range t.trackChnMap {
+		if !isClosed(ch) {
+			close(ch)
 		}
 	}
 }
@@ -437,7 +398,6 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	l.setValue(value)
 	l.setKeyLen(uint32(len(key)))
 	l.setKey(key)
-	l.setMutateCh(make(chan struct{}))
 	return l
 }
 
@@ -457,9 +417,8 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	default:
 		panic("Unknown node type")
 	}
-	id, ch := t.tree.idg.GenerateID()
-	n.setId(id)
-	n.setMutateCh(ch)
+	t.tree.maxNodeId++
+	n.setId(t.tree.maxNodeId)
 	if !n.isLeaf() {
 		n.setPartial(make([]byte, maxPrefixLen))
 		n.setPartialLen(maxPrefixLen)
@@ -475,21 +434,29 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	// In overflow, make sure we don't store any more objects.
 	// If this would overflow the state we reject it and set the flag (since
 
+	if !t.trackMutate {
+		return
+	}
+
 	// Create the map on the fly when we need it.
 	if node == nil {
 		return
 	}
-	if t.tree.idg.trackIds == nil {
-		t.tree.idg.trackIds = make(map[uint64]struct{})
+
+	ch := *node.getMutateCh()
+	if t.trackChnMap == nil {
+		t.trackChnMap = make(map[chan struct{}]struct{})
 	}
-	if t.tree.idg.delChns == nil {
-		t.tree.idg.delChns = make(map[chan struct{}]struct{})
-	}
-	if t.trackMutate {
-		if _, ok := t.tree.idg.trackIds[node.getId()]; !ok {
-			t.tree.idg.delChns[node.getMutateCh()] = struct{}{}
-			node.setMutateCh(make(chan struct{}))
-		}
+	t.trackChnMap[ch] = struct{}{}
+}
+
+// isClosed returns true if the given channel is closed.
+func isClosed(ch chan struct{}) bool {
+	select {
+	case <-ch:
+		return true
+	default:
+		return false
 	}
 }
 
