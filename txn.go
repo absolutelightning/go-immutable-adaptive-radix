@@ -89,7 +89,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	var zero T
 
 	if node == nil {
-		return node, zero, false
+		return node, zero, true
 	}
 
 	if node.isLeaf() {
@@ -153,7 +153,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newLeaf := t.makeLeaf(key, value)
 			newNode := t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			return newNode, zero, false
+			return newNode, zero, true
 		}
 
 		// Create a new node
