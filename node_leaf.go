@@ -128,6 +128,9 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 		key:   make([]byte, len(n.getKey())),
 		value: n.getValue(),
 	}
+	if keepWatch {
+		newNode.setMutateCh(*n.getMutateCh())
+	}
 	newNode.setId(n.getId())
 	copy(newNode.key[:], n.key[:])
 	nodeT := Node[T](newNode)
@@ -186,4 +189,8 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 			node:  nodeT,
 		},
 	}
+}
+
+func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
+	n.mutateCh.Store(&ch)
 }

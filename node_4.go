@@ -93,6 +93,9 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 		numChildren: n.getNumChildren(),
 	}
 	newNode.setId(n.getId())
+	if keepWatch {
+		newNode.setMutateCh(*n.getMutateCh())
+	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
@@ -197,4 +200,8 @@ func (n *Node4[T]) ReverseIterator() *ReverseIterator[T] {
 			node:  nodeT,
 		},
 	}
+}
+
+func (n *Node4[T]) setMutateCh(ch chan struct{}) {
+	n.mutateCh.Store(&ch)
 }

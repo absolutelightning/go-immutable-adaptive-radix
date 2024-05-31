@@ -18,6 +18,7 @@ type Node[T any] interface {
 	getChild(int) Node[T]
 	setChild(int, Node[T])
 	clone(bool, bool) Node[T]
+	setMutateCh(chan struct{})
 	getKey() []byte
 	getValue() T
 	setValue(T)

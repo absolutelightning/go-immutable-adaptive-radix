@@ -314,7 +314,7 @@ func (t *Txn[T]) slowNotify() {
 	// isClosed returns true if the given channel is closed.
 	fmt.Println(t.trackChnMap)
 	for ch := range t.trackChnMap {
-		if !isClosed(ch) {
+		if ch != nil && !isClosed(ch) {
 			close(ch)
 		}
 	}
@@ -449,6 +449,8 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 		t.trackChnMap = make(map[chan struct{}]struct{})
 	}
 	t.trackChnMap[ch] = struct{}{}
+
+	node.setMutateCh(make(chan struct{}))
 }
 
 // isClosed returns true if the given channel is closed.
