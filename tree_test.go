@@ -1199,10 +1199,10 @@ func hasAnyClosedMutateCh[T any](r *RadixTree[T]) bool {
 	iter.Next()
 	for ; iter.Front() != nil; iter.Next() {
 		n := iter.Front()
-		if isClosed(*n.getMutateCh()) {
+		if isClosed(n.getMutateCh()) {
 			return true
 		}
-		if n.isLeaf() && isClosed(*n.getMutateCh()) {
+		if n.isLeaf() && isClosed(n.getMutateCh()) {
 			return true
 		}
 	}

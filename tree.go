@@ -44,11 +44,13 @@ func (t *RadixTree[T]) Len() int {
 
 // Clone is used to return the clone of tree
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
-	newRoot := t.root.clone(true, deep)
 	if deep {
-		newRoot = t.root.clone(false, deep)
+		newRoot := t.root.clone(false, deep)
+		return &RadixTree[T]{root: newRoot, size: t.size, maxNodeId: t.maxNodeId}
+	} else {
+		newRoot := t.root.clone(true, deep)
+		return &RadixTree[T]{root: newRoot, size: t.size, maxNodeId: t.maxNodeId}
 	}
-	return &RadixTree[T]{root: newRoot, size: t.size, maxNodeId: t.maxNodeId}
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
@@ -81,7 +83,7 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 	if n.isLeaf() {
 		last = n
 	}
-	for n != nil {
+	for {
 
 		// Bail if the prefix does not match
 		if n.getPartialLen() > 0 {
@@ -139,7 +141,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	n := t.root
 	watch := n.getMutateCh()
 	if t.root == nil {
-		return zero, false, *watch
+		return zero, false, watch
 	}
 	var child Node[T]
 	depth := 0
@@ -151,7 +153,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true, *watch
+				return n.getValue(), true, watch
 			}
 			break
 		}
@@ -160,24 +162,24 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
-				return zero, false, *watch
+				return zero, false, watch
 			}
 			depth += int(n.getPartialLen())
 		}
 
 		if depth >= len(key) {
-			return zero, false, *watch
+			return zero, false, watch
 		}
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
-			return zero, false, *watch
+			return zero, false, watch
 		}
 		n = child
 		depth++
 	}
-	return zero, false, *watch
+	return zero, false, watch
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {

@@ -17,6 +17,7 @@ type Node16[T any] struct {
 	keys        [16]byte
 	children    [16]Node[T]
 	mutateCh    atomic.Pointer[chan struct{}]
+	prefixCh    atomic.Pointer[chan struct{}]
 }
 
 func (n *Node16[T]) getId() uint64 {
@@ -94,8 +95,13 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 		numChildren: n.getNumChildren(),
 	}
 	if keepWatch {
-		newNode.setMutateCh(*n.getMutateCh())
+		newNode.setMutateCh(n.getMutateCh())
+		newNode.setPrefixCh(n.getPrefixCh())
+	} else {
+		newNode.setMutateCh(make(chan struct{}))
+		newNode.setPrefixCh(make(chan struct{}))
 	}
+
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
@@ -156,10 +162,10 @@ func (n *Node16[T]) getKeys() []byte {
 	return n.keys[:]
 }
 
-func (n *Node16[T]) getMutateCh() *chan struct{} {
+func (n *Node16[T]) getMutateCh() chan struct{} {
 	ch := n.mutateCh.Load()
 	if ch != nil {
-		return ch
+		return *ch
 	}
 
 	// No chan yet, create one
@@ -167,10 +173,10 @@ func (n *Node16[T]) getMutateCh() *chan struct{} {
 
 	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
 	if swapped {
-		return &newCh
+		return newCh
 	}
 	// We raced with another reader and they won so return the chan they created instead.
-	return n.mutateCh.Load()
+	return *n.mutateCh.Load()
 }
 
 func (n *Node16[T]) setValue(T) {
@@ -204,4 +210,25 @@ func (n *Node16[T]) ReverseIterator() *ReverseIterator[T] {
 
 func (n *Node16[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
+}
+
+func (n *Node16[T]) getPrefixCh() chan struct{} {
+	ch := n.prefixCh.Load()
+	if ch != nil {
+		return *ch
+	}
+
+	// No chan yet, create one
+	newCh := make(chan struct{})
+
+	swapped := n.prefixCh.CompareAndSwap(nil, &newCh)
+	if swapped {
+		return newCh
+	}
+	// We raced with another reader and they won so return the chan they created instead.
+	return *n.prefixCh.Load()
+}
+
+func (n *Node16[T]) setPrefixCh(ch chan struct{}) {
+	n.prefixCh.Store(&ch)
 }
