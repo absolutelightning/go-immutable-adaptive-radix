@@ -95,10 +95,12 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
+			oldMutateCh := node.getMutateCh()
 			node = t.writeNode(node)
+			node.setMutateCh(*oldMutateCh)
 			node.setKey(key)
 			node.setValue(value)
-			return node, zero, true
+			return node, zero, false
 		}
 	}
 
