@@ -119,14 +119,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
-		val := newNode.getPartialLen()
-		if newNode.getPartial()[0] == '^' {
-			val--
-		}
-
 		if len(node.getKey()) > depth+longestPrefix {
 			// Add the leafs to the new node4
-			t.trackChannel(node, false, true)
+			t.trackChannel(node, longestPrefix > 0, longestPrefix > 0)
 			newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
 		}
 
@@ -134,7 +129,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		}
 
-		return newNode, zero, val > 0, true
+		return newNode, zero, longestPrefix > 0, longestPrefix > 0
 	}
 
 	// Check if given node has a prefix
