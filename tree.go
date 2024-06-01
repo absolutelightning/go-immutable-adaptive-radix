@@ -139,7 +139,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 	n := t.root
 	watch := n.getMutateCh()
 	if t.root == nil {
-		return zero, false, *watch
+		return zero, false, watch
 	}
 	var child Node[T]
 	depth := 0
@@ -151,7 +151,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true, *watch
+				return n.getValue(), true, watch
 			}
 			break
 		}
@@ -160,24 +160,24 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
-				return zero, false, *watch
+				return zero, false, watch
 			}
 			depth += int(n.getPartialLen())
 		}
 
 		if depth >= len(key) {
-			return zero, false, *watch
+			return zero, false, watch
 		}
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
-			return zero, false, *watch
+			return zero, false, watch
 		}
 		n = child
 		depth++
 	}
-	return zero, false, *watch
+	return zero, false, watch
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {

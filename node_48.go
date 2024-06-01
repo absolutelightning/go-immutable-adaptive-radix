@@ -106,7 +106,9 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	if keepWatch {
-		newNode.setMutateCh(*n.getMutateCh())
+		newNode.setMutateCh(n.getMutateCh())
+	} else {
+		newNode.setMutateCh(make(chan struct{}))
 	}
 	copy(newNode.keys[:], n.keys[:])
 	if deep {
@@ -163,10 +165,10 @@ func (n *Node48[T]) getChildren() []Node[T] {
 func (n *Node48[T]) getKeys() []byte {
 	return n.keys[:]
 }
-func (n *Node48[T]) getMutateCh() *chan struct{} {
+func (n *Node48[T]) getMutateCh() chan struct{} {
 	ch := n.mutateCh.Load()
 	if ch != nil {
-		return ch
+		return *ch
 	}
 
 	// No chan yet, create one
@@ -174,10 +176,10 @@ func (n *Node48[T]) getMutateCh() *chan struct{} {
 
 	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
 	if swapped {
-		return &newCh
+		return newCh
 	}
 	// We raced with another reader and they won so return the chan they created instead.
-	return n.mutateCh.Load()
+	return *n.mutateCh.Load()
 }
 
 func (n *Node48[T]) setValue(T) {
@@ -206,4 +208,12 @@ func (n *Node48[T]) ReverseIterator() *ReverseIterator[T] {
 }
 func (n *Node48[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
+}
+
+func (n *Node48[T]) getPrefixCh() chan struct{} {
+	return n.getMutateCh()
+}
+
+func (n *Node48[T]) setPrefixCh(ch chan struct{}) {
+	n.setMutateCh(ch)
 }

@@ -13,6 +13,7 @@ type NodeLeaf[T any] struct {
 	value    T
 	key      []byte
 	mutateCh atomic.Pointer[chan struct{}]
+	prefixCh atomic.Pointer[chan struct{}]
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -129,7 +130,11 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 		value: n.getValue(),
 	}
 	if keepWatch {
-		newNode.setMutateCh(*n.getMutateCh())
+		newNode.setMutateCh(n.getMutateCh())
+		newNode.setPrefixCh(n.getPrefixCh())
+	} else {
+		newNode.setMutateCh(make(chan struct{}))
+		newNode.setPrefixCh(make(chan struct{}))
 	}
 	newNode.setId(n.getId())
 	copy(newNode.key[:], n.key[:])
@@ -157,13 +162,13 @@ func (n *NodeLeaf[T]) getKeys() []byte {
 	return nil
 }
 
-func (n *NodeLeaf[T]) getMutateCh() *chan struct{} {
+func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
 	// This must be lock free but we should ensure that concurrent callers will
 	// end up with the same chan
 	// Fast path if there is already a chan
 	ch := n.mutateCh.Load()
 	if ch != nil {
-		return ch
+		return *ch
 	}
 
 	// No chan yet, create one
@@ -171,10 +176,10 @@ func (n *NodeLeaf[T]) getMutateCh() *chan struct{} {
 
 	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
 	if swapped {
-		return &newCh
+		return newCh
 	}
 	// We raced with another reader and they won so return the chan they created instead.
-	return n.mutateCh.Load()
+	return *n.mutateCh.Load()
 }
 
 func (n *NodeLeaf[T]) getLowerBoundCh(c byte) int {
@@ -193,4 +198,25 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 
 func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
+}
+
+func (n *NodeLeaf[T]) getPrefixCh() chan struct{} {
+	ch := n.prefixCh.Load()
+	if ch != nil {
+		return *ch
+	}
+
+	// No chan yet, create one
+	newCh := make(chan struct{})
+
+	swapped := n.prefixCh.CompareAndSwap(nil, &newCh)
+	if swapped {
+		return newCh
+	}
+	// We raced with another reader and they won so return the chan they created instead.
+	return *n.prefixCh.Load()
+}
+
+func (n *NodeLeaf[T]) setPrefixCh(ch chan struct{}) {
+	n.prefixCh.Store(&ch)
 }

@@ -76,7 +76,7 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
+		t.trackChannel(n, true, true)
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -103,7 +103,7 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
+		t.trackChannel(n, false, true)
 		newNode := t.allocNode(node48)
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
@@ -127,7 +127,7 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
+		t.trackChannel(n, false, true)
 		newNode := t.allocNode(node256)
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
@@ -375,7 +375,8 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			copy(nodeToReturn.getPartial(), n.getPartial()[:min(prefix, maxPrefixLen)])
 			nodeToReturn.setPartialLen(nodeToReturn.getPartialLen() + n.getPartialLen() + 1)
 		}
-		t.trackChannel(n)
+		t.trackChannel(nodeToReturn, false, true)
+		t.trackChannel(n, false, true)
 		return nodeToReturn
 	}
 	return n
@@ -399,7 +400,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 3 {
-		t.trackChannel(n)
+		t.trackChannel(n, true, true)
 		newNode := t.allocNode(node4)
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
@@ -418,7 +419,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 
 	if n.getNumChildren() == 12 {
 		newNode := t.allocNode(node16)
-		t.trackChannel(n)
+		t.trackChannel(n, false, true)
 		t.copyHeader(newNode, n)
 		child := 0
 		for i := 0; i < 256; i++ {
@@ -443,7 +444,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	if n.getNumChildren() == 37 {
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
-		t.trackChannel(n)
+		t.trackChannel(n, false, true)
 
 		pos := 0
 		for i := 0; i < 256; i++ {

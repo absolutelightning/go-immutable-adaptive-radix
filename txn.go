@@ -27,7 +27,7 @@ func (t *Txn[T]) writeNode(n Node[T]) Node[T] {
 	if n.getId() > t.snap.maxNodeId {
 		return n
 	}
-	t.trackChannel(n)
+	t.trackChannel(n, true, true)
 	nc := n.clone(false, false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
@@ -73,13 +73,10 @@ func (t *Txn[T]) Get(k []byte) (T, bool) {
 
 func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 	var old int
-	newRoot, oldVal, mutated := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
+	newRoot, oldVal, _ := t.recursiveInsert(t.tree.root, getTreeKey(key), value, 0, &old)
 	if old == 0 {
 		t.size++
 		t.tree.size++
-	}
-	if mutated {
-		t.trackChannel(t.tree.root)
 	}
 	t.tree.root = newRoot
 	return oldVal, old == 1
@@ -95,12 +92,13 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
-			oldMutateCh := node.getMutateCh()
-			node = t.writeNode(node)
-			node.setMutateCh(*oldMutateCh)
-			node.setKey(key)
-			node.setValue(value)
-			return node, zero, false
+			newLeaf := t.makeLeaf(key, value)
+			mCh := node.getMutateCh()
+			pCh := node.getPrefixCh()
+			newLeaf.setPrefixCh(pCh)
+			newLeaf.setMutateCh(mCh)
+			t.trackChannel(node, true, true)
+			return newLeaf, zero, true
 		}
 	}
 
@@ -111,8 +109,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
 			oldVal := node.getValue()
-			newNode := t.writeNode(node)
-			newNode.setValue(value)
+			newNode := t.makeLeaf(key, value)
+			t.trackChannel(node, true, true)
 			return newNode, oldVal, true
 		}
 
@@ -133,6 +131,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if len(newLeaf2.getKey()) > depth+longestPrefix {
 			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
 		}
+
+		t.trackChannel(node, false, true)
 
 		return newNode, zero, true
 	}
@@ -210,7 +210,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 		newRoot = t.allocNode(leafType)
 	}
 	if deleted {
-		t.trackChannel(t.tree.root)
+		t.trackChannel(t.tree.root, true, true)
 		t.size--
 		t.tree.size--
 		old := l.getValue()
@@ -230,7 +230,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
-			t.trackChannel(node)
+			t.trackChannel(node, true, true)
 			return nil, node, true
 		}
 		return node, nil, false
@@ -255,7 +255,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	newChild, val, deleted := t.recursiveDelete(child, key, depth+1)
 
 	if deleted {
-		t.trackChannel(node)
+		t.trackChannel(node, true, true)
 		node = t.writeNode(node)
 		node.setChild(idx, newChild)
 		if newChild == nil {
@@ -338,7 +338,7 @@ func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
 	newRoot, numDeletions := t.deletePrefix(t.tree.root, key, 0)
 	if numDeletions != 0 {
 		if t.trackMutate {
-			t.trackChannel(t.tree.root)
+			t.trackChannel(t.tree.root, true, true)
 		}
 		t.tree.root = newRoot
 		t.tree.size = t.tree.size - uint64(numDeletions)
@@ -356,7 +356,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
-			t.trackChannel(node)
+			t.trackChannel(node, true, true)
 			return nil, 1
 		}
 		return node, 0
@@ -380,7 +380,7 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 			newChIndxMap[idx] = newCh
 			numDel += del
 			if del > 0 && t.trackMutate {
-				t.trackChannel(ch)
+				t.trackChannel(ch, true, true)
 			}
 		}
 	}
@@ -403,6 +403,8 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	}
 
 	// Set the value and key length
+	l.setMutateCh(make(chan struct{}))
+	l.setPrefixCh(make(chan struct{}))
 	l.setValue(value)
 	l.setKeyLen(uint32(len(key)))
 	l.setKey(key)
@@ -438,7 +440,7 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 // overflow flag if we can no longer track any more. This limits the amount of
 // state that will accumulate during a transaction and we have a slower algorithm
 // to switch to if we overflow.
-func (t *Txn[T]) trackChannel(node Node[T]) {
+func (t *Txn[T]) trackChannel(node Node[T], trackMuCh, trackPCh bool) {
 	// In overflow, make sure we don't store any more objects.
 	// If this would overflow the state we reject it and set the flag (since
 
@@ -451,13 +453,19 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 		return
 	}
 
-	ch := *node.getMutateCh()
+	ch := node.getMutateCh()
+	pCh := node.getPrefixCh()
 	if t.trackChnMap == nil {
 		t.trackChnMap = make(map[chan struct{}]struct{})
 	}
-	t.trackChnMap[ch] = struct{}{}
-
-	node.setMutateCh(make(chan struct{}))
+	if trackMuCh {
+		t.trackChnMap[ch] = struct{}{}
+		node.setMutateCh(make(chan struct{}))
+	}
+	if trackPCh && ch != pCh {
+		t.trackChnMap[pCh] = struct{}{}
+		node.setPrefixCh(make(chan struct{}))
+	}
 }
 
 // isClosed returns true if the given channel is closed.

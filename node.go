@@ -29,7 +29,9 @@ type Node[T any] interface {
 	setKeyAtIdx(int, byte)
 	getChildren() []Node[T]
 	getKeys() []byte
-	getMutateCh() *chan struct{}
+	getMutateCh() chan struct{}
+	getPrefixCh() chan struct{}
+	setPrefixCh(chan struct{})
 	getLowerBoundCh(byte) int
 
 	Iterator() *Iterator[T]
