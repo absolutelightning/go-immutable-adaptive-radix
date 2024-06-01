@@ -97,7 +97,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			pCh := node.getPrefixCh()
 			newLeaf.setPrefixCh(pCh)
 			newLeaf.setMutateCh(mCh)
-			t.trackChannel(node, true, true)
+			t.trackChannel(node, false, true)
 			return newLeaf, zero, true
 		}
 	}

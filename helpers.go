@@ -376,7 +376,6 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 			nodeToReturn.setPartialLen(nodeToReturn.getPartialLen() + n.getPartialLen() + 1)
 		}
 		t.trackChannel(nodeToReturn, false, true)
-		t.trackChannel(n, false, true)
 		return nodeToReturn
 	}
 	return n
