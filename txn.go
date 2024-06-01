@@ -93,11 +93,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// This means node is nil
 		if node.getKeyLen() == 0 {
 			newLeaf := t.makeLeaf(key, value)
-			mCh := node.getMutateCh()
-			pCh := node.getPrefixCh()
-			newLeaf.setPrefixCh(pCh)
-			newLeaf.setMutateCh(mCh)
-			t.trackChannel(node, false, true)
+			t.trackChannel(node, true, true)
 			return newLeaf, zero, true
 		}
 	}
