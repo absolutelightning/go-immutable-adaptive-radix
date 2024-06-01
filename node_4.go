@@ -17,6 +17,7 @@ type Node4[T any] struct {
 	keys        [4]byte
 	children    [4]Node[T]
 	mutateCh    atomic.Pointer[chan struct{}]
+	prefixCh    atomic.Pointer[chan struct{}]
 }
 
 func (n *Node4[T]) getId() uint64 {
@@ -95,8 +96,10 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode.setId(n.getId())
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
+		newNode.setPrefixCh(n.getPrefixCh())
 	} else {
 		newNode.setMutateCh(make(chan struct{}))
+		newNode.setPrefixCh(make(chan struct{}))
 	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
@@ -209,9 +212,22 @@ func (n *Node4[T]) setMutateCh(ch chan struct{}) {
 }
 
 func (n *Node4[T]) getPrefixCh() chan struct{} {
-	return n.getMutateCh()
+	ch := n.prefixCh.Load()
+	if ch != nil {
+		return *ch
+	}
+
+	// No chan yet, create one
+	newCh := make(chan struct{})
+
+	swapped := n.prefixCh.CompareAndSwap(nil, &newCh)
+	if swapped {
+		return newCh
+	}
+	// We raced with another reader and they won so return the chan they created instead.
+	return *n.prefixCh.Load()
 }
 
 func (n *Node4[T]) setPrefixCh(ch chan struct{}) {
-	n.setMutateCh(ch)
+	n.prefixCh.Store(&ch)
 }
