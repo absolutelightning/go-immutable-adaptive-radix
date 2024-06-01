@@ -81,7 +81,7 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 	if n.isLeaf() {
 		last = n
 	}
-	for n != nil {
+	for {
 
 		// Bail if the prefix does not match
 		if n.getPartialLen() > 0 {
