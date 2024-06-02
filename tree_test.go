@@ -1210,7 +1210,6 @@ func hasAnyClosedMutateCh[T any](r *RadixTree[T]) bool {
 }
 
 func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
-	t.Skip()
 	for i := 0; i < 3; i++ {
 		r := NewRadixTree[any]()
 
