@@ -62,8 +62,13 @@ func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
 	return txn.Commit(), old, ok
 }
 
-func (t *RadixTree[T]) Get(key []byte) (T, bool, <-chan struct{}) {
+func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 	return t.iterativeSearch(getTreeKey(key))
+}
+
+func (t *RadixTree[T]) GetWatch(key []byte) (<-chan struct{}, T, bool) {
+	val, found, watch := t.iterativeSearchWithWatch(getTreeKey(key))
+	return watch, val, found
 }
 
 func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
@@ -134,7 +139,50 @@ func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
 	return txn.Commit(), old, ok
 }
 
-func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool, <-chan struct{}) {
+func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
+	var zero T
+	n := t.root
+	if t.root == nil {
+		return zero, false
+	}
+	var child Node[T]
+	depth := 0
+
+	for {
+		// Might be a leaf
+		if isLeaf[T](n) {
+			// Check if the expanded path matches
+			if leafMatches(n.getKey(), key) == 0 {
+				return n.getValue(), true
+			}
+			break
+		}
+
+		// Bail if the prefix does not match
+		if n.getPartialLen() > 0 {
+			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
+			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
+				return zero, false
+			}
+			depth += int(n.getPartialLen())
+		}
+
+		if depth >= len(key) {
+			return zero, false
+		}
+
+		// Recursively search
+		child, _ = t.findChild(n, key[depth])
+		if child == nil {
+			return zero, false
+		}
+		n = child
+		depth++
+	}
+	return zero, false
+}
+
+func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	n := t.root
 	watch := n.getMutateCh()
@@ -237,13 +285,6 @@ func (t *RadixTree[T]) findChild(n Node[T], c byte) (Node[T], int) {
 // query operations.
 func (t *RadixTree[T]) Root() Node[T] {
 	return t.root
-}
-
-// GetWatch is used to lookup a specific key, returning
-// the watch channel, value and if it was found
-func (t *RadixTree[T]) GetWatch(k []byte) (<-chan struct{}, T, bool) {
-	res, found, watch := t.Get(k)
-	return watch, res, found
 }
 
 // Walk is used to walk the tree

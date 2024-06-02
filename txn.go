@@ -67,7 +67,7 @@ func (t *Txn[T]) TrackMutate(track bool) {
 // Get is used to look up a specific key, returning
 // the value and if it was found
 func (t *Txn[T]) Get(k []byte) (T, bool) {
-	res, found, _ := t.tree.Get(k)
+	res, found := t.tree.Get(k)
 	return res, found
 }
 
@@ -273,8 +273,7 @@ func (t *Txn[T]) Root() Node[T] {
 // GetWatch is used to lookup a specific key, returning
 // the watch channel, value and if it was found
 func (t *Txn[T]) GetWatch(k []byte) (<-chan struct{}, T, bool) {
-	res, found, watch := t.tree.Get(k)
-	return watch, res, found
+	return t.tree.GetWatch(k)
 }
 
 // Notify is used along with TrackMutate to trigger notifications. This must
