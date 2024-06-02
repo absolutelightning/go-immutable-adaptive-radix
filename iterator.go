@@ -131,9 +131,8 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 
 func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) {
 	// Start from the node
-
 	node := i.node
-	watch = *node.getMutateCh()
+	watch = node.getMutateCh()
 
 	prefix := getTreeKey(prefixKey)
 
@@ -158,7 +157,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			return watch
 		}
 
-		watch = *node.getMutateCh()
+		watch = node.getMutateCh()
 
 		// Determine the child index to proceed based on the next byte of the prefix
 		if node.getPartialLen() > 0 {
@@ -191,7 +190,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		i.node = node
 
 		node = child
-		watch = *node.getMutateCh()
+		watch = node.getMutateCh()
 		// Move to the next level in the tree
 		depth++
 	}

@@ -100,7 +100,7 @@ func (n *Node256[T]) clone(keepWatch bool, deep bool) Node[T] {
 		numChildren: n.getNumChildren(),
 	}
 	if keepWatch {
-		newNode.setMutateCh(*n.getMutateCh())
+		newNode.setMutateCh(n.getMutateCh())
 	}
 	newPartial := make([]byte, maxPrefixLen)
 	newNode.setId(n.getId())
@@ -151,10 +151,10 @@ func (n *Node256[T]) getChildren() []Node[T] {
 func (n *Node256[T]) getKeys() []byte {
 	return nil
 }
-func (n *Node256[T]) getMutateCh() *chan struct{} {
+func (n *Node256[T]) getMutateCh() chan struct{} {
 	ch := n.mutateCh.Load()
 	if ch != nil {
-		return ch
+		return *ch
 	}
 
 	// No chan yet, create one
@@ -162,10 +162,10 @@ func (n *Node256[T]) getMutateCh() *chan struct{} {
 
 	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
 	if swapped {
-		return &newCh
+		return newCh
 	}
 	// We raced with another reader and they won so return the chan they created instead.
-	return n.mutateCh.Load()
+	return *n.mutateCh.Load()
 }
 
 func (n *Node256[T]) setValue(T) {

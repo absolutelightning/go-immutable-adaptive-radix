@@ -97,7 +97,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if node.getKeyLen() == 0 {
 			oldMutateCh := node.getMutateCh()
 			node = t.writeNode(node)
-			node.setMutateCh(*oldMutateCh)
+			node.setMutateCh(oldMutateCh)
 			node.setKey(key)
 			node.setValue(value)
 			return node, zero, false
@@ -204,12 +204,12 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	var zero T
-	newRoot, l, deleted := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
+	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 
 	if newRoot == nil {
 		newRoot = t.allocNode(leafType)
 	}
-	if deleted {
+	if l != nil {
 		t.trackChannel(t.tree.root)
 		t.size--
 		t.tree.size--
@@ -221,26 +221,26 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	return zero, false
 }
 
-func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], Node[T], bool) {
+func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], Node[T]) {
 	// Get terminated
 	if node == nil {
-		return nil, nil, false
+		return nil, nil
 	}
 
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
 			t.trackChannel(node)
-			return nil, node, true
+			return nil, node
 		}
-		return node, nil, false
+		return node, nil
 	}
 
 	// Bail if the prefix does not match
 	if node.getPartialLen() > 0 {
 		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
 		if prefixLen != min(maxPrefixLen, int(node.getPartialLen())) {
-			return node, nil, false
+			return node, nil
 		}
 		depth += int(node.getPartialLen())
 	}
@@ -248,13 +248,13 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Find child node
 	child, idx := t.findChild(node, key[depth])
 	if child == nil {
-		return nil, nil, false
+		return nil, nil
 	}
 
 	// Recurse
-	newChild, val, deleted := t.recursiveDelete(child, key, depth+1)
+	newChild, val := t.recursiveDelete(child, key, depth+1)
 
-	if deleted {
+	if newChild != child {
 		t.trackChannel(node)
 		node = t.writeNode(node)
 		node.setChild(idx, newChild)
@@ -263,7 +263,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		}
 	}
 
-	return node, val, deleted
+	return node, val
 }
 
 func (t *Txn[T]) Root() Node[T] {
@@ -451,7 +451,7 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 		return
 	}
 
-	ch := *node.getMutateCh()
+	ch := node.getMutateCh()
 	if t.trackChnMap == nil {
 		t.trackChnMap = make(map[chan struct{}]struct{})
 	}

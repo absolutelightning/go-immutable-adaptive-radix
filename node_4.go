@@ -94,7 +94,7 @@ func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 	}
 	newNode.setId(n.getId())
 	if keepWatch {
-		newNode.setMutateCh(*n.getMutateCh())
+		newNode.setMutateCh(n.getMutateCh())
 	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
@@ -156,10 +156,10 @@ func (n *Node4[T]) getKeys() []byte {
 	return n.keys[:]
 }
 
-func (n *Node4[T]) getMutateCh() *chan struct{} {
+func (n *Node4[T]) getMutateCh() chan struct{} {
 	ch := n.mutateCh.Load()
 	if ch != nil {
-		return ch
+		return *ch
 	}
 
 	// No chan yet, create one
@@ -167,10 +167,10 @@ func (n *Node4[T]) getMutateCh() *chan struct{} {
 
 	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
 	if swapped {
-		return &newCh
+		return newCh
 	}
 	// We raced with another reader and they won so return the chan they created instead.
-	return n.mutateCh.Load()
+	return *n.mutateCh.Load()
 }
 
 func (n *Node4[T]) setValue(T) {
