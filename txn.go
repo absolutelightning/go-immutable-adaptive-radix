@@ -125,13 +125,25 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
-		if len(node.getKey()) > depth+longestPrefix {
-			// Add the leafs to the new node4
-			newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
-		}
+		if bytes.HasPrefix(getKey(node.getKey()), getKey(newLeaf2.getKey())) {
 
-		if len(newLeaf2.getKey()) > depth+longestPrefix {
+			newNode.setNodeLeaf(newLeaf2.(*NodeLeaf[T]))
+			newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+
+		} else if bytes.HasPrefix(getKey(newLeaf2.getKey()), getKey(node.getKey())) {
+
+			newNode.setNodeLeaf(node.(*NodeLeaf[T]))
 			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+
+		} else {
+			if len(node.getKey()) > depth+longestPrefix {
+				// Add the leafs to the new node4
+				newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+			}
+
+			if len(newLeaf2.getKey()) > depth+longestPrefix {
+				newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+			}
 		}
 
 		return newNode, zero, true
@@ -151,11 +163,20 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 				return node, val, mutatedSubTree
 			}
 
-			// No child, node goes within us
 			newLeaf := t.makeLeaf(key, value)
-			newNode := t.addChild(node, key[depth], newLeaf)
+			nL := node.getNodeLeaf()
+			if nL != nil {
+				if bytes.HasPrefix(getKey(nL.getKey()), getKey(newLeaf.getKey())) {
+					newNode := t.allocNode(node4)
+					newNode.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
+					newNode = t.addChild(newNode, key[depth], node)
+					return newNode, zero, true
+				}
+			}
+			// No child, node goes within us
+			node = t.addChild(node, key[depth], newLeaf)
 			// newNode was created
-			return newNode, zero, true
+			return node, zero, true
 		}
 
 		// Create a new node

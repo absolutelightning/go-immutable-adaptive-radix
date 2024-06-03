@@ -5,6 +5,8 @@ package adaptive
 
 import (
 	"bytes"
+	"fmt"
+	"strconv"
 )
 
 const maxPrefixLen = 10
@@ -185,21 +187,19 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	n := t.root
-	watch := n.getMutateCh()
 	if t.root == nil {
-		return zero, false, watch
+		return zero, false, n.getMutateCh()
 	}
 	var child Node[T]
 	depth := 0
 
 	for {
 		// Might be a leaf
-		watch = n.getMutateCh()
 
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true, watch
+				return n.getValue(), true, n.getMutateCh()
 			}
 			break
 		}
@@ -208,24 +208,24 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
-				return zero, false, watch
+				return zero, false, n.getMutateCh()
 			}
 			depth += int(n.getPartialLen())
 		}
 
 		if depth >= len(key) {
-			return zero, false, watch
+			return zero, false, n.getMutateCh()
 		}
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
-			return zero, false, watch
+			return zero, false, n.getMutateCh()
 		}
 		n = child
 		depth++
 	}
-	return zero, false, watch
+	return zero, false, n.getMutateCh()
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
@@ -294,6 +294,32 @@ func (t *RadixTree[T]) Walk(fn WalkFn[T]) {
 
 func (t *RadixTree[T]) DFS(fn DfsFn[T]) {
 	t.DFSNode(t.root, fn)
+}
+
+func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
+	stPadding := " "
+	for i := 0; i < depth*5; i++ {
+		stPadding += " "
+	}
+	fmt.Println()
+	fmt.Print(stPadding + " type -> " + strconv.Itoa(int(node.getArtNodeType())))
+	fmt.Print(" key -> " + string(node.getKey()))
+	fmt.Print(" partial -> " + string(node.getPartial()))
+	fmt.Print(" num ch -> " + string(strconv.Itoa(int(node.getNumChildren()))))
+	fmt.Print(" ch keys -> " + string(node.getKeys()))
+	if node.getNodeLeaf() != nil {
+		fmt.Println(" "+"optional leaf", string(node.getNodeLeaf().getKey()))
+	}
+	for _, ch := range node.getChildren() {
+		if ch != nil {
+			t.DFSPrintTreeUtil(ch, depth+1)
+			fmt.Println()
+		}
+	}
+}
+
+func (t *RadixTree[T]) DFSPrintTree() {
+	t.DFSPrintTreeUtil(t.root, 0)
 }
 
 // recursiveWalk is used to do a pre-order walk of a node

@@ -1209,6 +1209,19 @@ func hasAnyClosedMutateCh[T any](r *RadixTree[T]) bool {
 	return false
 }
 
+func TestInsertNewStructure(t *testing.T) {
+
+	r := NewRadixTree[any]()
+
+	r, _, _ = r.Insert([]byte("foobar"), nil)
+	r, _, _ = r.Insert([]byte("foo"), nil)
+	r, _, _ = r.Insert([]byte("foob"), nil)
+	r, _, _ = r.Insert([]byte("foobarbaz"), nil)
+	r, _, _ = r.Insert([]byte("foobarzip"), nil)
+	r, _, _ = r.Insert([]byte("fooba"), nil)
+	r.DFSPrintTree()
+}
+
 func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		r := NewRadixTree[any]()

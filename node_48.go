@@ -16,6 +16,7 @@ type Node48[T any] struct {
 	keys        [256]byte
 	children    [48]Node[T]
 	mutateCh    atomic.Pointer[chan struct{}]
+	leaf        *NodeLeaf[T]
 }
 
 func (n *Node48[T]) getId() uint64 {
@@ -105,6 +106,7 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
+	newNode.setNodeLeaf(n.getNodeLeaf())
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	}
@@ -206,4 +208,12 @@ func (n *Node48[T]) ReverseIterator() *ReverseIterator[T] {
 }
 func (n *Node48[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
+}
+
+func (n *Node48[T]) getNodeLeaf() *NodeLeaf[T] {
+	return n.leaf
+}
+
+func (n *Node48[T]) setNodeLeaf(nl *NodeLeaf[T]) {
+	n.leaf = nl
 }

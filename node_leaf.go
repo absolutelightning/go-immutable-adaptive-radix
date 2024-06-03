@@ -194,3 +194,11 @@ func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
 func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
 }
+
+func (n *NodeLeaf[T]) getNodeLeaf() *NodeLeaf[T] {
+	return nil
+}
+
+func (n *NodeLeaf[T]) setNodeLeaf(nl *NodeLeaf[T]) {
+	// no op
+}

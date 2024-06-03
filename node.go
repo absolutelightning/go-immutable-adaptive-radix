@@ -31,6 +31,8 @@ type Node[T any] interface {
 	getKeys() []byte
 	getMutateCh() chan struct{}
 	getLowerBoundCh(byte) int
+	getNodeLeaf() *NodeLeaf[T]
+	setNodeLeaf(*NodeLeaf[T])
 
 	Iterator() *Iterator[T]
 	PathIterator([]byte) *PathIterator[T]
