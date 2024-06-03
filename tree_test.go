@@ -99,6 +99,9 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	lineNumber = 1
 	for _, line := range lines {
 		lineNumberFetched, f := art.Get([]byte(line))
+		if f == false {
+			fmt.Println(line)
+		}
 		require.True(t, f)
 		require.Equal(t, lineNumberFetched, lineNumber)
 		lineNumber += 1

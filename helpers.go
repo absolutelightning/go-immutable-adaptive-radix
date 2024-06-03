@@ -79,6 +79,7 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		t.trackChannel(n)
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
+		newNode.setNodeLeaf(n.getNodeLeaf())
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
 		t.copyHeader(newNode, n)
@@ -105,6 +106,7 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 	} else {
 		t.trackChannel(n)
 		newNode := t.allocNode(node48)
+		newNode.setNodeLeaf(n.getNodeLeaf())
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		for i := 0; i < int(n.getNumChildren()); i++ {
@@ -129,6 +131,7 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 	} else {
 		t.trackChannel(n)
 		newNode := t.allocNode(node256)
+		newNode.setNodeLeaf(n.getNodeLeaf())
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
 				newNode.setChild(i, n.getChild(int(n.getKeyAtIdx(i))-1))
@@ -201,10 +204,19 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 	var idx int
 	switch node.getArtNodeType() {
 	case node4:
+		if node.getNodeLeaf() != nil {
+			return node.getNodeLeaf()
+		}
 		return minimum[T](node.getChild(0))
 	case node16:
+		if node.getNodeLeaf() != nil {
+			return node.getNodeLeaf()
+		}
 		return minimum[T](node.getChild(0))
 	case node48:
+		if node.getNodeLeaf() != nil {
+			return node.getNodeLeaf()
+		}
 		idx = 0
 		for idx < 256 && node.getKeyAtIdx(idx) == 0 {
 			idx++
@@ -214,6 +226,9 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 			return minimum[T](node.getChild(idx))
 		}
 	case node256:
+		if node.getNodeLeaf() != nil {
+			return node.getNodeLeaf()
+		}
 		idx = 0
 		for idx < 256 && node.getChild(idx) == nil {
 			idx++

@@ -160,6 +160,12 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 			break
 		}
 
+		if n.getNodeLeaf() != nil {
+			if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+				return n.getNodeLeaf().getValue(), true
+			}
+		}
+
 		// Bail if the prefix does not match
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)

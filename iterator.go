@@ -146,8 +146,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		return
 	}
 
-	var parent Node[T]
-
 	i.stack = []Node[T]{node}
 	i.node = node
 
@@ -188,12 +186,11 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		i.stack = []Node[T]{node}
 		i.node = node
 
-		parent = node
 		node = child
 		// Move to the next level in the tree
 		depth++
 	}
-	return node.getMutateCh()
+	return
 }
 
 func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
