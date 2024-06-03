@@ -1216,13 +1216,17 @@ func TestInsertNewStructure(t *testing.T) {
 
 	r := NewRadixTree[any]()
 
-	r, _, _ = r.Insert([]byte("foobar"), nil)
-	r, _, _ = r.Insert([]byte("foo"), nil)
-	r, _, _ = r.Insert([]byte("foob"), nil)
-	r, _, _ = r.Insert([]byte("foobarbaz"), nil)
-	r, _, _ = r.Insert([]byte("foobarzip"), nil)
-	r, _, _ = r.Insert([]byte("fooba"), nil)
-	r.DFSPrintTree()
+	keys := []string{"a", "a", "aece", "aeg", "c", "c", "ccagff", "cdf", "d", "e", "e", "f", "fg", "fgfdcag", "geac", "gfaedc"}
+
+	for itr := 0; itr < 10; itr++ {
+		for _, k := range keys {
+			fmt.Println("inserting", k)
+			r, _, _ = r.Insert([]byte(k), nil)
+			r.DFSPrintTree()
+			fmt.Println()
+		}
+	}
+
 }
 
 func TestTrackMutate_SeekPrefixWatch(t *testing.T) {

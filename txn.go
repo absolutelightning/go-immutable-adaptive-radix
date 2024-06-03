@@ -149,6 +149,14 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		return newNode, zero, true
 	}
 
+	if node.getNodeLeaf() != nil && leafMatches(node.getNodeLeaf().getKey(), key) == 0 {
+		newLeaf := t.writeNode(node.getNodeLeaf())
+		newLeaf.setValue(value)
+		node = t.writeNode(node)
+		node.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
+		return node, zero, true
+	}
+
 	// Check if given node has a prefix
 	if node.getPartialLen() > 0 {
 		// Determine if the prefixes differ, since we need to split
@@ -214,7 +222,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		}
 	}
 
-	// No child, node goes within us
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
 		node = t.writeNode(node)
