@@ -80,6 +80,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			if n4.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n4.getNodeLeaf()}, i.stack...)
+			}
 		case node16:
 			n16 := currentNode.(*Node16[T])
 			for itr := int(n16.getNumChildren() - 1); itr >= 0; itr-- {
@@ -92,6 +95,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
 				i.stack = newStack
+			}
+			if n16.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n16.getNodeLeaf()}, i.stack...)
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
@@ -110,6 +116,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			if n48.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n48.getNodeLeaf()}, i.stack...)
+			}
 		case node256:
 			n256 := currentNode.(*Node256[T])
 			for itr := int(n256.getNumChildren() - 1); itr >= 0; itr-- {
@@ -122,6 +131,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
 				i.stack = newStack
+			}
+			if n256.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n256.getNodeLeaf()}, i.stack...)
 			}
 		}
 	}
@@ -248,11 +260,17 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 	i.node = node
 	i.seenMismatch = false
 
+	var parent Node[T]
+
 	for {
+
 		// Check if the node matches the prefix
 
 		if node == nil {
-			break
+			if parent != nil && parent.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+			}
+			return
 		}
 
 		var prefixCmp int
@@ -267,6 +285,9 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			// and from now on we need to follow the minimum path to the smallest
 			// leaf under this subtree.
 			findMin(node)
+			if parent != nil && parent.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+			}
 			return
 		}
 
@@ -274,11 +295,17 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			// Prefix is smaller than search prefix, that means there is no lower
 			// bound
 			i.node = nil
+			if parent != nil && parent.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+			}
 			return
 		}
 
 		if node.isLeaf() && bytes.Compare(node.getKey(), prefix) >= 0 {
 			found(node)
+			if parent != nil && parent.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+			}
 			return
 		}
 
@@ -289,7 +316,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			if mismatchIdx < int(node.getPartialLen()) && !i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
 				node = nil
-				break
+				return
 			}
 			if mismatchIdx > 0 {
 				i.seenMismatch = true
@@ -299,7 +326,10 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 
 		if depth >= len(prefix) {
 			i.stack = append([]Node[T]{node}, i.stack...)
-			break
+			if parent != nil && parent.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+			}
+			return
 		}
 
 		idx := node.getLowerBoundCh(prefix[depth])
@@ -314,13 +344,21 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			}
 		}
 
-		if idx == -1 {
-			node = nil
-			break
+		if parent != nil && parent.getNodeLeaf() != nil {
+			i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
 		}
 
+		if idx == -1 {
+			node = nil
+			return
+		}
+
+		parent = node
 		// Move to the next level in the tree
 		node = node.getChild(idx)
+
 		depth++
+
 	}
+
 }
