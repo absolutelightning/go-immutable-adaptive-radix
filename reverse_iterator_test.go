@@ -315,6 +315,7 @@ func TestReverseIterator_SeekLowerBound(t *testing.T) {
 					t.Fatalf("duplicate key %s in keys", k)
 				}
 			}
+			r.DFSPrintTree()
 			if r.Len() != len(test.keys) {
 				t.Fatal("failed adding keys")
 			}
