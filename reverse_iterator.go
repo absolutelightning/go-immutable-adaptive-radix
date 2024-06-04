@@ -68,8 +68,6 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 		ri.expandedParents[n] = struct{}{}
 	}
 
-	var parent Node[T]
-
 	for {
 		if n == nil {
 			break
@@ -92,8 +90,8 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// if it finds a node in the stack that has _not_ been marked as expanded
 			// so in this one case we don't call `found` and instead let the iterator
 			// do the expansion and recursion through all the children.
-			if parent != nil && parent.getNodeLeaf() != nil {
-				ri.i.stack = append([]Node[T]{parent.getNodeLeaf()}, ri.i.stack...)
+			if n.getNodeLeaf() != nil {
+				ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 			}
 			ri.i.stack = append([]Node[T]{n}, ri.i.stack...)
 			return
@@ -104,8 +102,8 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// also exhausted the search key. Either way, that means there is no
 			// reverse lower bound since nothing comes before our current search
 			// prefix.
-			if parent != nil && parent.getNodeLeaf() != nil {
-				ri.i.stack = append([]Node[T]{parent.getNodeLeaf()}, ri.i.stack...)
+			if n.getNodeLeaf() != nil {
+				ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 			}
 			return
 		}
@@ -118,8 +116,8 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 
 			// Firstly, if it's an exact match, we're done!
 			if bytes.Equal(getKey(n.getKey()), key) {
-				if parent != nil && parent.getNodeLeaf() != nil {
-					ri.i.stack = append([]Node[T]{parent.getNodeLeaf()}, ri.i.stack...)
+				if n.getNodeLeaf() != nil {
+					ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 				}
 				found(n)
 				return
@@ -131,8 +129,8 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// If it has no children then we are also done.
 			if bytes.Compare(getKey(n.getKey()), key) <= 0 {
 				// This leaf is the lower bound.
-				if parent != nil && parent.getNodeLeaf() != nil {
-					ri.i.stack = append([]Node[T]{parent.getNodeLeaf()}, ri.i.stack...)
+				if n.getNodeLeaf() != nil {
+					ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 				}
 				found(n)
 				return
@@ -149,8 +147,8 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			if mismatchIdx < int(n.getPartialLen()) && !ri.i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
 				n = nil
-				if parent != nil && parent.getNodeLeaf() != nil {
-					ri.i.stack = append([]Node[T]{parent.getNodeLeaf()}, ri.i.stack...)
+				if n.getNodeLeaf() != nil {
+					ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 				}
 				return
 			}
@@ -162,14 +160,14 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 
 		if depth >= len(prefix) {
 			ri.i.stack = append([]Node[T]{n}, ri.i.stack...)
-			if parent != nil && parent.getNodeLeaf() != nil {
-				ri.i.stack = append([]Node[T]{parent.getNodeLeaf()}, ri.i.stack...)
+			if n.getNodeLeaf() != nil {
+				ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 			}
 			return
 		}
 
-		if parent != nil && parent.getNodeLeaf() != nil {
-			ri.i.stack = append([]Node[T]{parent.getNodeLeaf()}, ri.i.stack...)
+		if n.getNodeLeaf() != nil {
+			ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 		}
 
 		idx := n.getLowerBoundCh(prefix[depth])
@@ -187,8 +185,6 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 				ri.i.stack = append([]Node[T]{n.getChild(itr)}, ri.i.stack...)
 			}
 		}
-
-		parent = n
 
 		// Move to the next level in the tree
 		n = n.getChild(idx)
