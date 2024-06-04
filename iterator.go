@@ -293,7 +293,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			return
 		}
 
-		if node.isLeaf() && bytes.Compare(node.getKey(), prefix) >= 0 {
+		if node.isLeaf() && node.getNodeLeaf() != nil && bytes.Compare(node.getNodeLeaf().getKey(), prefix) >= 0 {
 			found(node)
 			if parent != nil && parent.getNodeLeaf() != nil {
 				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
