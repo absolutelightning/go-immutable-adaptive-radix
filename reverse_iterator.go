@@ -111,8 +111,9 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 		// greater.
 		if n.isLeaf() {
 
+			nL := n.getNodeLeaf()
 			// Firstly, if it's an exact match, we're done!
-			if bytes.Equal(getKey(n.getKey()), key) {
+			if bytes.Equal(getKey(nL.getKey()), key) {
 				found(n)
 				return
 			}
@@ -121,7 +122,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// valid contender for reverse lower bound.
 
 			// If it has no children then we are also done.
-			if bytes.Compare(getKey(n.getKey()), key) <= 0 {
+			if bytes.Compare(getKey(nL.getKey()), key) <= 0 {
 				// This leaf is the lower bound.
 				found(n)
 				return
