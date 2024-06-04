@@ -400,7 +400,8 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	}
 	// Handle hitting a leaf node
 	if isLeaf[T](node) {
-		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
+		nL := node.getNodeLeaf()
+		if nL != nil && bytes.HasPrefix(getKey(nL.getKey()), getKey(key)) {
 			t.trackChannel(node)
 			return nil, 1
 		}
