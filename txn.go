@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"fmt"
 )
 
 const defaultModifiedCache = 8192
@@ -96,6 +97,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		// This means node is nil
 		if node.getKeyLen() == 0 {
 			oldMutateCh := node.getMutateCh()
+			if t.trackChnMap == nil {
+				t.trackChnMap = make(map[chan struct{}]struct{})
+			}
+			nL := node.(*NodeLeaf[T])
+			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
 			node = t.writeNode(node)
 			node.setMutateCh(oldMutateCh)
 			node.setKey(key)
@@ -111,6 +117,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
 			oldVal := node.getValue()
+			if t.trackChnMap == nil {
+				t.trackChnMap = make(map[chan struct{}]struct{})
+			}
+			nL := node.(*NodeLeaf[T])
+			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
 			newNode := t.writeNode(node)
 			newNode.setValue(value)
 			return newNode, oldVal, true
@@ -134,6 +145,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 			newNode.setNodeLeaf(node.(*NodeLeaf[T]))
 			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+			if t.trackChnMap == nil {
+				t.trackChnMap = make(map[chan struct{}]struct{})
+			}
+			nL := node.(*NodeLeaf[T])
+			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
 
 		} else {
 			if len(node.getKey()) > depth+longestPrefix {
@@ -259,6 +275,11 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if isLeaf[T](node) {
 		if leafMatches(node.getKey(), key) == 0 {
 			t.trackChannel(node)
+			if t.trackChnMap == nil {
+				t.trackChnMap = make(map[chan struct{}]struct{})
+			}
+			nL := node.(*NodeLeaf[T])
+			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
 			return nil, node
 		}
 		return node, nil
@@ -269,6 +290,10 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			t.trackChannel(node.getNodeLeaf())
 			nodeRemoved := node.getNodeLeaf()
 			node.setNodeLeaf(nil)
+			if t.trackChnMap == nil {
+				t.trackChnMap = make(map[chan struct{}]struct{})
+			}
+			t.trackChnMap[nodeRemoved.getPrefixCh()] = struct{}{}
 			return node, nodeRemoved
 		}
 	}
@@ -291,7 +316,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	// Recurse
 	newChild, val := t.recursiveDelete(child, key, depth+1)
 
-	if newChild != child {
+	if newChild != child || val != nil {
 		t.trackChannel(node)
 		node = t.writeNode(node)
 		node.setChild(idx, newChild)
@@ -356,6 +381,7 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	// isClosed returns true if the given channel is closed.
+	fmt.Println(t.trackChnMap)
 	for ch := range t.trackChnMap {
 		if ch != nil && !isClosed(ch) {
 			close(ch)

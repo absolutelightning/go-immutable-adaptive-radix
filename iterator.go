@@ -69,8 +69,8 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := currentNode.(*Node4[T])
-			for itr := int(n4.getNumChildren() - 1); itr >= 0; itr-- {
-				nodeCh := n4.children[itr]
+			for itr := int(n4.getNumChildren()) - 1; itr >= 0; itr-- {
+				nodeCh := n4.getChild(itr)
 				if nodeCh == nil {
 					continue
 				}
@@ -165,7 +165,8 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		// Check if the node matches the prefix
 
 		if node.isLeaf() {
-			return node.getMutateCh()
+			nL := node.(*NodeLeaf[T])
+			return nL.getPrefixCh()
 		}
 
 		// Determine the child index to proceed based on the next byte of the prefix
@@ -183,16 +184,15 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		if depth >= len(prefix) {
 			// If the prefix is exhausted, break the loop
 			i.node = node
-			break
+			return node.getMutateCh()
 		}
 
 		// Get the next child node based on the prefix
 		child, _ := findChild[T](node, prefix[depth])
 		if child == nil {
 			// If the child node doesn't exist, break the loop
-			node = nil
-			i.node = node
-			break
+			i.node = nil
+			return node.getMutateCh()
 		}
 
 		i.stack = []Node[T]{node}

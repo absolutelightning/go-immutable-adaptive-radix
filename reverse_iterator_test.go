@@ -394,12 +394,16 @@ func TestReverseIterator_SeekPrefixWatch(t *testing.T) {
 	// Find mutate channel
 	it := r.Root().ReverseIterator()
 	ch := it.SeekPrefixWatch(key)
+	r.DFSPrintTree()
+	fmt.Println("batman")
+	fmt.Println(ch)
 
 	// Change prefix
 	tx := r.Txn()
 	tx.TrackMutate(true)
 	tx.Insert(key, "value")
 	tx.Commit()
+	r.DFSPrintTree()
 
 	// Check if channel closed
 	select {

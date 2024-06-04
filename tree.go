@@ -197,12 +197,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	n := t.root
-	if n == nil {
-		if n.getNodeLeaf() != nil {
-			return zero, false, n.getNodeLeaf().getMutateCh()
-		}
-		return zero, false, n.getMutateCh()
-	}
+
 	var child Node[T]
 	depth := 0
 
@@ -217,12 +212,20 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			break
 		}
 
+		if n.getNodeLeaf() != nil {
+			if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+				return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
+			}
+		}
+
 		// Bail if the prefix does not match
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
 				if n.getNodeLeaf() != nil {
-					return zero, false, n.getNodeLeaf().getMutateCh()
+					if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+						return zero, false, n.getNodeLeaf().getMutateCh()
+					}
 				}
 				return zero, false, n.getMutateCh()
 			}
@@ -230,6 +233,11 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		}
 
 		if depth >= len(key) {
+			if n.getNodeLeaf() != nil {
+				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+					return zero, false, n.getNodeLeaf().getMutateCh()
+				}
+			}
 			return zero, false, n.getMutateCh()
 		}
 
@@ -237,7 +245,9 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
 			if n.getNodeLeaf() != nil {
-				return zero, false, n.getNodeLeaf().getMutateCh()
+				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+					return zero, false, n.getNodeLeaf().getMutateCh()
+				}
 			}
 			return zero, false, n.getMutateCh()
 		}
@@ -245,7 +255,9 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		depth++
 	}
 	if n.getNodeLeaf() != nil {
-		return zero, false, n.getNodeLeaf().getMutateCh()
+		if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+			return zero, false, n.getNodeLeaf().getMutateCh()
+		}
 	}
 	return zero, false, n.getMutateCh()
 }
@@ -329,6 +341,11 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 	fmt.Print(" partial -> " + string(node.getPartial()))
 	fmt.Print(" num ch -> " + string(strconv.Itoa(int(node.getNumChildren()))))
 	fmt.Print(" ch keys -> " + string(node.getKeys()))
+	fmt.Println(" much -> ", node.getMutateCh())
+	if node.isLeaf() {
+		nL := node.(*NodeLeaf[T])
+		fmt.Println(" nL -> ", nL.getPrefixCh())
+	}
 	if node.getNodeLeaf() != nil {
 		fmt.Println(" "+"optional leaf", string(node.getNodeLeaf().getKey()))
 	}

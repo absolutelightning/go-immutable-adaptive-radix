@@ -1249,6 +1249,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 			t.Fatalf("bad len: %v %v", r.Len(), len(keys))
 		}
 
+		r.DFSPrintTree()
 		iter := r.Root().Iterator()
 		rootWatch := iter.SeekPrefixWatch([]byte("nope"))
 
@@ -1281,6 +1282,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
 		}
+		r.DFSPrintTree()
 
 		// Verify root and parent triggered, and leaf affected
 		select {
