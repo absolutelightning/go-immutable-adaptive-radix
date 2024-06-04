@@ -307,6 +307,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 
 	if newChild != child || val != nil {
 		node = t.writeNode(node, mutate)
+		if !mutate {
+			t.trackChannel(node)
+		}
 		node.setChild(idx, newChild)
 		if newChild == nil {
 			node = t.removeChild(node, key[depth])
