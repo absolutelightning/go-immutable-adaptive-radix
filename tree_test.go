@@ -1404,7 +1404,6 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		if otherWatch == nil {
 			t.Fatalf("bad")
 		}
-
 		// Write to a sub-child should not trigger the leaf!
 		txn := r.Txn()
 		txn.TrackMutate(true)

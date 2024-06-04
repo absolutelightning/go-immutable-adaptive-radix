@@ -209,8 +209,9 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
-			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true, n.getMutateCh()
+			nL := n.getNodeLeaf()
+			if leafMatches(nL.getKey(), key) == 0 {
+				return nL.getValue(), true, nL.getMutateCh()
 			}
 			break
 		}
@@ -346,7 +347,8 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 	fmt.Print(" ch keys -> " + string(node.getKeys()))
 	fmt.Print(" much -> ", node.getMutateCh())
 	if node.getNodeLeaf() != nil {
-		fmt.Println(" "+"optional leaf", string(node.getNodeLeaf().getKey()))
+		fmt.Print(" "+"optional leaf", string(node.getNodeLeaf().getKey()))
+		fmt.Println(" "+"optional leaf much", node.getNodeLeaf().getMutateCh())
 	}
 	for _, ch := range node.getChildren() {
 		if ch != nil {
