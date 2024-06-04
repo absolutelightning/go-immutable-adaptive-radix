@@ -408,6 +408,13 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 
 	numDel := 0
 
+	if node.getNodeLeaf() != nil {
+		if bytes.HasPrefix(getKey(node.getNodeLeaf().getKey()), getKey(key)) {
+			t.trackChannel(node.getNodeLeaf())
+			numDel++
+		}
+	}
+
 	// Recurse on the children
 	var newChIndxMap = make(map[int]Node[T])
 	for idx, ch := range node.getChildren() {
