@@ -1216,7 +1216,9 @@ func TestInsertNewStructure(t *testing.T) {
 
 	r := NewRadixTree[any]()
 
-	keys := []string{"a", "a", "aece", "aeg", "c", "c", "ccagff", "cdf", "d", "e", "e", "f", "fg", "fgfdcag", "geac", "gfaedc"}
+	keys := []string{"aagcfgc", "acbcdca", "aceeaca", "ad", "aefab", "afdcec", "b",
+		"badcf", "bbag", "bccdegd", "cafg", "cbb", "ccaagef", "daae",
+		"dabdbb", "dbbgb", "dbcaca", "fbeaab", "ffeec", "fg", "ga", "gbc", "gdcg", "gec", "gecga", "gfa", "gfad"}
 
 	for itr := 0; itr < 10; itr++ {
 		for _, k := range keys {

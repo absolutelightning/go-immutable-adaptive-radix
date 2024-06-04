@@ -90,9 +90,6 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// if it finds a node in the stack that has _not_ been marked as expanded
 			// so in this one case we don't call `found` and instead let the iterator
 			// do the expansion and recursion through all the children.
-			if n.getNodeLeaf() != nil {
-				ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
-			}
 			ri.i.stack = append([]Node[T]{n}, ri.i.stack...)
 			return
 		}
@@ -116,9 +113,6 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 
 			// Firstly, if it's an exact match, we're done!
 			if bytes.Equal(getKey(n.getKey()), key) {
-				if n.getNodeLeaf() != nil {
-					ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
-				}
 				found(n)
 				return
 			}
@@ -129,9 +123,6 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// If it has no children then we are also done.
 			if bytes.Compare(getKey(n.getKey()), key) <= 0 {
 				// This leaf is the lower bound.
-				if n.getNodeLeaf() != nil {
-					ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
-				}
 				found(n)
 				return
 			}
@@ -146,10 +137,10 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			mismatchIdx := prefixMismatch[T](n, prefix, len(prefix), depth)
 			if mismatchIdx < int(n.getPartialLen()) && !ri.i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
-				n = nil
 				if n.getNodeLeaf() != nil {
 					ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
 				}
+				n = nil
 				return
 			}
 			if mismatchIdx > 0 {
@@ -160,9 +151,6 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 
 		if depth >= len(prefix) {
 			ri.i.stack = append([]Node[T]{n}, ri.i.stack...)
-			if n.getNodeLeaf() != nil {
-				ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
-			}
 			return
 		}
 

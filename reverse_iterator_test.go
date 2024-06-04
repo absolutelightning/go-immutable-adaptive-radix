@@ -322,6 +322,7 @@ func TestReverseIterator_SeekLowerBound(t *testing.T) {
 			// Get and seek iterator
 			root := r.root
 			iter := root.ReverseIterator()
+			r.DFSPrintTree()
 			iter.SeekReverseLowerBound([]byte(test.search))
 
 			// Consume all the keys
