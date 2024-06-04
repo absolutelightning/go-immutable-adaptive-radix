@@ -97,6 +97,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 			nL := node.(*NodeLeaf[T])
 			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
+			node = t.writeNode(node)
 			node.setMutateCh(oldMutateCh)
 			node.setKey(key)
 			node.setValue(value)
