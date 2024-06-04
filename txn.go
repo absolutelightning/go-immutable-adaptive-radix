@@ -5,6 +5,7 @@ package adaptive
 
 import (
 	"bytes"
+	"fmt"
 )
 
 const defaultModifiedCache = 8192
@@ -101,11 +102,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 			nL := node.(*NodeLeaf[T])
 			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
-			node = t.writeNode(node)
 			node.setMutateCh(oldMutateCh)
 			node.setKey(key)
 			node.setValue(value)
-			return node, zero, false
+			return node, zero, true
 		}
 	}
 
@@ -121,6 +121,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 			nL := node.(*NodeLeaf[T])
 			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
+			t.trackChnMap[nL.getMutateCh()] = struct{}{}
 			newNode := t.writeNode(node)
 			newNode.setValue(value)
 			return newNode, oldVal, true
@@ -161,7 +162,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 		}
 
-		return newNode, zero, true
+		return newNode, zero, false
 	}
 
 	if node.getNodeLeaf() != nil && leafMatches(node.getNodeLeaf().getKey(), key) == 0 {
@@ -381,6 +382,8 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	// isClosed returns true if the given channel is closed.
+	fmt.Println("slow notify")
+	fmt.Println(t.trackChnMap)
 	for ch := range t.trackChnMap {
 		if ch != nil && !isClosed(ch) {
 			close(ch)
