@@ -54,6 +54,9 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			if n4.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n4.getNodeLeaf()}, i.stack...)
+			}
 		case node16:
 			n16 := currentNode.(*Node16[T])
 			for itr := int(n16.getNumChildren() - 1); itr >= 0; itr-- {
@@ -66,6 +69,9 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
 				i.stack = newStack
+			}
+			if n16.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n16.getNodeLeaf()}, i.stack...)
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
@@ -84,6 +90,9 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				newStack[0] = child
 				i.stack = newStack
 			}
+			if n48.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n48.getNodeLeaf()}, i.stack...)
+			}
 		case node256:
 			n256 := currentNode.(*Node256[T])
 			for itr := int(n256.getNumChildren() - 1); itr >= 0; itr-- {
@@ -96,6 +105,9 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
 				i.stack = newStack
+			}
+			if n256.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{n256.getNodeLeaf()}, i.stack...)
 			}
 		}
 	}
