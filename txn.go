@@ -5,7 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"fmt"
 )
 
 const defaultModifiedCache = 8192
@@ -89,10 +88,6 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T, bool) {
 	var zero T
 
-	if node == nil {
-		return node, zero, true
-	}
-
 	if node.isLeaf() {
 		// This means node is nil
 		if node.getKeyLen() == 0 {
@@ -162,7 +157,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 		}
 
-		return newNode, zero, false
+		return newNode, zero, true
 	}
 
 	if node.getNodeLeaf() != nil && leafMatches(node.getNodeLeaf().getKey(), key) == 0 {
@@ -382,8 +377,6 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	// isClosed returns true if the given channel is closed.
-	fmt.Println("slow notify")
-	fmt.Println(t.trackChnMap)
 	for ch := range t.trackChnMap {
 		if ch != nil && !isClosed(ch) {
 			close(ch)
