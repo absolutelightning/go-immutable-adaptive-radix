@@ -43,7 +43,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 			continue
 		case node4:
 			n4 := currentNode.(*Node4[T])
-			for itr := int(n4.getNumChildren() - 1); itr >= 0; itr-- {
+			for itr := int(n4.getNumChildren()) - 1; itr >= 0; itr-- {
 				nodeCh := n4.children[itr]
 				if nodeCh == nil {
 					continue
