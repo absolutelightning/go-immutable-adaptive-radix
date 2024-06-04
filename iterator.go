@@ -164,11 +164,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	for {
 		// Check if the node matches the prefix
 
-		if node.isLeaf() {
-			nL := node.(*NodeLeaf[T])
-			return nL.getPrefixCh()
-		}
-
 		// Determine the child index to proceed based on the next byte of the prefix
 		if node.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix

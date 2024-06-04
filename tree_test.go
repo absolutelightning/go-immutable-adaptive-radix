@@ -91,6 +91,8 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		art, _, _ = art.Insert([]byte(line), lineNumber)
+		fmt.Println("inserting ", line)
+		art.DFSPrintTree()
 		lineNumber += 1
 		lines = append(lines, scanner.Text())
 	}

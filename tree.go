@@ -34,7 +34,9 @@ type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0, maxNodeId: 0}
-	rt.root = &NodeLeaf[T]{}
+	rt.root = &Node4[T]{
+		leaf: &NodeLeaf[T]{},
+	}
 	rt.root.setId(rt.maxNodeId)
 	return rt
 }
@@ -336,16 +338,12 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 		stPadding += " "
 	}
 	fmt.Println()
-	fmt.Print(stPadding + " type -> " + strconv.Itoa(int(node.getArtNodeType())))
+	fmt.Print(stPadding + "id -> " + strconv.Itoa(int(node.getId())) + " type -> " + strconv.Itoa(int(node.getArtNodeType())))
 	fmt.Print(" key -> " + string(node.getKey()))
 	fmt.Print(" partial -> " + string(node.getPartial()))
 	fmt.Print(" num ch -> " + string(strconv.Itoa(int(node.getNumChildren()))))
 	fmt.Print(" ch keys -> " + string(node.getKeys()))
-	fmt.Println(" much -> ", node.getMutateCh())
-	if node.isLeaf() {
-		nL := node.(*NodeLeaf[T])
-		fmt.Println(" nL -> ", nL.getPrefixCh())
-	}
+	fmt.Print(" much -> ", node.getMutateCh())
 	if node.getNodeLeaf() != nil {
 		fmt.Println(" "+"optional leaf", string(node.getNodeLeaf().getKey()))
 	}

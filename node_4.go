@@ -57,6 +57,9 @@ func (n *Node4[T]) setPartial(partial []byte) {
 }
 
 func (n *Node4[T]) isLeaf() bool {
+	if n.numChildren == 0 && n.getNodeLeaf() != nil {
+		return true
+	}
 	return false
 }
 

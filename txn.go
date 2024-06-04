@@ -89,72 +89,67 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	var zero T
 
 	if node.isLeaf() {
-		// This means node is nil
-		if node.getKeyLen() == 0 {
-			oldMutateCh := node.getMutateCh()
-			if t.trackChnMap == nil {
-				t.trackChnMap = make(map[chan struct{}]struct{})
+		if node.getArtNodeType() == node4 {
+			nodeLeafStored := node.getNodeLeaf()
+			if nodeLeafStored.getKeyLen() == 0 {
+				node = t.writeNode(node)
+				newLeaf := t.allocNode(leafType)
+				newLeaf.setKey(key)
+				newLeaf.setValue(value)
+				node.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
+				return node, zero, true
 			}
-			nL := node.(*NodeLeaf[T])
-			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
-			node = t.writeNode(node)
-			node.setMutateCh(oldMutateCh)
-			node.setKey(key)
-			node.setValue(value)
-			return node, zero, true
 		}
 	}
 
 	// If we are at a leaf, we need to replace it with a node
 	if node.isLeaf() {
 		// Check if we are updating an existing value
-		nodeKey := node.getKey()
-		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
-			*old = 1
-			oldVal := node.getValue()
-			if t.trackChnMap == nil {
-				t.trackChnMap = make(map[chan struct{}]struct{})
+		if node.getArtNodeType() == node4 {
+			nodeLeafStored := node.getNodeLeaf()
+			nodeKey := nodeLeafStored.getKey()
+			if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
+				*old = 1
+				oldVal := node.getValue()
+				node = t.writeNode(node)
+				newLeaf := t.allocNode(leafType)
+				newLeaf.setKey(key)
+				newLeaf.setValue(value)
+				node.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
+				return node, oldVal, true
 			}
-			nL := node.(*NodeLeaf[T])
-			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
-			t.trackChnMap[nL.getMutateCh()] = struct{}{}
-			newNode := t.writeNode(node)
-			newNode.setValue(value)
-			return newNode, oldVal, true
 		}
 
 		// New value, we must split the leaf into a node4
 		newLeaf2 := t.makeLeaf(key, value)
+		newLeaf2L := newLeaf2.getNodeLeaf()
+
+		nodeLeaf := node.getNodeLeaf()
 
 		// Determine longest prefix
-		longestPrefix := longestCommonPrefix[T](node, newLeaf2, depth)
+		longestPrefix := longestCommonPrefix[T](newLeaf2L, nodeLeaf, depth)
 		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
-		if bytes.HasPrefix(getKey(node.getKey()), getKey(newLeaf2.getKey())) {
+		if bytes.HasPrefix(getKey(nodeLeaf.getKey()), getKey(newLeaf2L.getKey())) {
 
 			newNode.setNodeLeaf(newLeaf2.(*NodeLeaf[T]))
-			newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+			newNode = t.addChild(newNode, nodeLeaf.getKey()[depth+longestPrefix], node)
 
-		} else if bytes.HasPrefix(getKey(newLeaf2.getKey()), getKey(node.getKey())) {
+		} else if bytes.HasPrefix(getKey(newLeaf2L.getKey()), getKey(nodeLeaf.getKey())) {
 
-			newNode.setNodeLeaf(node.(*NodeLeaf[T]))
-			newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
-			if t.trackChnMap == nil {
-				t.trackChnMap = make(map[chan struct{}]struct{})
-			}
-			nL := node.(*NodeLeaf[T])
-			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
+			newNode.setNodeLeaf(nodeLeaf)
+			newNode = t.addChild(newNode, newLeaf2L.getKey()[depth+longestPrefix], newLeaf2)
 
 		} else {
-			if len(node.getKey()) > depth+longestPrefix {
+			if len(nodeLeaf.getKey()) > depth+longestPrefix {
 				// Add the leafs to the new node4
-				newNode = t.addChild(newNode, node.getKey()[depth+longestPrefix], node)
+				newNode = t.addChild(newNode, nodeLeaf.getKey()[depth+longestPrefix], node)
 			}
 
-			if len(newLeaf2.getKey()) > depth+longestPrefix {
-				newNode = t.addChild(newNode, newLeaf2.getKey()[depth+longestPrefix], newLeaf2)
+			if len(newLeaf2L.getKey()) > depth+longestPrefix {
+				newNode = t.addChild(newNode, newLeaf2L.getKey()[depth+longestPrefix], newLeaf2)
 			}
 		}
 
@@ -235,6 +230,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	}
 
 	newLeaf := t.makeLeaf(key, value)
+	if node.getArtNodeType() == 1 && node.getNodeLeaf() != nil && node.getNodeLeaf().getKeyLen() == 0 {
+		return newLeaf, zero, false
+	}
 	if depth < len(key) {
 		node = t.writeNode(node)
 		return t.addChild(node, key[depth], newLeaf), zero, true
@@ -274,8 +272,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			if t.trackChnMap == nil {
 				t.trackChnMap = make(map[chan struct{}]struct{})
 			}
-			nL := node.(*NodeLeaf[T])
-			t.trackChnMap[nL.getPrefixCh()] = struct{}{}
 			return nil, node
 		}
 		return node, nil
@@ -290,7 +286,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			if t.trackChnMap == nil {
 				t.trackChnMap = make(map[chan struct{}]struct{})
 			}
-			t.trackChnMap[nodeRemoved.getPrefixCh()] = struct{}{}
 			return node, nodeRemoved
 		}
 	}
@@ -471,7 +466,10 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	l.setValue(value)
 	l.setKeyLen(uint32(len(key)))
 	l.setKey(key)
-	return l
+
+	n4 := t.allocNode(node4)
+	n4.setNodeLeaf(l.(*NodeLeaf[T]))
+	return n4
 }
 
 func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
