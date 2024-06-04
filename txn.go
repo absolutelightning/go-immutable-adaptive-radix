@@ -97,6 +97,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		if node.getArtNodeType() == node4 {
 			nodeLeafStored := node.getNodeLeaf()
 			if nodeLeafStored.getKeyLen() == 0 {
+				t.trackChannel(nodeLeafStored)
 				node = t.writeNode(node, true)
 				newLeaf := t.allocNode(leafType)
 				newLeaf.setKey(key)
@@ -159,6 +160,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 		}
 
+		t.trackChannel(node)
 		return newNode, zero, true
 	}
 
