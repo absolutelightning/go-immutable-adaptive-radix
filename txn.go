@@ -179,9 +179,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 
 			newLeaf := t.makeLeaf(key, value)
+			newLeafL := newLeaf.getNodeLeaf()
 			nL := node.getNodeLeaf()
-			if nL != nil {
-				if bytes.HasPrefix(getKey(nL.getKey()), getKey(newLeaf.getKey())) {
+			if nL != nil && nL.getKeyLen() != 0 {
+				if bytes.HasPrefix(getKey(nL.getKey()), getKey(newLeafL.getKey())) {
 					newNode := t.allocNode(node4)
 					newNode.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
 					newNode = t.addChild(newNode, key[depth], node)

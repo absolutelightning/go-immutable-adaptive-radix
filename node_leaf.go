@@ -45,7 +45,7 @@ func (n *NodeLeaf[T]) setNumChildren(numChildren uint8) {
 }
 
 func (n *NodeLeaf[T]) isLeaf() bool {
-	return true
+	return false
 }
 
 func (n *NodeLeaf[T]) getValue() T {

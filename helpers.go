@@ -198,7 +198,7 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 		return nil
 	}
 	if isLeaf[T](node) {
-		return node.(*NodeLeaf[T])
+		return node.getNodeLeaf()
 	}
 
 	var idx int
@@ -250,7 +250,7 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 	}
 
 	if isLeaf[T](node) {
-		return node.(*NodeLeaf[T])
+		return node.getNodeLeaf()
 	}
 	var idx int
 	switch node.getArtNodeType() {

@@ -160,8 +160,9 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 		// Might be a leaf
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
-			if leafMatches(n.getKey(), key) == 0 {
-				return n.getValue(), true
+			nL := n.getNodeLeaf()
+			if leafMatches(nL.getKey(), key) == 0 {
+				return nL.getValue(), true
 			}
 			break
 		}
