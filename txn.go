@@ -246,7 +246,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	newRoot, l := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 
 	if newRoot == nil {
-		newRoot = t.allocNode(leafType)
+		newRoot = t.allocNode(node4)
 	}
 	if l != nil {
 		t.trackChannel(t.tree.root)
@@ -267,28 +267,19 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	}
 
 	// Handle hitting a leaf node
-	if isLeaf[T](node) {
-		if leafMatches(node.getKey(), key) == 0 {
-			t.trackChannel(node)
-			if t.trackChnMap == nil {
-				t.trackChnMap = make(map[chan struct{}]struct{})
-			}
-			return nil, node
-		}
-		return node, nil
-	}
-
 	if node.getNodeLeaf() != nil {
-		if leafMatches(node.getNodeLeaf().getKey(), key) == 0 {
-			t.trackChannel(node.getNodeLeaf())
-			nodeRemoved := node.getNodeLeaf()
+		nodeL := node.getNodeLeaf()
+		if leafMatches(nodeL.getKey(), key) == 0 {
+			t.trackChannel(nodeL)
 			node = t.writeNode(node)
 			node.setNodeLeaf(nil)
-			if t.trackChnMap == nil {
-				t.trackChnMap = make(map[chan struct{}]struct{})
+			if node.getNumChildren() > 0 {
+				return node, nodeL
+			} else {
+				return nil, nodeL
 			}
-			return node, nodeRemoved
 		}
+		return node, nil
 	}
 
 	// Bail if the prefix does not match
