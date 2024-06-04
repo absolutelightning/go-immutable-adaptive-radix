@@ -175,6 +175,10 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			}
 		}
 
+		if idx == -1 {
+			break
+		}
+
 		// Move to the next level in the tree
 		n = n.getChild(idx)
 		depth++

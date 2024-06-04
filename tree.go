@@ -87,8 +87,8 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 
 	n := t.root
 	last = nil
-	if n.isLeaf() {
-		last = n
+	if n.isLeaf() && n.getNodeLeaf() != nil {
+		last = n.getNodeLeaf()
 	}
 	for {
 
@@ -111,8 +111,8 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 
 		for _, ch := range n.getChildren() {
 			if ch != nil {
-				if isLeaf[T](ch) && bytes.HasPrefix(getKey(key), getKey(ch.getKey())) {
-					last = ch
+				if ch.getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey(ch.getNodeLeaf().getKey())) {
+					last = ch.getNodeLeaf()
 				}
 			}
 		}
@@ -364,7 +364,7 @@ func (t *RadixTree[T]) DFSPrintTree() {
 // recursively. Returns true if the walk should be aborted
 func recursiveWalk[T any](n Node[T], fn WalkFn[T]) bool {
 	// Visit the leaf values if any
-	if n.isLeaf() && fn(getKey(n.getKey()), n.getValue()) {
+	if n.isLeaf() && n.getNodeLeaf() != nil && fn(getKey(n.getNodeLeaf().getKey()), n.getValue()) {
 		return true
 	}
 
