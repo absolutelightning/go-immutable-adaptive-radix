@@ -315,14 +315,12 @@ func TestReverseIterator_SeekLowerBound(t *testing.T) {
 					t.Fatalf("duplicate key %s in keys", k)
 				}
 			}
-			r.DFSPrintTree()
 			if r.Len() != len(test.keys) {
 				t.Fatal("failed adding keys")
 			}
 			// Get and seek iterator
 			root := r.root
 			iter := root.ReverseIterator()
-			r.DFSPrintTree()
 			iter.SeekReverseLowerBound([]byte(test.search))
 
 			// Consume all the keys
@@ -394,16 +392,12 @@ func TestReverseIterator_SeekPrefixWatch(t *testing.T) {
 	// Find mutate channel
 	it := r.Root().ReverseIterator()
 	ch := it.SeekPrefixWatch(key)
-	r.DFSPrintTree()
-	fmt.Println("batman")
-	fmt.Println(ch)
 
 	// Change prefix
 	tx := r.Txn()
 	tx.TrackMutate(true)
 	tx.Insert(key, "value")
 	tx.Commit()
-	r.DFSPrintTree()
 
 	// Check if channel closed
 	select {

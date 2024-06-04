@@ -99,9 +99,6 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 	lineNumber = 1
 	for _, line := range lines {
 		lineNumberFetched, f := art.Get([]byte(line))
-		if f == false {
-			fmt.Println(line)
-		}
 		require.True(t, f)
 		require.Equal(t, lineNumberFetched, lineNumber)
 		lineNumber += 1
@@ -1222,9 +1219,7 @@ func TestInsertNewStructure(t *testing.T) {
 
 	for itr := 0; itr < 10; itr++ {
 		for _, k := range keys {
-			fmt.Println("inserting", k)
 			r, _, _ = r.Insert([]byte(k), nil)
-			r.DFSPrintTree()
 			fmt.Println()
 		}
 	}
@@ -1249,7 +1244,6 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 			t.Fatalf("bad len: %v %v", r.Len(), len(keys))
 		}
 
-		r.DFSPrintTree()
 		iter := r.Root().Iterator()
 		rootWatch := iter.SeekPrefixWatch([]byte("nope"))
 
@@ -1282,7 +1276,6 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
 		}
-		r.DFSPrintTree()
 
 		// Verify root and parent triggered, and leaf affected
 		select {
