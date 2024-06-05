@@ -94,36 +94,33 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	var zero T
 
 	if node.isLeaf() {
-		if node.getArtNodeType() == node4 {
-			nodeLeafStored := node.getNodeLeaf()
-			if nodeLeafStored.getKeyLen() == 0 {
-				t.trackChannel(nodeLeafStored)
-				node = t.writeNode(node, true)
-				newLeaf := t.allocNode(leafType)
-				newLeaf.setKey(key)
-				newLeaf.setValue(value)
-				node.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
-				return node, zero, true
-			}
+		nodeLeafStored := node.getNodeLeaf()
+		if nodeLeafStored.getKeyLen() == 0 {
+			t.trackChannel(nodeLeafStored)
+			node = t.writeNode(node, true)
+			newLeaf := t.allocNode(leafType)
+			newLeaf.setKey(key)
+			newLeaf.setValue(value)
+			node.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
+			return node, zero, true
 		}
 	}
 
 	// If we are at a leaf, we need to replace it with a node
 	if node.isLeaf() {
 		// Check if we are updating an existing value
-		if node.getArtNodeType() == node4 {
-			nodeLeafStored := node.getNodeLeaf()
-			nodeKey := nodeLeafStored.getKey()
-			if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
-				*old = 1
-				oldVal := nodeLeafStored.getValue()
-				node = t.writeNode(node, true)
-				newLeaf := t.allocNode(leafType)
-				newLeaf.setKey(key)
-				newLeaf.setValue(value)
-				node.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
-				return node, oldVal, true
-			}
+		nodeLeafStored := node.getNodeLeaf()
+		nodeKey := nodeLeafStored.getKey()
+		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
+			*old = 1
+			t.trackChannel(nodeLeafStored)
+			oldVal := nodeLeafStored.getValue()
+			node = t.writeNode(node, true)
+			newLeaf := t.allocNode(leafType)
+			newLeaf.setKey(key)
+			newLeaf.setValue(value)
+			node.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
+			return node, oldVal, true
 		}
 
 		// New value, we must split the leaf into a node4
@@ -319,7 +316,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		}
 	}
 
-	return node, val, true
+	return node, val, mutate
 }
 
 func (t *Txn[T]) Root() Node[T] {

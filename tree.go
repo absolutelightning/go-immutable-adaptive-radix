@@ -150,14 +150,13 @@ func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
 func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 	var zero T
 	n := t.root
-	if t.root == nil {
-		return zero, false
-	}
+
 	var child Node[T]
 	depth := 0
 
 	for {
 		// Might be a leaf
+
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
 			nL := n.getNodeLeaf()
@@ -167,32 +166,46 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 			break
 		}
 
-		if n.getNodeLeaf() != nil {
-			if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-				return n.getNodeLeaf().getValue(), true
-			}
-		}
-
 		// Bail if the prefix does not match
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
+				if n.getNodeLeaf() != nil {
+					if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+						return n.getNodeLeaf().getValue(), true
+					}
+				}
 				return zero, false
 			}
 			depth += int(n.getPartialLen())
 		}
 
 		if depth >= len(key) {
+			if n.getNodeLeaf() != nil {
+				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+					return n.getNodeLeaf().getValue(), true
+				}
+			}
 			return zero, false
 		}
 
 		// Recursively search
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
+			if n.getNodeLeaf() != nil {
+				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+					return n.getNodeLeaf().getValue(), true
+				}
+			}
 			return zero, false
 		}
 		n = child
 		depth++
+	}
+	if n.getNodeLeaf() != nil {
+		if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
+			return n.getNodeLeaf().getValue(), true
+		}
 	}
 	return zero, false
 }
@@ -216,19 +229,13 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			break
 		}
 
-		if n.getNodeLeaf() != nil {
-			if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-				return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
-			}
-		}
-
 		// Bail if the prefix does not match
 		if n.getPartialLen() > 0 {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
 				if n.getNodeLeaf() != nil {
 					if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-						return zero, false, n.getNodeLeaf().getMutateCh()
+						return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
 					}
 				}
 				return zero, false, n.getMutateCh()
@@ -239,7 +246,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		if depth >= len(key) {
 			if n.getNodeLeaf() != nil {
 				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-					return zero, false, n.getNodeLeaf().getMutateCh()
+					return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
 				}
 			}
 			return zero, false, n.getMutateCh()
@@ -250,7 +257,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		if child == nil {
 			if n.getNodeLeaf() != nil {
 				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-					return zero, false, n.getNodeLeaf().getMutateCh()
+					return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
 				}
 			}
 			return zero, false, n.getMutateCh()
@@ -260,7 +267,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 	}
 	if n.getNodeLeaf() != nil {
 		if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-			return zero, false, n.getNodeLeaf().getMutateCh()
+			return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
 		}
 	}
 	return zero, false, n.getMutateCh()

@@ -167,11 +167,12 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		// Determine the child index to proceed based on the next byte of the prefix
 		if node.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix
-			prefixLen := checkPrefix(node.getPartial(), min(maxPrefixLen, int(node.getPartialLen())), prefix, depth)
-			if prefixLen != min(maxPrefixLen, int(node.getPartialLen())) {
+			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
+			if mismatchIdx < int(node.getPartialLen()) {
+				// If there's a mismatch, set the node to nil to break the loop
 				return node.getMutateCh()
 			}
-			depth += min(int(node.getPartialLen()), maxPrefixLen)
+			depth += int(node.getPartialLen())
 		}
 
 		if depth >= len(prefix) {
