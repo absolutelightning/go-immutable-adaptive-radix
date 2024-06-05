@@ -113,6 +113,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		nodeKey := nodeLeafStored.getKey()
 		if len(key) == len(nodeKey) && bytes.Equal(nodeKey, key) {
 			*old = 1
+			t.trackChannel(nodeLeafStored)
 			oldVal := nodeLeafStored.getValue()
 			node = t.writeNode(node, true)
 			newLeaf := t.allocNode(leafType)
