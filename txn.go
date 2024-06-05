@@ -280,9 +280,9 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 			node = t.writeNode(node, true)
 			node.setNodeLeaf(nil)
 			if node.getNumChildren() > 0 {
-				return node, nodeL, false
+				return node, nodeL, true
 			} else {
-				return nil, nodeL, true
+				return nil, nodeL, false
 			}
 		}
 	}
