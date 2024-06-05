@@ -493,7 +493,7 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	}
 	t.tree.maxNodeId++
 	n.setId(t.tree.maxNodeId)
-	if !n.isLeaf() {
+	if n.getArtNodeType() != leafType {
 		n.setPartial(make([]byte, maxPrefixLen))
 		n.setPartialLen(maxPrefixLen)
 	}
