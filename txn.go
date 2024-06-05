@@ -354,6 +354,12 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
+	if t.tree.root == nil {
+		t.tree.root = &Node4[T]{
+			leaf: &NodeLeaf[T]{},
+			id:   0,
+		}
+	}
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 		t.tree.maxNodeId,
