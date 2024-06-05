@@ -273,16 +273,16 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	}
 
 	// Handle hitting a leaf node
-	if isLeaf[T](node) {
+	if node.getNodeLeaf() != nil {
 		nodeL := node.getNodeLeaf()
 		if leafMatches(nodeL.getKey(), key) == 0 {
 			t.trackChannel(nodeL)
 			node = t.writeNode(node, true)
 			node.setNodeLeaf(nil)
 			if node.getNumChildren() > 0 {
-				return node, nodeL, true
+				return node, nodeL, false
 			} else {
-				return nil, nodeL, false
+				return nil, nodeL, true
 			}
 		}
 	}
