@@ -205,6 +205,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
+		node = t.writeNode(node, true)
 
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= maxPrefixLen {
