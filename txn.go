@@ -255,7 +255,6 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	if newRoot == nil {
 		newRoot = t.allocNode(node4)
 		newRoot.setNodeLeaf(&NodeLeaf[T]{})
-		newRoot.setId(0)
 	}
 	if l != nil {
 		t.trackChannel(t.tree.root)
