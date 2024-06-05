@@ -316,7 +316,7 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		}
 	}
 
-	return node, val, true
+	return node, val, mutate
 }
 
 func (t *Txn[T]) Root() Node[T] {
