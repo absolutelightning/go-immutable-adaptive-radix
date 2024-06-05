@@ -228,7 +228,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
 				if n.getNodeLeaf() != nil {
 					if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-						return zero, false, n.getNodeLeaf().getMutateCh()
+						return zero, true, n.getNodeLeaf().getMutateCh()
 					}
 				}
 				return zero, false, n.getMutateCh()
@@ -239,7 +239,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		if depth >= len(key) {
 			if n.getNodeLeaf() != nil {
 				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-					return zero, false, n.getNodeLeaf().getMutateCh()
+					return zero, true, n.getNodeLeaf().getMutateCh()
 				}
 			}
 			return zero, false, n.getMutateCh()
@@ -250,7 +250,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		if child == nil {
 			if n.getNodeLeaf() != nil {
 				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-					return zero, false, n.getNodeLeaf().getMutateCh()
+					return zero, true, n.getNodeLeaf().getMutateCh()
 				}
 			}
 			return zero, false, n.getMutateCh()

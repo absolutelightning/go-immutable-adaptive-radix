@@ -172,7 +172,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 				// If there's a mismatch, set the node to nil to break the loop
 				return node.getMutateCh()
 			}
-			depth += min(int(node.getPartialLen()), maxPrefixLen)
+			depth += int(node.getPartialLen())
 		}
 
 		if depth >= len(prefix) {
