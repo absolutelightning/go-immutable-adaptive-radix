@@ -163,7 +163,6 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 			if leafMatches(nL.getKey(), key) == 0 {
 				return nL.getValue(), true
 			}
-			break
 		}
 
 		// Bail if the prefix does not match
