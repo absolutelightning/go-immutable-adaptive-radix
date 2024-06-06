@@ -201,12 +201,6 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 		n = child
 		depth++
 	}
-	if n.getNodeLeaf() != nil {
-		if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-			return n.getNodeLeaf().getValue(), true
-		}
-	}
-	return zero, false
 }
 
 func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan struct{}) {
