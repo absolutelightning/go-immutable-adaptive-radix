@@ -41,14 +41,15 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
+	newTree := &RadixTree[T]{
+		t.root,
+		t.size,
+		t.maxNodeId,
+	}
 	txn := &Txn[T]{
 		size: t.size,
-		tree: &RadixTree[T]{
-			t.root,
-			t.size,
-			t.maxNodeId,
-		},
-		snap: t,
+		tree: newTree,
+		snap: newTree,
 	}
 	return txn
 }
@@ -57,15 +58,15 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 // does not track any nodes and has TrackMutate turned off. The cloned transaction will contain any uncommitted writes in the original transaction but further mutations to either will be independent and result in different radix trees on Commit. A cloned transaction may be passed to another goroutine and mutated there independently however each transaction may only be mutated in a single thread.
 func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
-
+	newTree := &RadixTree[T]{
+		t.tree.root,
+		t.size,
+		t.tree.maxNodeId,
+	}
 	txn := &Txn[T]{
-		tree: &RadixTree[T]{
-			t.tree.root,
-			t.size,
-			t.tree.maxNodeId,
-		},
 		size: t.size,
-		snap: t.tree,
+		tree: newTree,
+		snap: newTree,
 	}
 	return txn
 }
