@@ -360,7 +360,6 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 	for _, ch := range node.getChildren() {
 		if ch != nil {
 			t.DFSPrintTreeUtil(ch, depth+1)
-			fmt.Println()
 		}
 	}
 }
