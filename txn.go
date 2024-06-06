@@ -135,6 +135,9 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		nodeLeaf := node.getNodeLeaf()
 
+		t.trackChannel(node)
+		node = t.writeNode(node, false)
+
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](newLeaf2L, nodeLeaf, depth)
 		newNode := t.allocNode(node4)
@@ -162,7 +165,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			}
 		}
 
-		t.trackChannel(node)
 		return newNode, zero, true
 	}
 
@@ -183,9 +185,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val, mutatedSubTree := t.recursiveInsert(child, key, value, depth+1, old)
-				t.trackChannel(node)
-				node = t.writeNode(node, false)
-				node.setChild(idx, newChild)
+				if mutatedSubTree || newChild != child {
+					t.trackChannel(node)
+					node = t.writeNode(node, false)
+					node.setChild(idx, newChild)
+				}
 				return node, val, mutatedSubTree
 			}
 
@@ -241,9 +245,11 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		child, idx := t.findChild(node, key[depth])
 		if child != nil {
 			newChild, val, mutatedSubtree := t.recursiveInsert(child, key, value, depth+1, old)
-			t.trackChannel(node)
-			node = t.writeNode(node, false)
-			node.setChild(idx, newChild)
+			if mutatedSubtree || newChild != child {
+				t.trackChannel(node)
+				node = t.writeNode(node, false)
+				node.setChild(idx, newChild)
+			}
 			return node, val, mutatedSubtree
 		}
 	}

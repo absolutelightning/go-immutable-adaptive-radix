@@ -76,7 +76,6 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		newNode.setNodeLeaf(n.getNodeLeaf())
@@ -104,7 +103,6 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
 		newNode := t.allocNode(node48)
 		newNode.setNodeLeaf(n.getNodeLeaf())
 		// Copy the child pointers and populate the key map
@@ -129,7 +127,6 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
-		t.trackChannel(n)
 		newNode := t.allocNode(node256)
 		newNode.setNodeLeaf(n.getNodeLeaf())
 		for i := 0; i < 256; i++ {
