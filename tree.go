@@ -226,7 +226,6 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			if leafMatches(nL.getKey(), key) == 0 {
 				return nL.getValue(), true, nL.getMutateCh()
 			}
-			break
 		}
 
 		// Bail if the prefix does not match
@@ -265,12 +264,6 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		n = child
 		depth++
 	}
-	if n.getNodeLeaf() != nil {
-		if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
-			return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
-		}
-	}
-	return zero, false, n.getMutateCh()
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
