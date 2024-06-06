@@ -152,7 +152,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 			newNode.setNodeLeaf(nodeLeaf)
 			newNode = t.addChild(newNode, newLeaf2L.getKey()[depth+longestPrefix], newLeaf2)
-			t.trackChannel(node)
 
 		} else {
 			if len(nodeLeaf.getKey()) > depth+longestPrefix {
@@ -196,6 +195,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			nL := node.getNodeLeaf()
 			if nL != nil && nL.getKeyLen() != 0 {
 				if bytes.HasPrefix(getKey(nL.getKey()), getKey(newLeafL.getKey())) {
+					node = t.writeNode(node, true)
 					newNode := t.allocNode(node4)
 					newNode.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
 					newNode = t.addChild(newNode, key[depth], node)
