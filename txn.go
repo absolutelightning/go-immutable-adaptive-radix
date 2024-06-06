@@ -43,7 +43,11 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
-		tree: t.Clone(false),
+		tree: &RadixTree[T]{
+			t.root,
+			t.size,
+			t.maxNodeId,
+		},
 		snap: t,
 	}
 	return txn
@@ -51,11 +55,15 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 
 // Clone makes an independent copy of the transaction. The new transaction
 // does not track any nodes and has TrackMutate turned off. The cloned transaction will contain any uncommitted writes in the original transaction but further mutations to either will be independent and result in different radix trees on Commit. A cloned transaction may be passed to another goroutine and mutated there independently however each transaction may only be mutated in a single thread.
-func (t *Txn[T]) Clone(deep bool) *Txn[T] {
+func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 
 	txn := &Txn[T]{
-		tree: t.tree.Clone(deep),
+		tree: &RadixTree[T]{
+			t.tree.root,
+			t.size,
+			t.tree.maxNodeId,
+		},
 		size: t.size,
 		snap: t.tree,
 	}
@@ -205,6 +213,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
+		node = t.writeNode(node, true)
 
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= maxPrefixLen {
@@ -253,6 +262,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 
 	if newRoot == nil {
 		newRoot = t.allocNode(node4)
+		newRoot.setNodeLeaf(&NodeLeaf[T]{})
 	}
 	if l != nil {
 		t.trackChannel(t.tree.root)
@@ -354,10 +364,10 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	if t.tree.root == nil {
-		var zero T
-		t.tree.root = t.makeLeaf(nil, zero)
-		t.tree.maxNodeId = 0
-		t.tree.root.setId(0)
+		t.tree.root = &Node4[T]{
+			leaf: &NodeLeaf[T]{},
+			id:   0,
+		}
 	}
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
@@ -491,7 +501,7 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	}
 	t.tree.maxNodeId++
 	n.setId(t.tree.maxNodeId)
-	if !n.isLeaf() {
+	if n.getArtNodeType() != leafType {
 		n.setPartial(make([]byte, maxPrefixLen))
 		n.setPartialLen(maxPrefixLen)
 	}

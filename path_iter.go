@@ -59,7 +59,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node16:
 			n16 := currentNode.(*Node16[T])
-			for itr := int(n16.getNumChildren() - 1); itr >= 0; itr-- {
+			for itr := int(n16.getNumChildren()) - 1; itr >= 0; itr-- {
 				nodeCh := n16.children[itr]
 				if nodeCh == nil {
 					continue
@@ -75,7 +75,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
-			for itr := int(n48.getNumChildren() - 1); itr >= 0; itr-- {
+			for itr := int(n48.getNumChildren()) - 1; itr >= 0; itr-- {
 				idx := n48.keys[itr]
 				if idx == 0 {
 					continue
@@ -95,7 +95,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node256:
 			n256 := currentNode.(*Node256[T])
-			for itr := int(n256.getNumChildren() - 1); itr >= 0; itr-- {
+			for itr := int(n256.getNumChildren()) - 1; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
 					continue
