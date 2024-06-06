@@ -33,7 +33,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(!trackCh, false)
+	nc := n.clone(false, false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
@@ -315,10 +315,8 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	newChild, val, mutate := t.recursiveDelete(child, key, depth+1)
 
 	if newChild != child || val != nil {
-		node = t.writeNode(node, mutate)
-		if !mutate {
-			t.trackChannel(node)
-		}
+		t.trackChannel(node)
+		node = t.writeNode(node, false)
 		node.setChild(idx, newChild)
 		if newChild == nil {
 			node = t.removeChild(node, key[depth])
