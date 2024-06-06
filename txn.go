@@ -104,7 +104,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	if node.isLeaf() {
 		nodeLeafStored := node.getNodeLeaf()
 		if nodeLeafStored.getKeyLen() == 0 {
-			node = t.writeNode(node, true)
+			t.trackChannel(node)
+			node = t.writeNode(node, false)
 			newLeaf := t.allocNode(leafType)
 			newLeaf.setKey(key)
 			newLeaf.setValue(value)
@@ -183,7 +184,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			child, idx := t.findChild(node, key[depth])
 			if child != nil {
 				newChild, val, mutatedSubTree := t.recursiveInsert(child, key, value, depth+1, old)
-				node = t.writeNode(node, true)
+				t.trackChannel(node)
+				node = t.writeNode(node, false)
 				node.setChild(idx, newChild)
 				return node, val, mutatedSubTree
 			}
@@ -193,14 +195,16 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			nL := node.getNodeLeaf()
 			if nL != nil && nL.getKeyLen() != 0 {
 				if bytes.HasPrefix(getKey(nL.getKey()), getKey(newLeafL.getKey())) {
-					node = t.writeNode(node, true)
+					t.trackChannel(node)
+					node = t.writeNode(node, false)
 					newNode := t.allocNode(node4)
 					newNode.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
 					newNode = t.addChild(newNode, key[depth], node)
 					return newNode, zero, true
 				}
 			}
-			node = t.writeNode(node, true)
+			t.trackChannel(node)
+			node = t.writeNode(node, false)
 			// No child, node goes within us
 			node = t.addChild(node, key[depth], newLeaf)
 			// newNode was created
@@ -211,7 +215,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		newNode := t.allocNode(node4)
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
-		node = t.writeNode(node, true)
+		t.trackChannel(node)
+		node = t.writeNode(node, false)
 
 		// Adjust the prefix of the old node
 		if node.getPartialLen() <= maxPrefixLen {
@@ -237,7 +242,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		child, idx := t.findChild(node, key[depth])
 		if child != nil {
 			newChild, val, mutatedSubtree := t.recursiveInsert(child, key, value, depth+1, old)
-			node = t.writeNode(node, true)
+			t.trackChannel(node)
+			node = t.writeNode(node, false)
 			node.setChild(idx, newChild)
 			return node, val, mutatedSubtree
 		}
@@ -245,7 +251,8 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 	newLeaf := t.makeLeaf(key, value)
 	if depth < len(key) {
-		node = t.writeNode(node, true)
+		t.trackChannel(node)
+		node = t.writeNode(node, false)
 		return t.addChild(node, key[depth], newLeaf), zero, true
 	}
 	return node, zero, false
@@ -283,7 +290,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 	if node.getNodeLeaf() != nil {
 		nodeL := node.getNodeLeaf()
 		if leafMatches(nodeL.getKey(), key) == 0 {
-			t.trackChannel(nodeL)
 			node = t.writeNode(node, true)
 			node.setNodeLeaf(nil)
 			if node.getNumChildren() > 0 {
