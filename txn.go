@@ -246,9 +246,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	}
 
 	newLeaf := t.makeLeaf(key, value)
-	if node.getArtNodeType() == 1 && node.getNodeLeaf() != nil && node.getNodeLeaf().getKeyLen() == 0 {
-		return newLeaf, zero, false
-	}
 	if depth < len(key) {
 		node = t.writeNode(node, true)
 		return t.addChild(node, key[depth], newLeaf), zero, true
