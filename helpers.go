@@ -357,13 +357,21 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	slow := 0
 	children := n.getChildren()
-	for itr := 0; itr < int(n.getNumChildren()); itr++ {
+	itr := 0
+	for ; itr < int(n.getNumChildren()); itr++ {
 		if itr == pos {
 			continue
 		}
 		n.setChild(slow, children[itr])
 		slow += 1
 	}
+	for ; itr < len(n.getChildren()); itr++ {
+		if n.getChild(itr) != nil {
+			t.trackChannel(n.getChild(itr))
+		}
+		n.setChild(itr, nil)
+	}
+
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 1 {
@@ -401,12 +409,19 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	children := n.getChildren()
 	slow := 0
-	for itr := 0; itr < int(n.getNumChildren()); itr++ {
+	itr := 0
+	for ; itr < int(n.getNumChildren()); itr++ {
 		if itr == pos {
 			continue
 		}
 		n.setChild(slow, children[itr])
 		slow += 1
+	}
+	for ; itr < len(n.getChildren()); itr++ {
+		if n.getChild(itr) != nil {
+			t.trackChannel(n.getChild(itr))
+		}
+		n.setChild(itr, nil)
 	}
 	n.setNumChildren(n.getNumChildren() - 1)
 
@@ -425,6 +440,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	pos := n.getKeyAtIdx(int(c))
 	n.setKeyAtIdx(int(c), 0)
+	t.trackChannel(n.getChild(int(pos - 1)))
 	n.setChild(int(pos-1), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
 
