@@ -384,12 +384,12 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // to trigger notifications. This doesn't require any additional state but it
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
-	// isClosed returns true if the given channel is closed.
 	for ch := range t.trackChnMap {
-		if ch != nil && !isClosed(ch) {
+		if ch != nil {
 			close(ch)
 		}
 	}
+	t.trackChnMap = nil
 }
 
 func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
@@ -533,7 +533,6 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 		t.trackChnMap = make(map[chan struct{}]struct{})
 	}
 	t.trackChnMap[ch] = struct{}{}
-
 	node.setMutateCh(make(chan struct{}))
 }
 
