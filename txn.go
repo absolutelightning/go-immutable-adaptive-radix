@@ -263,6 +263,8 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	if newRoot == nil {
 		newRoot = t.allocNode(node4)
 		newRoot.setNodeLeaf(&NodeLeaf[T]{})
+		t.tree.maxNodeId++
+		newRoot.setId(t.tree.maxNodeId)
 	}
 	if l != nil {
 		t.trackChannel(t.tree.root)
@@ -364,9 +366,10 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	if t.tree.root == nil {
+		t.tree.maxNodeId++
 		t.tree.root = &Node4[T]{
 			leaf: &NodeLeaf[T]{},
-			id:   0,
+			id:   t.tree.maxNodeId,
 		}
 	}
 	nt := &RadixTree[T]{t.tree.root,
