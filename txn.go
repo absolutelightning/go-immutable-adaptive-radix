@@ -63,10 +63,15 @@ func (t *Txn[T]) Clone() *Txn[T] {
 		t.size,
 		t.tree.maxNodeId,
 	}
+	snapTree := &RadixTree[T]{
+		t.snap.root,
+		t.snap.size,
+		t.snap.maxNodeId,
+	}
 	txn := &Txn[T]{
 		size: t.size,
 		tree: newTree,
-		snap: newTree,
+		snap: snapTree,
 	}
 	return txn
 }
