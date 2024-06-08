@@ -49,7 +49,7 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
 		tree: newTree,
-		snap: newTree,
+		snap: t,
 	}
 	return txn
 }
@@ -63,15 +63,10 @@ func (t *Txn[T]) Clone() *Txn[T] {
 		t.size,
 		t.tree.maxNodeId,
 	}
-	snapTree := &RadixTree[T]{
-		t.snap.root,
-		t.snap.size,
-		t.snap.maxNodeId,
-	}
 	txn := &Txn[T]{
 		size: t.size,
 		tree: newTree,
-		snap: snapTree,
+		snap: t.tree,
 	}
 	return txn
 }
@@ -374,11 +369,13 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 	if t.tree.root == nil {
-		t.tree.maxNodeId++
 		t.tree.root = &Node4[T]{
-			leaf: &NodeLeaf[T]{},
-			id:   t.tree.maxNodeId,
+			leaf: &NodeLeaf[T]{
+				id: t.tree.maxNodeId + 1,
+			},
+			id: t.tree.maxNodeId,
 		}
+		t.tree.maxNodeId += 2
 	}
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
@@ -479,10 +476,12 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	// Allocate memory for the leaf node
 	l := t.allocNode(leafType)
-
 	if l == nil {
 		return nil
 	}
+
+	t.tree.maxNodeId++
+	l.setId(t.tree.maxNodeId)
 
 	// Set the value and key length
 	l.setValue(value)
@@ -491,6 +490,8 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 
 	n4 := t.allocNode(node4)
 	n4.setNodeLeaf(l.(*NodeLeaf[T]))
+	t.tree.maxNodeId++
+	n4.setId(t.tree.maxNodeId)
 	return n4
 }
 

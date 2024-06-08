@@ -38,6 +38,8 @@ func NewRadixTree[T any]() *RadixTree[T] {
 		leaf: &NodeLeaf[T]{},
 	}
 	rt.root.setId(rt.maxNodeId)
+	rt.root.getNodeLeaf().setId(rt.maxNodeId + 1)
+	rt.maxNodeId++
 	return rt
 }
 
