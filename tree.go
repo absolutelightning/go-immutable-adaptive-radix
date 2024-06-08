@@ -58,8 +58,7 @@ func (t *RadixTree[T]) Len() int {
 //}
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
-	nodeT := t.root
-	return nodeT.PathIterator(path)
+	return t.root.PathIterator(path)
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
