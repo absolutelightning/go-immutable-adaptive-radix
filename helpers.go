@@ -377,7 +377,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	if n.getNumChildren() == 1 {
 		nodeToReturn := n.getChild(0)
 		// Is not leaf
-		if !n.getChild(0).isLeaf() {
+		if n.getArtNodeType() != leafType {
 			nodeToReturn = n.getChild(0).clone(true, false)
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
