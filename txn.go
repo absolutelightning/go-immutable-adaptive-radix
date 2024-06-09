@@ -49,7 +49,7 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
 		tree: newTree,
-		snap: t,
+		snap: newTree,
 	}
 	return txn
 }
@@ -66,7 +66,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	txn := &Txn[T]{
 		size: t.size,
 		tree: newTree,
-		snap: t.tree,
+		snap: newTree,
 	}
 	return txn
 }
