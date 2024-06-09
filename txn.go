@@ -267,20 +267,23 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	newRoot, l, _ := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 
 	if newRoot == nil {
-		newRoot = t.allocNode(node4)
-		newRoot.setNodeLeaf(&NodeLeaf[T]{})
-		t.tree.maxNodeId++
-		newRoot.setId(t.tree.maxNodeId)
+		t.tree.root = &Node4[T]{
+			leaf: &NodeLeaf[T]{
+				id: t.tree.maxNodeId + 1,
+			},
+			id: t.tree.maxNodeId,
+		}
+		t.tree.maxNodeId += 2
+	} else {
+		t.tree.root = newRoot
 	}
 	if l != nil {
 		t.trackChannel(t.tree.root)
 		t.size--
 		t.tree.size--
 		old := l.getValue()
-		t.tree.root = newRoot
 		return old, true
 	}
-	t.tree.root = newRoot
 	return zero, false
 }
 
@@ -368,15 +371,6 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
-	if t.tree.root == nil {
-		t.tree.root = &Node4[T]{
-			leaf: &NodeLeaf[T]{
-				id: t.tree.maxNodeId + 1,
-			},
-			id: t.tree.maxNodeId,
-		}
-		t.tree.maxNodeId += 2
-	}
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 		t.tree.maxNodeId,
