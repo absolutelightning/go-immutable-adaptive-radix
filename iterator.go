@@ -18,6 +18,7 @@ type Iterator[T any] struct {
 	pos               Node[T]
 	lowerBound        bool
 	reverseLowerBound bool
+	seeKPrefixWatch   bool
 	seenMismatch      bool
 	iterPath          []byte
 }
@@ -59,6 +60,12 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			leafCh := currentNode.(*NodeLeaf[T])
 			if i.lowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
+					return getKey(leafCh.key), leafCh.value, true
+				}
+				continue
+			}
+			if i.seeKPrefixWatch {
+				if len(leafCh.key) >= 2 && bytes.HasPrefix(getKey(leafCh.key), getKey(i.path)) {
 					return getKey(leafCh.key), leafCh.value, true
 				}
 				continue
@@ -143,6 +150,8 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 
 func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) {
 	// Start from the node
+	i.seeKPrefixWatch = true
+
 	node := i.node
 
 	prefix := getTreeKey(prefixKey)
@@ -170,6 +179,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
+				i.node = node
 				return node.getMutateCh()
 			}
 			depth += int(node.getPartialLen())
@@ -185,7 +195,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 		child, _ := findChild[T](node, prefix[depth])
 		if child == nil {
 			// If the child node doesn't exist, break the loop
-			i.node = nil
+			i.node = node
 			return node.getMutateCh()
 		}
 

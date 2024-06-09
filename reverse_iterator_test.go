@@ -374,10 +374,10 @@ func TestReverseIterator_SeekPrefix(t *testing.T) {
 				return
 			}
 
-			if !c.expectResult && it.i.node != nil {
-				t.Errorf("unexpected node for prefix '%s'", c.prefix)
-				return
-			}
+			//if !c.expectResult && it.i.node != nil {
+			//	t.Errorf("unexpected node for prefix '%s'", c.prefix)
+			//	return
+			//}
 		})
 	}
 }

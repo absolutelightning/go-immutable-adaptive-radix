@@ -1220,7 +1220,6 @@ func TestInsertNewStructure(t *testing.T) {
 	for itr := 0; itr < 10; itr++ {
 		for _, k := range keys {
 			r, _, _ = r.Insert([]byte(k), nil)
-			fmt.Println()
 		}
 	}
 

@@ -14,15 +14,8 @@ type PathIterator[T any] struct {
 }
 
 func (i *PathIterator[T]) Next() ([]byte, T, bool) {
-	node := *i.node
 
 	var zero T
-
-	if node.isLeaf() {
-		if len(node.getKey()) == 0 {
-			return nil, zero, false
-		}
-	}
 
 	if len(i.stack) == 0 {
 		return nil, zero, false
