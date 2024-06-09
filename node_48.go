@@ -100,7 +100,7 @@ func (n *Node48[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
+func (n *Node48[T]) clone(keepWatch bool) Node[T] {
 	newNode := &Node48[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
@@ -114,18 +114,10 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 		newNode.setMutateCh(n.getMutateCh())
 	}
 	copy(newNode.keys[:], n.keys[:])
-	if deep {
-		for i := 0; i < 48; i++ {
-			if n.children[i] != nil {
-				newNode.children[i] = n.children[i].clone(keepWatch, deep)
-			}
-		}
-	} else {
-		cpy := make([]Node[T], len(n.children))
-		copy(cpy, n.children[:])
-		for i := 0; i < 48; i++ {
-			newNode.setChild(i, cpy[i])
-		}
+	cpy := make([]Node[T], len(n.children))
+	copy(cpy, n.children[:])
+	for i := 0; i < 48; i++ {
+		newNode.setChild(i, cpy[i])
 	}
 	return newNode
 }
@@ -168,6 +160,7 @@ func (n *Node48[T]) getChildren() []Node[T] {
 func (n *Node48[T]) getKeys() []byte {
 	return n.keys[:]
 }
+
 func (n *Node48[T]) getMutateCh() chan struct{} {
 	ch := n.mutateCh.Load()
 	if ch != nil {

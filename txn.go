@@ -33,7 +33,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(false, false)
+	nc := n.clone(false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc

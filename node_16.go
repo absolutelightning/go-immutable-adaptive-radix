@@ -92,7 +92,7 @@ func (n *Node16[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
+func (n *Node16[T]) clone(keepWatch bool) Node[T] {
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
@@ -106,18 +106,10 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode.setPartial(newPartial)
 	newNode.setId(n.getId())
 	copy(newNode.keys[:], n.keys[:])
-	if deep {
-		for i := 0; i < 16; i++ {
-			if n.children[i] != nil {
-				newNode.children[i] = n.children[i].clone(keepWatch, deep)
-			}
-		}
-	} else {
-		cpy := make([]Node[T], len(n.children))
-		copy(cpy, n.children[:])
-		for i := 0; i < 16; i++ {
-			newNode.setChild(i, cpy[i])
-		}
+	cpy := make([]Node[T], len(n.children))
+	copy(cpy, n.children[:])
+	for i := 0; i < 16; i++ {
+		newNode.setChild(i, cpy[i])
 	}
 	nodeT := Node[T](newNode)
 	return nodeT
