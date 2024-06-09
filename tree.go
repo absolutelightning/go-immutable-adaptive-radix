@@ -244,14 +244,6 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			if leafMatches(nL.getKey(), key) == 0 {
 				return nL.getValue(), true, nL.getMutateCh()
 			}
-			for _, ch := range n.getChildren() {
-				if ch != nil && ch.getNodeLeaf() != nil {
-					chNodeLeaf := ch.getNodeLeaf()
-					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
-						return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
-					}
-				}
-			}
 		}
 
 		// Bail if the prefix does not match
