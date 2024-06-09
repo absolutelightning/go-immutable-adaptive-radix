@@ -250,8 +250,12 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 	}
 
 	if isLeaf[T](node) {
+		if node.getArtNodeType() == leafType {
+			return node.(*NodeLeaf[T])
+		}
 		return node.getNodeLeaf()
 	}
+
 	var idx int
 	switch node.getArtNodeType() {
 	case node4:

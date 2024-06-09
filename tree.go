@@ -48,15 +48,6 @@ func (t *RadixTree[T]) Len() int {
 	return int(t.size)
 }
 
-// Clone is used to return the clone of tree
-//func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
-//	newRoot := t.root.clone(true, deep)
-//	if deep {
-//		newRoot = t.root.clone(false, deep)
-//	}
-//	return &RadixTree[T]{root: newRoot, size: t.size, maxNodeId: t.maxNodeId}
-//}
-
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 	return t.root.PathIterator(path)
 }
@@ -69,6 +60,12 @@ func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
 
 func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 	return t.iterativeSearch(getTreeKey(key))
+}
+
+func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
+	txn := t.Txn()
+	old, ok := txn.Delete(key)
+	return txn.Commit(), old, ok
 }
 
 func (t *RadixTree[T]) GetWatch(key []byte) (<-chan struct{}, T, bool) {
@@ -140,12 +137,6 @@ func (t *RadixTree[T]) Minimum() *NodeLeaf[T] {
 
 func (t *RadixTree[T]) Maximum() *NodeLeaf[T] {
 	return maximum[T](t.root)
-}
-
-func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn()
-	old, ok := txn.Delete(key)
-	return txn.Commit(), old, ok
 }
 
 func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
@@ -291,6 +282,14 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			if n.getNodeLeaf() != nil {
 				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
 					return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
+				}
+			}
+			for _, ch := range n.getChildren() {
+				if ch != nil && ch.getNodeLeaf() != nil {
+					chNodeLeaf := ch.getNodeLeaf()
+					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
+						return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
+					}
 				}
 			}
 			return zero, false, n.getMutateCh()
