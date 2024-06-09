@@ -175,6 +175,14 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 						return n.getNodeLeaf().getValue(), true
 					}
 				}
+				for _, ch := range n.getChildren() {
+					if ch != nil && ch.getNodeLeaf() != nil {
+						chNodeLeaf := ch.getNodeLeaf()
+						if leafMatches(chNodeLeaf.getKey(), key) == 0 {
+							return chNodeLeaf.getValue(), true
+						}
+					}
+				}
 				return zero, false
 			}
 			depth += int(n.getPartialLen())
@@ -186,6 +194,14 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 					return n.getNodeLeaf().getValue(), true
 				}
 			}
+			for _, ch := range n.getChildren() {
+				if ch != nil && ch.getNodeLeaf() != nil {
+					chNodeLeaf := ch.getNodeLeaf()
+					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
+						return chNodeLeaf.getValue(), true
+					}
+				}
+			}
 			return zero, false
 		}
 
@@ -195,6 +211,14 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 			if n.getNodeLeaf() != nil {
 				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
 					return n.getNodeLeaf().getValue(), true
+				}
+			}
+			for _, ch := range n.getChildren() {
+				if ch != nil && ch.getNodeLeaf() != nil {
+					chNodeLeaf := ch.getNodeLeaf()
+					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
+						return chNodeLeaf.getValue(), true
+					}
 				}
 			}
 			return zero, false
@@ -220,6 +244,14 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			if leafMatches(nL.getKey(), key) == 0 {
 				return nL.getValue(), true, nL.getMutateCh()
 			}
+			for _, ch := range n.getChildren() {
+				if ch != nil && ch.getNodeLeaf() != nil {
+					chNodeLeaf := ch.getNodeLeaf()
+					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
+						return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
+					}
+				}
+			}
 		}
 
 		// Bail if the prefix does not match
@@ -231,6 +263,14 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 						return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
 					}
 				}
+				for _, ch := range n.getChildren() {
+					if ch != nil && ch.getNodeLeaf() != nil {
+						chNodeLeaf := ch.getNodeLeaf()
+						if leafMatches(chNodeLeaf.getKey(), key) == 0 {
+							return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
+						}
+					}
+				}
 				return zero, false, n.getMutateCh()
 			}
 			depth += int(n.getPartialLen())
@@ -240,6 +280,14 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			if n.getNodeLeaf() != nil {
 				if leafMatches(n.getNodeLeaf().getKey(), key) == 0 {
 					return n.getNodeLeaf().getValue(), true, n.getNodeLeaf().getMutateCh()
+				}
+			}
+			for _, ch := range n.getChildren() {
+				if ch != nil && ch.getNodeLeaf() != nil {
+					chNodeLeaf := ch.getNodeLeaf()
+					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
+						return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
+					}
 				}
 			}
 			return zero, false, n.getMutateCh()
