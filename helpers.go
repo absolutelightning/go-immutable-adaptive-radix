@@ -195,6 +195,9 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 		return nil
 	}
 	if isLeaf[T](node) {
+		if node.getArtNodeType() == leafType {
+			return node.(*NodeLeaf[T])
+		}
 		return node.getNodeLeaf()
 	}
 
