@@ -151,6 +151,11 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 
 		if isLeaf[T](n) {
 			// Check if the expanded path matches
+			if n.getArtNodeType() == leafType {
+				if leafMatches(n.getKey(), key) == 0 {
+					return n.getValue(), true
+				}
+			}
 			nL := n.getNodeLeaf()
 			if leafMatches(nL.getKey(), key) == 0 {
 				return nL.getValue(), true
@@ -230,6 +235,11 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		// Might be a leaf
 
 		if isLeaf[T](n) {
+			if n.getArtNodeType() == leafType {
+				if leafMatches(n.getKey(), key) == 0 {
+					return n.getValue(), true, n.getMutateCh()
+				}
+			}
 			// Check if the expanded path matches
 			nL := n.getNodeLeaf()
 			if leafMatches(nL.getKey(), key) == 0 {
