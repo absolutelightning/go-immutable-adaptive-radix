@@ -14,9 +14,7 @@ type Txn[T any] struct {
 
 	size uint64
 
-	// snap is a snapshot of the node node for use if we have to run the
-	// slow notify algorithm.
-	snap *RadixTree[T]
+	oldMaxNodeId uint64
 
 	trackMutate bool
 
@@ -24,7 +22,7 @@ type Txn[T any] struct {
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
-	if n.getId() > t.snap.maxNodeId {
+	if n.getId() > t.oldMaxNodeId {
 		return n
 	}
 	if trackCh {
@@ -33,7 +31,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(false, false)
+	nc := n.clone(false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
@@ -47,9 +45,9 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 		t.maxNodeId,
 	}
 	txn := &Txn[T]{
-		size: t.size,
-		tree: newTree,
-		snap: newTree,
+		size:         t.size,
+		tree:         newTree,
+		oldMaxNodeId: t.maxNodeId,
 	}
 	return txn
 }
@@ -64,9 +62,9 @@ func (t *Txn[T]) Clone() *Txn[T] {
 		t.tree.maxNodeId,
 	}
 	txn := &Txn[T]{
-		size: t.size,
-		tree: newTree,
-		snap: newTree,
+		size:         t.size,
+		tree:         newTree,
+		oldMaxNodeId: newTree.maxNodeId,
 	}
 	return txn
 }
@@ -267,20 +265,23 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	newRoot, l, _ := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 
 	if newRoot == nil {
-		newRoot = t.allocNode(node4)
-		newRoot.setNodeLeaf(&NodeLeaf[T]{})
-		t.tree.maxNodeId++
-		newRoot.setId(t.tree.maxNodeId)
+		t.tree.root = &Node4[T]{
+			leaf: &NodeLeaf[T]{
+				id: t.tree.maxNodeId + 1,
+			},
+			id: t.tree.maxNodeId,
+		}
+		t.tree.maxNodeId += 2
+	} else {
+		t.tree.root = newRoot
 	}
 	if l != nil {
 		t.trackChannel(t.tree.root)
 		t.size--
 		t.tree.size--
 		old := l.getValue()
-		t.tree.root = newRoot
 		return old, true
 	}
-	t.tree.root = newRoot
 	return zero, false
 }
 
@@ -368,15 +369,6 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
-	if t.tree.root == nil {
-		t.tree.root = &Node4[T]{
-			leaf: &NodeLeaf[T]{
-				id: t.tree.maxNodeId + 1,
-			},
-			id: t.tree.maxNodeId,
-		}
-		t.tree.maxNodeId += 2
-	}
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 		t.tree.maxNodeId,

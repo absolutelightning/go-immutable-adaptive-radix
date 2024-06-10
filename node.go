@@ -17,7 +17,7 @@ type Node[T any] interface {
 	matchPrefix([]byte) bool
 	getChild(int) Node[T]
 	setChild(int, Node[T])
-	clone(bool, bool) Node[T]
+	clone(bool) Node[T]
 	setMutateCh(chan struct{})
 	getKey() []byte
 	getValue() T

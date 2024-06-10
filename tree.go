@@ -143,6 +143,10 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 	var zero T
 	n := t.root
 
+	if n == nil {
+		return zero, false
+	}
+
 	var child Node[T]
 	depth := 0
 
@@ -227,6 +231,10 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
 	n := t.root
+
+	if n == nil {
+		return zero, false, nil
+	}
 
 	var child Node[T]
 	depth := 0
