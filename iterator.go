@@ -108,7 +108,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
-			for itr := 0; itr < int(n48.getNumChildren()); itr++ {
+			for itr := 0; itr < 256; itr++ {
 				idx := n48.keys[itr]
 				if idx == 0 {
 					continue
@@ -161,7 +161,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 	i.stack = nil
 	depth := 0
 
-	if prefixKey == nil {
+	if len(prefixKey) == 0 {
 		i.node = node
 		i.stack = []Node[T]{node}
 		return node.getMutateCh()
