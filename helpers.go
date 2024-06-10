@@ -381,7 +381,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 
 	n.setNumChildren(n.getNumChildren() - 1)
 
-	if n.getNumChildren() == 1 {
+	if n.getNumChildren() == 1 && n.getNodeLeaf() == nil {
 		nodeToReturn := n.getChild(0)
 		// Is not leaf
 		if n.getArtNodeType() != leafType {
@@ -439,6 +439,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.getKeys()[:4])
 		copy(n4.children[:], n.getChildren()[:4])
+		newNode.setNodeLeaf(n.getNodeLeaf())
 		return newNode
 	}
 	return n
@@ -455,6 +456,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 		newNode := t.allocNode(node16)
 		t.trackChannel(n)
 		t.copyHeader(newNode, n)
+		newNode.setNodeLeaf(n.getNodeLeaf())
 		child := 0
 		for i := 0; i < 256; i++ {
 			pos = n.getKeyAtIdx(i)
@@ -479,6 +481,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
 		t.trackChannel(n)
+		newNode.setNodeLeaf(n.getNodeLeaf())
 
 		pos := 0
 		for i := 0; i < 256; i++ {
