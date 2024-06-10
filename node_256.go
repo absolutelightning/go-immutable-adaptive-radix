@@ -101,10 +101,9 @@ func (n *Node256[T]) getChild(index int) Node[T] {
 }
 
 func (n *Node256[T]) clone(keepWatch bool) Node[T] {
-	newNode := &Node256[T]{
-		partialLen:  n.getPartialLen(),
-		numChildren: n.getNumChildren(),
-	}
+	newNode := &Node256[T]{}
+	newNode.setPartialLen(n.getPartialLen())
+	newNode.setNumChildren(n.getNumChildren())
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	}

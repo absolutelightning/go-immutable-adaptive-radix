@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"fmt"
 	"strconv"
+	"sync/atomic"
 )
 
 const maxPrefixLen = 10
@@ -35,11 +36,12 @@ type WalkFn[T any] func(k []byte, v T) bool
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0, maxNodeId: 0}
 	rt.root = &Node4[T]{
-		leaf: &NodeLeaf[T]{},
+		id: 0,
+		leaf: &NodeLeaf[T]{
+			id: 1,
+		},
 	}
-	rt.root.setId(rt.maxNodeId)
-	rt.root.getNodeLeaf().setId(rt.maxNodeId + 1)
-	rt.maxNodeId++
+	atomic.AddUint64(&rt.maxNodeId, 2)
 	return rt
 }
 
