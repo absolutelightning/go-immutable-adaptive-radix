@@ -68,7 +68,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
-			for itr := int(n48.getNumChildren()) - 1; itr >= 0; itr-- {
+			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
 				if idx == 0 {
 					continue
