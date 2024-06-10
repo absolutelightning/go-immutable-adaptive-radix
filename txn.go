@@ -14,9 +14,7 @@ type Txn[T any] struct {
 
 	size uint64
 
-	// snap is a snapshot of the node node for use if we have to run the
-	// slow notify algorithm.
-	snap *RadixTree[T]
+	oldMaxNodeId uint64
 
 	trackMutate bool
 
@@ -24,7 +22,7 @@ type Txn[T any] struct {
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
-	if n.getId() > t.snap.maxNodeId {
+	if n.getId() > t.oldMaxNodeId {
 		return n
 	}
 	if trackCh {
@@ -47,9 +45,9 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 		t.maxNodeId,
 	}
 	txn := &Txn[T]{
-		size: t.size,
-		tree: newTree,
-		snap: newTree,
+		size:         t.size,
+		tree:         newTree,
+		oldMaxNodeId: t.maxNodeId,
 	}
 	return txn
 }
@@ -64,9 +62,9 @@ func (t *Txn[T]) Clone() *Txn[T] {
 		t.tree.maxNodeId,
 	}
 	txn := &Txn[T]{
-		size: t.size,
-		tree: newTree,
-		snap: newTree,
+		size:         t.size,
+		tree:         newTree,
+		oldMaxNodeId: newTree.maxNodeId,
 	}
 	return txn
 }
