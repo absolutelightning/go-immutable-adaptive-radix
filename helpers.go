@@ -78,7 +78,10 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 	} else {
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
-		newNode.setNodeLeaf(n.getNodeLeaf())
+		if n.getNodeLeaf() != nil {
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+		}
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
 		t.copyHeader(newNode, n)
@@ -104,7 +107,10 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		return n
 	} else {
 		newNode := t.allocNode(node48)
-		newNode.setNodeLeaf(n.getNodeLeaf())
+		if n.getNodeLeaf() != nil {
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+		}
 		// Copy the child pointers and populate the key map
 		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
 		for i := 0; i < int(n.getNumChildren()); i++ {
@@ -128,7 +134,10 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		return n
 	} else {
 		newNode := t.allocNode(node256)
-		newNode.setNodeLeaf(n.getNodeLeaf())
+		if n.getNodeLeaf() != nil {
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+		}
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
 				newNode.setChild(i, n.getChild(int(n.getKeyAtIdx(i))-1))
@@ -439,6 +448,10 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.getKeys()[:4])
 		copy(n4.children[:], n.getChildren()[:4])
+		if n.getNodeLeaf() != nil {
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+		}
 		newNode.setNodeLeaf(n.getNodeLeaf())
 		return newNode
 	}
@@ -456,7 +469,10 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 		newNode := t.allocNode(node16)
 		t.trackChannel(n)
 		t.copyHeader(newNode, n)
-		newNode.setNodeLeaf(n.getNodeLeaf())
+		if n.getNodeLeaf() != nil {
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+		}
 		child := 0
 		for i := 0; i < 256; i++ {
 			pos = n.getKeyAtIdx(i)
@@ -481,8 +497,10 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 		newNode := t.allocNode(node48)
 		t.copyHeader(newNode, n)
 		t.trackChannel(n)
-		newNode.setNodeLeaf(n.getNodeLeaf())
-
+		if n.getNodeLeaf() != nil {
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+		}
 		pos := 0
 		for i := 0; i < 256; i++ {
 			if n.getChild(i) != nil {
