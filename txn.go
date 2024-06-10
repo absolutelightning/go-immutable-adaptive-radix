@@ -98,7 +98,7 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T, bool) {
 	var zero T
 
-	if node.isLeaf() {
+	if node.isLeaf() && node.getArtNodeType() != leafType {
 		nodeLeafStored := node.getNodeLeaf()
 		if nodeLeafStored.getKeyLen() == 0 {
 			node = t.writeNode(node, true)
