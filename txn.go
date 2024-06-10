@@ -64,7 +64,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
-		oldMaxNodeId: newTree.maxNodeId,
+		oldMaxNodeId: t.oldMaxNodeId,
 	}
 	return txn
 }
