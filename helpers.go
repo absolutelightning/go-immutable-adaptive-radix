@@ -394,7 +394,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 		nodeToReturn := n.getChild(0)
 		// Is not leaf
 		if n.getArtNodeType() != leafType {
-			nodeToReturn = n.getChild(0).clone(false)
+			nodeToReturn = n.getChild(0).clone(true)
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {
@@ -449,7 +449,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		copy(n4.keys[:], n.getKeys()[:4])
 		copy(n4.children[:], n.getChildren()[:4])
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), false)
+			nL := t.writeNode(n.getNodeLeaf(), true)
 			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
 		}
 		newNode.setNodeLeaf(n.getNodeLeaf())
@@ -470,7 +470,7 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 		t.trackChannel(n)
 		t.copyHeader(newNode, n)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), false)
+			nL := t.writeNode(n.getNodeLeaf(), true)
 			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
 		}
 		child := 0
@@ -498,7 +498,7 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 		t.copyHeader(newNode, n)
 		t.trackChannel(n)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), false)
+			nL := t.writeNode(n.getNodeLeaf(), true)
 			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
 		}
 		pos := 0
