@@ -143,17 +143,17 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		if bytes.HasPrefix(getKey(nodeLeaf.getKey()), getKey(newLeaf2L.getKey())) {
 
+			t.trackChannel(nodeLeaf)
 			newNode.setNodeLeaf(newLeaf2L)
 			newNode = t.addChild(newNode, nodeLeaf.getKey()[depth+longestPrefix], node)
-			t.trackChannel(nodeLeaf)
 
 		} else if bytes.HasPrefix(getKey(newLeaf2L.getKey()), getKey(nodeLeaf.getKey())) {
 
 			newNode.setNodeLeaf(nodeLeaf)
-			t.trackChannel(nodeLeaf)
 			newNode = t.addChild(newNode, newLeaf2L.getKey()[depth+longestPrefix], newLeaf2)
 
 		} else {
+			t.trackChannel(nodeLeaf)
 			if len(nodeLeaf.getKey()) > depth+longestPrefix {
 				// Add the leafs to the new node4
 				newNode = t.addChild(newNode, nodeLeaf.getKey()[depth+longestPrefix], node)
