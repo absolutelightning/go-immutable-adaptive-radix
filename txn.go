@@ -340,7 +340,7 @@ func (t *Txn[T]) Root() Node[T] {
 	return t.tree.root
 }
 
-func (t *Txn[T]) GetRoot() *RadixTree[T] {
+func (t *Txn[T]) GetTree() *RadixTree[T] {
 	return t.tree
 }
 
