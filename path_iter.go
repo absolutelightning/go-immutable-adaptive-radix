@@ -88,7 +88,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node256:
 			n256 := currentNode.(*Node256[T])
-			for itr := int(n256.getNumChildren()) - 1; itr >= 0; itr-- {
+			for itr := 255; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
 					continue
