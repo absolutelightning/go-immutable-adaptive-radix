@@ -340,6 +340,10 @@ func (t *Txn[T]) Root() Node[T] {
 	return t.tree.root
 }
 
+func (t *Txn[T]) GetRoot() *RadixTree[T] {
+	return t.tree
+}
+
 // GetWatch is used to lookup a specific key, returning
 // the watch channel, value and if it was found
 func (t *Txn[T]) GetWatch(k []byte) (<-chan struct{}, T, bool) {
