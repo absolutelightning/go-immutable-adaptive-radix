@@ -274,10 +274,10 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 		}
 		t.tree.maxNodeId += 2
 	} else {
+		t.trackChannel(t.tree.root)
 		t.tree.root = newRoot
 	}
 	if l != nil {
-		t.trackChannel(t.tree.root)
 		t.size--
 		t.tree.size--
 		old := l.getValue()
@@ -539,7 +539,7 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 		t.trackChnMap = make(map[chan struct{}]struct{})
 	}
 	t.trackChnMap[ch] = struct{}{}
-	node.setMutateCh(make(chan struct{}))
+	node.setMutateCh(nil)
 }
 
 // isClosed returns true if the given channel is closed.
