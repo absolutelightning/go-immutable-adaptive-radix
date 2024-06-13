@@ -165,6 +165,10 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			idx = int(n.getNumChildren()) - 1
 		}
 
+		if idx >= 0 && n.getKeyAtIdx(idx) != prefix[depth] {
+			ri.i.seenMismatch = true
+		}
+
 		if ri.i.seenMismatch {
 			idx = int(n.getNumChildren()) - 1
 		}
