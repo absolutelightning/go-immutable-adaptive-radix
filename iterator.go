@@ -72,7 +72,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
-			return leafCh.key, leafCh.value, true
+			return getKey(leafCh.key), leafCh.value, true
 		case node4:
 			n4 := node.(*Node4[T])
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
@@ -81,9 +81,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 					continue
 				}
 				key := n4.keys[itr]
-				if i.lowerBound {
-					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
-				} else if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+				if i.seeKPrefixWatch {
+					if (nodeW.d < len(getKey(i.path)) && i.path[nodeW.d] == key) || (nodeW.d >= len(getKey(i.path))) {
+						i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
+					}
+				} else {
 					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
 				}
 			}
@@ -94,7 +96,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if n4.leaf != nil && len(n4.leaf.key) >= len(i.path) {
-				return n4.leaf.key, n4.leaf.value, true
+				return getKey(n4.leaf.key), n4.leaf.value, true
 			}
 		case node16:
 			n16 := node.(*Node16[T])
@@ -104,9 +106,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 					continue
 				}
 				key := n16.keys[itr]
-				if i.lowerBound {
-					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
-				} else if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+				if i.seeKPrefixWatch {
+					if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+						i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
+					}
+				} else {
 					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
 				}
 			}
@@ -117,7 +121,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if n16.leaf != nil && len(n16.leaf.key) >= len(i.path) {
-				return n16.leaf.key, n16.leaf.value, true
+				return getKey(n16.leaf.key), n16.leaf.value, true
 			}
 		case node48:
 			n48 := node.(*Node48[T])
@@ -131,9 +135,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 					continue
 				}
 				key := n48.keys[itr]
-				if i.lowerBound {
-					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
-				} else if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+				if i.seeKPrefixWatch {
+					if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+						i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
+					}
+				} else {
 					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
 				}
 			}
@@ -144,7 +150,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if n48.leaf != nil && len(n48.leaf.key) >= len(i.path) {
-				return n48.leaf.key, n48.leaf.value, true
+				return getKey(n48.leaf.key), n48.leaf.value, true
 			}
 		case node256:
 			n256 := node.(*Node256[T])
@@ -162,27 +168,25 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if n256.leaf != nil && len(n256.leaf.key) >= len(i.path) {
-				return n256.leaf.key, n256.leaf.value, true
+				return getKey(n256.leaf.key), n256.leaf.value, true
 			}
 		}
 	}
 	return nil, zero, false
 }
 
-func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) {
+func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 	// Start from the node
 	i.seeKPrefixWatch = true
 
 	node := i.node
-
-	prefix := getTreeKey(prefixKey)
 
 	i.path = prefix
 
 	i.stack = nil
 	depth := 0
 
-	if len(prefixKey) == 0 {
+	if len(prefix) == 0 {
 		i.node = node
 		i.stack = []NodeWrapper[T]{{node, i.depth}}
 		return node.getMutateCh()
