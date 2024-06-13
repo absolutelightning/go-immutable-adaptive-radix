@@ -90,7 +90,6 @@ func TestIterateLowerBoundFuzz(t *testing.T) {
 }
 
 func TestIterateLowerBound(t *testing.T) {
-	t.Skip()
 
 	// these should be defined in order
 	var fixedLenKeys = []string{

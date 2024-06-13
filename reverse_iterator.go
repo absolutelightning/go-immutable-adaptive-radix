@@ -226,7 +226,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				}
 				continue
 			}
-			if len(i.Path()) >= 2 && !leafCh.matchPrefix([]byte(i.Path())) {
+			if !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
 			i.pos = leafCh
