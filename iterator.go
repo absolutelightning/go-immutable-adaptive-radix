@@ -341,8 +341,8 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			findMin(node)
 			if parent != nil && parent.getNodeLeaf() != nil {
 				i.stack = append(i.stack, NodeWrapper[T]{parent.getNodeLeaf(), 0})
+				return
 			}
-			return
 		}
 
 		if prefixCmp < 0 && !i.seenMismatch {
@@ -395,6 +395,18 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 
 		if i.seenMismatch {
 			idx = 0
+		}
+
+		if i.seenMismatch {
+			for itr := int(node.getNumChildren()) - 1; itr >= idx; itr-- {
+				if node.getChild(itr) != nil {
+					i.stack = append(i.stack, NodeWrapper[T]{node.getChild(itr), 0})
+				}
+			}
+			if node.getNodeLeaf() != nil {
+				i.stack = append(i.stack, NodeWrapper[T]{node.getNodeLeaf(), 0})
+			}
+			return
 		}
 
 		for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
