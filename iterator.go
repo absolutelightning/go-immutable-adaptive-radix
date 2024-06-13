@@ -69,12 +69,6 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				continue
 			}
-			if i.seeKPrefixWatch {
-				if bytes.HasPrefix(leafCh.key, i.path) {
-					return leafCh.key, leafCh.value, true
-				}
-				continue
-			}
 			if !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
@@ -91,7 +85,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
 				}
 			}
-			if n4.leaf != nil && bytes.HasPrefix(n4.leaf.key, i.path) {
+			if n4.leaf != nil && len(n4.leaf.key) >= len(i.path) {
 				return n4.leaf.key, n4.leaf.value, true
 			}
 		case node16:
@@ -106,7 +100,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
 				}
 			}
-			if n16.leaf != nil && bytes.HasPrefix(n16.leaf.key, i.path) {
+			if n16.leaf != nil && len(n16.leaf.key) >= len(i.path) {
 				return n16.leaf.key, n16.leaf.value, true
 			}
 		case node48:
@@ -125,7 +119,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
 				}
 			}
-			if n48.leaf != nil && bytes.HasPrefix(n48.leaf.key, i.path) {
+			if n48.leaf != nil && len(n48.leaf.key) >= len(i.path) {
 				return n48.leaf.key, n48.leaf.value, true
 			}
 		case node256:
@@ -137,7 +131,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n256.partialLen) + 1})
 			}
-			if n256.leaf != nil && bytes.HasPrefix(n256.leaf.key, i.path) {
+			if n256.leaf != nil && len(n256.leaf.key) >= len(i.path) {
 				return n256.leaf.key, n256.leaf.value, true
 			}
 		}
