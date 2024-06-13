@@ -62,7 +62,9 @@ func TestReverseIterator_SeekReverseLowerBoundFuzz(t *testing.T) {
 		return result
 	}
 
-	if err := quick.CheckEqual(radixAddAndScan, sliceAddSortAndFilter, nil); err != nil {
+	if err := quick.CheckEqual(radixAddAndScan, sliceAddSortAndFilter, &quick.Config{
+		MaxCount: 1000,
+	}); err != nil {
 		t.Error(err)
 	}
 }
