@@ -45,19 +45,16 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 
 	// Iterate through the stack until it's empty
 	for len(i.stack) > 0 {
-		node := i.stack[0]
-		i.stack = i.stack[1:]
+		node := i.stack[len(i.stack)-1]
+		i.stack = i.stack[:len(i.stack)-1]
 
 		if node == nil {
 			return nil, zero, false
 		}
 
-		currentNode := node.(Node[T])
-
-		i.pos = currentNode
-		switch currentNode.getArtNodeType() {
+		switch node.getArtNodeType() {
 		case leafType:
-			leafCh := currentNode.(*NodeLeaf[T])
+			leafCh := node.(*NodeLeaf[T])
 			if i.lowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
 					return getKey(leafCh.key), leafCh.value, true
@@ -75,37 +72,31 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
-			n4 := currentNode.(*Node4[T])
+			n4 := node.(*Node4[T])
 			for itr := int(n4.getNumChildren()) - 1; itr >= 0; itr-- {
 				nodeCh := n4.getChild(itr)
 				if nodeCh == nil {
 					continue
 				}
-				i.stack = append(i.stack, nil)
-				copy(i.stack[1:], i.stack[0:])
-				child := (n4.children[itr]).(Node[T])
-				i.stack[0] = child
+				i.stack = append(i.stack, nodeCh)
 			}
 			if n4.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n4.getNodeLeaf()}, i.stack...)
+				i.stack = append(i.stack, node.getNodeLeaf())
 			}
 		case node16:
-			n16 := currentNode.(*Node16[T])
+			n16 := node.(*Node16[T])
 			for itr := int(n16.getNumChildren()) - 1; itr >= 0; itr-- {
 				nodeCh := n16.children[itr]
 				if nodeCh == nil {
 					continue
 				}
-				i.stack = append(i.stack, nil)
-				copy(i.stack[1:], i.stack[0:])
-				child := (n16.children[itr]).(Node[T])
-				i.stack[0] = child
+				i.stack = append(i.stack, nodeCh)
 			}
 			if n16.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n16.getNodeLeaf()}, i.stack...)
+				i.stack = append(i.stack, node.getNodeLeaf())
 			}
 		case node48:
-			n48 := currentNode.(*Node48[T])
+			n48 := node.(*Node48[T])
 			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
 				if idx == 0 {
@@ -115,32 +106,25 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := nodeCh
-				i.stack = append(i.stack, nil)
-				copy(i.stack[1:], i.stack[0:])
-				i.stack[0] = child
+				i.stack = append(i.stack, nodeCh)
 			}
 			if n48.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n48.getNodeLeaf()}, i.stack...)
+				i.stack = append(i.stack, node.getNodeLeaf())
 			}
 		case node256:
-			n256 := currentNode.(*Node256[T])
+			n256 := node.(*Node256[T])
 			for itr := 255; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
 					continue
 				}
-				child := nodeCh
-				i.stack = append(i.stack, nil)
-				copy(i.stack[1:], i.stack[0:])
-				i.stack[0] = child
+				i.stack = append(i.stack, nodeCh)
 			}
 			if n256.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n256.getNodeLeaf()}, i.stack...)
+				i.stack = append(i.stack, node.getNodeLeaf())
 			}
 		}
 	}
-	i.pos = nil
 	return nil, zero, false
 }
 

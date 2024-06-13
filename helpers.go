@@ -343,11 +343,13 @@ func findChild[T any](n Node[T], c byte) (Node[T], int) {
 }
 
 func getTreeKey(key []byte) []byte {
-	return append([]byte{'^'}, append(key, '$')...)
+	//return append([]byte{'^'}, append(key, '$')...)
+	return key
 }
 
 func getKey(key []byte) []byte {
-	return key[1 : len(key)-1]
+	return key
+	//return key[1 : len(key)-1]
 }
 
 func (t *Txn[T]) removeChild(n Node[T], c byte) Node[T] {

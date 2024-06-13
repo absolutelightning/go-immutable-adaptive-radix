@@ -1888,3 +1888,26 @@ func BenchmarkDeleteART(b *testing.B) {
 		r, _, _ = r.Delete([]byte(uuid1))
 	}
 }
+
+func BenchmarkSeekPrefixWatchART(b *testing.B) {
+	r := NewRadixTree[int]()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		uuid1, _ := uuid.GenerateUUID()
+		r, _, _ = r.Insert([]byte(uuid1), n)
+		iter := r.root.Iterator()
+		iter.SeekPrefixWatch([]byte(""))
+		count := 0
+		for {
+			_, _, f := iter.Next()
+			if f {
+				count++
+			} else {
+				break
+			}
+		}
+		if r.Len() != count {
+			b.Fatalf("hello")
+		}
+	}
+}
