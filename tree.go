@@ -85,7 +85,7 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 
 	n := t.root
 	last = nil
-	if n.isLeaf() && n.getNodeLeaf() != nil {
+	if n.getNodeLeaf() != nil {
 		last = n.getNodeLeaf()
 	}
 	for {
@@ -103,7 +103,7 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 			break
 		}
 
-		if len(key) >= 2 && n.getNodeLeaf() != nil && len(n.getNodeLeaf().getKey()) >= 2 && bytes.HasPrefix(getKey(key), getKey(n.getNodeLeaf().getKey())) {
+		if n.getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey(n.getNodeLeaf().getKey())) {
 			last = n.getNodeLeaf()
 		}
 
@@ -124,7 +124,7 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 		depth++
 	}
 
-	if last != nil && len(last.getKey()) >= 2 {
+	if last != nil {
 		return getKey(last.getKey()), last.getValue(), true
 	}
 
