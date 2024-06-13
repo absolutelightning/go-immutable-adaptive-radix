@@ -92,49 +92,37 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 			return leafCh.key, leafCh.value, true
 		case node4:
-			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
-				continue
-			}
 			n4 := node.(*Node4[T])
-			newDepth := nodeW.d
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
 				nodeCh := n4.children[itr]
 				if nodeCh == nil {
 					continue
 				}
 				key := n4.keys[itr]
-				if (newDepth < len(i.path) && i.path[newDepth] == key) || (newDepth >= len(i.path)) {
-					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, newDepth + int(n4.partialLen) + 1})
+				if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
 				}
 			}
 			if n4.leaf != nil && bytes.HasPrefix(n4.leaf.key, i.path) {
 				return n4.leaf.key, n4.leaf.value, true
 			}
 		case node16:
-			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
-				continue
-			}
 			n16 := node.(*Node16[T])
-			newDepth := nodeW.d
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
 				nodeCh := n16.children[itr]
 				if nodeCh == nil {
 					continue
 				}
 				key := n16.keys[itr]
-				if (newDepth < len(i.path) && i.path[newDepth] == key) || (newDepth >= len(i.path)) {
-					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, newDepth + int(n16.partialLen) + 1})
+				if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
 				}
 			}
 			if n16.leaf != nil && bytes.HasPrefix(n16.leaf.key, i.path) {
 				return n16.leaf.key, n16.leaf.value, true
 			}
 		case node48:
-			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
-				continue
-			}
 			n48 := node.(*Node48[T])
-			newDepth := nodeW.d
 			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
 				if idx == 0 {
@@ -145,8 +133,8 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 					continue
 				}
 				key := n48.keys[itr]
-				if (newDepth < len(i.path) && i.path[newDepth] == key) || (newDepth >= len(i.path)) {
-					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, newDepth + int(n48.partialLen) + 1})
+				if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
+					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
 				}
 			}
 			if n48.leaf != nil && bytes.HasPrefix(n48.leaf.key, i.path) {
@@ -154,15 +142,14 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 		case node256:
 			n256 := node.(*Node256[T])
-			newDepth := nodeW.d + int(n256.partialLen)
 			for itr := 255; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
 					continue
 				}
-				i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, newDepth + int(n256.partialLen) + 1})
+				i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n256.partialLen) + 1})
 			}
-			if n256.leaf != nil && len(n256.leaf.key) >= 2 && bytes.HasPrefix(n256.leaf.key, i.path) {
+			if n256.leaf != nil && bytes.HasPrefix(n256.leaf.key, i.path) {
 				return n256.leaf.key, n256.leaf.value, true
 			}
 		}
