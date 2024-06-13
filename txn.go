@@ -99,6 +99,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 	var zero T
 
 	if t.tree.size == 0 {
+		node = t.writeNode(node, true)
 		newLeaf := t.allocNode(leafType)
 		newLeaf.setKey(key)
 		newLeaf.setValue(value)

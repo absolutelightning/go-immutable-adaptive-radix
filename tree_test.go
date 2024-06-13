@@ -1087,9 +1087,7 @@ func TestIteratePrefix(t *testing.T) {
 
 	for idx, test := range cases {
 		iter := r.Root().Iterator()
-		if test.inp != "" {
-			iter.SeekPrefix([]byte(test.inp))
-		}
+		iter.SeekPrefix([]byte(test.inp))
 
 		// Consume all the keys
 		var out []string
@@ -1908,7 +1906,7 @@ func BenchmarkSeekPrefixWatchART(b *testing.B) {
 			}
 		}
 		if r.Len() != count {
-			//b.Fatalf("hello")
+			b.Fatalf("hello")
 		}
 	}
 }
