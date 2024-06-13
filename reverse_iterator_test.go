@@ -411,7 +411,6 @@ func TestReverseIterator_SeekPrefixWatch(t *testing.T) {
 }
 
 func TestReverseIterator_Previous(t *testing.T) {
-	t.Skip()
 	r := NewRadixTree[any]()
 	keys := []string{"001", "002", "005", "010", "100"}
 	for _, k := range keys {
