@@ -81,11 +81,10 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
+				i.stack = append(i.stack, nil)
+				copy(i.stack[1:], i.stack[0:])
 				child := (n4.children[itr]).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
-				copy(newStack[1:], i.stack)
-				newStack[0] = child
-				i.stack = newStack
+				i.stack[0] = child
 			}
 			if n4.getNodeLeaf() != nil {
 				i.stack = append([]Node[T]{n4.getNodeLeaf()}, i.stack...)
@@ -97,11 +96,10 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := (nodeCh).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
-				copy(newStack[1:], i.stack)
-				newStack[0] = child
-				i.stack = newStack
+				i.stack = append(i.stack, nil)
+				copy(i.stack[1:], i.stack[0:])
+				child := (n16.children[itr]).(Node[T])
+				i.stack[0] = child
 			}
 			if n16.getNodeLeaf() != nil {
 				i.stack = append([]Node[T]{n16.getNodeLeaf()}, i.stack...)
@@ -117,11 +115,10 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := (nodeCh).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
-				copy(newStack[1:], i.stack)
-				newStack[0] = child
-				i.stack = newStack
+				child := nodeCh
+				i.stack = append(i.stack, nil)
+				copy(i.stack[1:], i.stack[0:])
+				i.stack[0] = child
 			}
 			if n48.getNodeLeaf() != nil {
 				i.stack = append([]Node[T]{n48.getNodeLeaf()}, i.stack...)
@@ -133,11 +130,10 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := (n256.children[itr]).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
-				copy(newStack[1:], i.stack)
-				newStack[0] = child
-				i.stack = newStack
+				child := nodeCh
+				i.stack = append(i.stack, nil)
+				copy(i.stack[1:], i.stack[0:])
+				i.stack[0] = child
 			}
 			if n256.getNodeLeaf() != nil {
 				i.stack = append([]Node[T]{n256.getNodeLeaf()}, i.stack...)
