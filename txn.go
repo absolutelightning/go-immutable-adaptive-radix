@@ -240,18 +240,16 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		return newNode, zero, true
 	}
 
-	if depth < len(key) {
-		// Find a child to recurse to
-		child, idx := t.findChild(node, key[depth])
-		if child != nil {
-			newChild, val, mutatedSubtree := t.recursiveInsert(child, key, value, depth+1, old)
-			if mutatedSubtree || newChild != child {
-				t.trackChannel(node)
-				node = t.writeNode(node, false)
-				node.setChild(idx, newChild)
-			}
-			return node, val, mutatedSubtree
+	// Find a child to recurse to
+	child, idx := t.findChild(node, key[depth])
+	if child != nil {
+		newChild, val, mutatedSubtree := t.recursiveInsert(child, key, value, depth+1, old)
+		if mutatedSubtree || newChild != child {
+			t.trackChannel(node)
+			node = t.writeNode(node, false)
+			node.setChild(idx, newChild)
 		}
+		return node, val, mutatedSubtree
 	}
 
 	newLeaf := t.makeLeaf(key, value)

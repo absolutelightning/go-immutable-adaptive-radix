@@ -29,7 +29,6 @@ func (s readableString) Generate(rand *rand.Rand, size int) reflect.Value {
 }
 
 func TestIterateLowerBoundFuzz(t *testing.T) {
-	t.Skip()
 	r := NewRadixTree[string]()
 	var set []string
 
@@ -336,6 +335,21 @@ func TestIterateLowerBound(t *testing.T) {
 			[]string{"bfdgcfe", "ca", "dbf"},
 			"a",
 			[]string{"bfdgcfe", "ca", "dbf"},
+		},
+		{
+			[]string{"a", "abcbad", "acgcfcd", "afadb", "ageafge", "agecd", "bcce", "becgcda", "bfbg", "cbece", "cbgebaa", "cef", "d", "eaee", "f", "fcccfdb", "ffbdf", "geacded", "geccfff", "gefdgaf"},
+			"",
+			[]string{"a", "abcbad", "acgcfcd", "afadb", "ageafge", "agecd", "bcce", "becgcda", "bfbg", "cbece", "cbgebaa", "cef", "d", "eaee", "f", "fcccfdb", "ffbdf", "geacded", "geccfff", "gefdgaf"},
+		},
+		{
+			[]string{"g", "ecfa", "fccdcab", "ffb", "gbcdab", "ge", "gegaa", "ggfd"},
+			"ece",
+			[]string{"ecfa", "fccdcab", "ffb", "g", "gbcdab", "ge", "gegaa", "ggfd"},
+		},
+		{
+			[]string{"ebfbbda", "eedg", "fcgcfgd", "fgbgefa", "g", "gfab", "e"},
+			"dfcda",
+			[]string{"e", "ebfbbda", "eedg", "fcgcfgd", "fgbgefa", "g", "gfab"},
 		},
 	}
 

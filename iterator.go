@@ -267,6 +267,11 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 	i.stack = []NodeWrapper[T]{}
 	i.lowerBound = true
 
+	if len(prefixKey) == 0 {
+		i.stack = []NodeWrapper[T]{{node, 0}}
+		return
+	}
+
 	prefix := getTreeKey(prefixKey)
 
 	found := func(n Node[T]) {
@@ -342,8 +347,8 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		}
 
 		// Determine the child index to proceed based on the next byte of the prefix
-		if node.getPartialLen() > 0 {
-			// If the node has a prefix, compare it with the prefix
+		// If the node has a prefix, compare it with the prefix
+		if node.getArtNodeType() != leafType {
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) && !i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
@@ -366,6 +371,10 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		}
 
 		idx := node.getLowerBoundCh(prefix[depth])
+
+		if idx >= 0 && node.getKeyAtIdx(idx) != prefix[depth] {
+			i.seenMismatch = true
+		}
 
 		if i.seenMismatch {
 			idx = 0
