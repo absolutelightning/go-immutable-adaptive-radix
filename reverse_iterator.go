@@ -188,6 +188,10 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 	var zero T
 
+	if ri.expandedParents == nil {
+		ri.expandedParents = make(map[Node[T]]struct{})
+	}
+
 	if ri.i.stack == nil && ri.i.node != nil {
 		ri.i.stack = []NodeWrapper[T]{{ri.i.node, ri.i.depth}}
 	}
@@ -227,13 +231,13 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			if alreadyExpanded {
 				continue
 			}
+			ri.expandedParents[node] = struct{}{}
 			n4 := node.(*Node4[T])
 			if n4.leaf != nil {
-				if bytes.Compare(n4.leaf.key, ri.i.path) <= 0 {
+				if bytes.Compare(n4.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n4.leaf, 0})
 				}
 			}
-			ri.expandedParents[node] = struct{}{}
 			for itr := 0; itr < int(n4.numChildren); itr++ {
 				nodeCh := n4.children[itr]
 				if nodeCh == nil {
@@ -267,7 +271,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			ri.expandedParents[node] = struct{}{}
 			n16 := node.(*Node16[T])
 			if n16.leaf != nil {
-				if bytes.Compare(n16.leaf.key, ri.i.path) <= 0 {
+				if bytes.Compare(n16.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n16.leaf, 0})
 				}
 			}
@@ -303,7 +307,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 			n48 := node.(*Node48[T])
 			if n48.leaf != nil {
-				if bytes.Compare(n48.leaf.key, ri.i.path) <= 0 {
+				if bytes.Compare(n48.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n48.leaf, 0})
 				}
 			}
@@ -346,7 +350,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 			n256 := node.(*Node256[T])
 			if n256.leaf != nil {
-				if bytes.Compare(n256.leaf.key, ri.i.path) <= 0 {
+				if bytes.Compare(n256.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n256.leaf, 0})
 				}
 			}
