@@ -233,7 +233,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 			ri.expandedParents[node] = struct{}{}
 			n4 := node.(*Node4[T])
-			if n4.leaf != nil {
+			if !ri.i.seeKPrefixWatch && n4.leaf != nil {
 				if bytes.Compare(n4.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n4.leaf, 0})
 				}
@@ -270,7 +270,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 			ri.expandedParents[node] = struct{}{}
 			n16 := node.(*Node16[T])
-			if n16.leaf != nil {
+			if !ri.i.seeKPrefixWatch && n16.leaf != nil {
 				if bytes.Compare(n16.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n16.leaf, 0})
 				}
@@ -306,7 +306,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				continue
 			}
 			n48 := node.(*Node48[T])
-			if n48.leaf != nil {
+			if !ri.i.seeKPrefixWatch && n48.leaf != nil {
 				if bytes.Compare(n48.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n48.leaf, 0})
 				}
@@ -349,7 +349,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				continue
 			}
 			n256 := node.(*Node256[T])
-			if n256.leaf != nil {
+			if !ri.i.seeKPrefixWatch && n256.leaf != nil {
 				if bytes.Compare(n256.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n256.leaf, 0})
 				}
