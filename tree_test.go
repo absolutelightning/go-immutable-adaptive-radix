@@ -1008,7 +1008,6 @@ func TestDeletePrefix(t *testing.T) {
 }
 
 func TestIteratePrefix(t *testing.T) {
-	t.Skip()
 	r := NewRadixTree[any]()
 
 	keys := []string{
