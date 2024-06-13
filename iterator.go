@@ -72,30 +72,45 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			}
 			return getKey(leafCh.key), leafCh.value, true
 		case node4:
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				continue
+			}
 			n4 := node.(*Node4[T])
 			for itr := int(n4.getNumChildren()) - 1; itr >= 0; itr-- {
 				nodeCh := n4.getChild(itr)
 				if nodeCh == nil {
 					continue
 				}
+				if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+					continue
+				}
 				i.stack = append(i.stack, nodeCh)
 			}
-			if n4.getNodeLeaf() != nil {
-				i.stack = append(i.stack, node.getNodeLeaf())
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				return getKey(node.getNodeLeaf().key), node.getNodeLeaf().value, true
 			}
 		case node16:
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				continue
+			}
 			n16 := node.(*Node16[T])
 			for itr := int(n16.getNumChildren()) - 1; itr >= 0; itr-- {
 				nodeCh := n16.children[itr]
 				if nodeCh == nil {
 					continue
 				}
+				if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+					continue
+				}
 				i.stack = append(i.stack, nodeCh)
 			}
-			if n16.getNodeLeaf() != nil {
-				i.stack = append(i.stack, node.getNodeLeaf())
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				return getKey(node.getNodeLeaf().key), node.getNodeLeaf().value, true
 			}
 		case node48:
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				continue
+			}
 			n48 := node.(*Node48[T])
 			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
@@ -106,13 +121,19 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
+				if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+					continue
+				}
 				i.stack = append(i.stack, nodeCh)
 			}
-			if n48.getNodeLeaf() != nil {
-				i.stack = append(i.stack, node.getNodeLeaf())
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				return getKey(node.getNodeLeaf().key), node.getNodeLeaf().value, true
 			}
 		case node256:
 			n256 := node.(*Node256[T])
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && !node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				continue
+			}
 			for itr := 255; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
@@ -120,8 +141,8 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, nodeCh)
 			}
-			if n256.getNodeLeaf() != nil {
-				i.stack = append(i.stack, node.getNodeLeaf())
+			if node.getNodeLeaf() != nil && len(i.Path()) >= 2 && node.getNodeLeaf().matchPrefix([]byte(i.Path())) {
+				return getKey(node.getNodeLeaf().key), node.getNodeLeaf().value, true
 			}
 		}
 	}
@@ -181,6 +202,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 		i.stack = []Node[T]{node}
 		i.node = node
+		i.depth = depth
 
 		node = child
 		// Move to the next level in the tree
