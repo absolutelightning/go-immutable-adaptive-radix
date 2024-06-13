@@ -160,7 +160,7 @@ func TestARTree_InsertVeryLongKey(t *testing.T) {
 	require.Equal(t, art.size, uint64(2))
 }
 
-func TestARTree_InsertSearchAndDelete(t *testing.T) {
+func TestARTree_InsertAndSearchAndDeleteWords(t *testing.T) {
 	t.Parallel()
 
 	art := NewRadixTree[int]()
@@ -177,20 +177,21 @@ func TestARTree_InsertSearchAndDelete(t *testing.T) {
 	// optionally, resize scanner's capacity for lines over 64K, see next example
 	lineNumber := 1
 	for scanner.Scan() {
-		art, _, _ = art.Insert(scanner.Bytes(), lineNumber)
+		line := scanner.Text()
+		art, _, _ = art.Insert([]byte(line), lineNumber)
 		lineNumber += 1
 		lines = append(lines, scanner.Text())
 	}
 
 	// optionally, resize scanner's capacity for lines over 64K, see next example
-	lineNumber = 1
 	var val int
+	lineNumber = 1
 	for _, line := range lines {
 		lineNumberFetched, f := art.Get([]byte(line))
 		require.True(t, f)
-		require.Equal(t, lineNumberFetched, lineNumber)
 		art, val, _ = art.Delete([]byte(line))
 		require.Equal(t, val, lineNumber)
+		require.Equal(t, lineNumberFetched, lineNumber)
 		lineNumber += 1
 		require.Equal(t, art.size, uint64(len(lines)-lineNumber+1))
 	}
