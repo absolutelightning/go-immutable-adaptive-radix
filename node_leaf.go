@@ -114,9 +114,7 @@ func (n *NodeLeaf[T]) matchPrefix(prefix []byte) bool {
 	if len(n.key) == 0 {
 		return false
 	}
-	actualKey := getKey(n.key)
-	actualPrefix := getKey(prefix)
-	return bytes.HasPrefix(actualKey, actualPrefix)
+	return bytes.HasPrefix(n.key, prefix)
 }
 
 func (n *NodeLeaf[T]) getChild(index int) Node[T] {
