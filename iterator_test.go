@@ -83,7 +83,9 @@ func TestIterateLowerBoundFuzz(t *testing.T) {
 		return result
 	}
 
-	if err := quick.CheckEqual(radixAddAndScan, sliceAddSortAndFilter, nil); err != nil {
+	if err := quick.CheckEqual(radixAddAndScan, sliceAddSortAndFilter, &quick.Config{
+		MaxCount: 1000,
+	}); err != nil {
 		t.Error(err)
 	}
 }
@@ -335,6 +337,41 @@ func TestIterateLowerBound(t *testing.T) {
 			[]string{"bfdgcfe", "ca", "dbf"},
 			"a",
 			[]string{"bfdgcfe", "ca", "dbf"},
+		},
+		{
+			[]string{"a", "abcbad", "acgcfcd", "afadb", "ageafge", "agecd", "bcce", "becgcda", "bfbg", "cbece", "cbgebaa", "cef", "d", "eaee", "f", "fcccfdb", "ffbdf", "geacded", "geccfff", "gefdgaf"},
+			"",
+			[]string{"a", "abcbad", "acgcfcd", "afadb", "ageafge", "agecd", "bcce", "becgcda", "bfbg", "cbece", "cbgebaa", "cef", "d", "eaee", "f", "fcccfdb", "ffbdf", "geacded", "geccfff", "gefdgaf"},
+		},
+		{
+			[]string{"g", "ecfa", "fccdcab", "ffb", "gbcdab", "ge", "gegaa", "ggfd"},
+			"ece",
+			[]string{"ecfa", "fccdcab", "ffb", "g", "gbcdab", "ge", "gegaa", "ggfd"},
+		},
+		{
+			[]string{"ebfbbda", "eedg", "fcgcfgd", "fgbgefa", "g", "gfab", "e"},
+			"dfcda",
+			[]string{"e", "ebfbbda", "eedg", "fcgcfgd", "fgbgefa", "g", "gfab"},
+		},
+		{
+			[]string{"eace", "cbecg", "eacee", "eadfcdc", "eadgbc", "eafga", "ebbggd", "ebdcd", "ecc", "ececb", "ecefaef", "edbffd", "edbge", "eddd", "ede", "edeb", "edgbgf", "ee", "eedee", "ef", "efa", "efadaf", "effb", "efg", "eg", "egcbbd", "egdcaff", "f", "fa", "fadbff", "fagfec", "fbgfaf", "fcadb", "fcde", "fcegb", "fcfbfgd", "fd", "fdagf", "fdc", "fdcbf", "fdfb", "fdgc", "fefb", "ff", "ffce", "ffd", "ffec", "ffeef", "ffeg", "fff", "fgbde", "fgdbebc", "fgegaf", "g", "gaaff", "gab", "gaeddc", "gbaead", "gbbgcgf", "gbcdbac", "gbef", "gcf", "gddb", "ge", "gea", "geaga", "gebe", "gecgae", "gfb", "gfeba", "gfgeecd", "gg", "ggdac"},
+			"eaccfd",
+			[]string{"eace", "eacee", "eadfcdc", "eadgbc", "eafga", "ebbggd", "ebdcd", "ecc", "ececb", "ecefaef", "edbffd", "edbge", "eddd", "ede", "edeb", "edgbgf", "ee", "eedee", "ef", "efa", "efadaf", "effb", "efg", "eg", "egcbbd", "egdcaff", "f", "fa", "fadbff", "fagfec", "fbgfaf", "fcadb", "fcde", "fcegb", "fcfbfgd", "fd", "fdagf", "fdc", "fdcbf", "fdfb", "fdgc", "fefb", "ff", "ffce", "ffd", "ffec", "ffeef", "ffeg", "fff", "fgbde", "fgdbebc", "fgegaf", "g", "gaaff", "gab", "gaeddc", "gbaead", "gbbgcgf", "gbcdbac", "gbef", "gcf", "gddb", "ge", "gea", "geaga", "gebe", "gecgae", "gfb", "gfeba", "gfgeecd", "gg", "ggdac"},
+		},
+		{
+			[]string{"dbacgg", "gfg", "gfggefe", "ggggde"},
+			"gfd",
+			[]string{"gfg", "gfggefe", "ggggde"},
+		},
+		{
+			[]string{"gccdcc", "gcc", "gccdf", "gcdbdde", "gcdgac", "gcea", "gcebb", "gcedg", "gcefbgd", "gcf", "gcgaff", "gcgddgg", "gd", "gda", "gdaefc", "gdbebe", "gdbeffd", "gdceb", "gdcefcd", "ge", "gebeag", "gecd", "gecead", "gede", "geeaff", "gefacgc", "gefag", "geg", "gf", "gfa", "gfc", "gfca", "gfe", "gfeg", "gfg", "gfgcbg", "gfgdae", "gga", "ggadd", "ggafdbd", "ggbad", "ggbgadg", "ggfec", "ggffeb", "gggce"},
+			"gcafede",
+			[]string{"gcc", "gccdcc", "gccdf", "gcdbdde", "gcdgac", "gcea", "gcebb", "gcedg", "gcefbgd", "gcf", "gcgaff", "gcgddgg", "gd", "gda", "gdaefc", "gdbebe", "gdbeffd", "gdceb", "gdcefcd", "ge", "gebeag", "gecd", "gecead", "gede", "geeaff", "gefacgc", "gefag", "geg", "gf", "gfa", "gfc", "gfca", "gfe", "gfeg", "gfg", "gfgcbg", "gfgdae", "gga", "ggadd", "ggafdbd", "ggbad", "ggbgadg", "ggfec", "ggffeb", "gggce"},
+		},
+		{
+			[]string{"g", "gfaabb"},
+			"g",
+			[]string{"g", "gfaabb"},
 		},
 	}
 
