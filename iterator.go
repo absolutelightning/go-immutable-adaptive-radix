@@ -13,8 +13,7 @@ import (
 type Iterator[T any] struct {
 	path              []byte
 	node              Node[T]
-	stack             []Node[T]
-	stackIter         []NodeWrapper[T]
+	stack             []NodeWrapper[T]
 	depth             int
 	pos               Node[T]
 	lowerBound        bool
@@ -46,25 +45,14 @@ func (i *Iterator[T]) Path() string {
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
-	if !i.stackItrSet {
-		i.stackItrSet = true
-		stackIter := make([]NodeWrapper[T], 0)
-
-		for _, ele := range i.stack {
-			stackIter = append(stackIter, NodeWrapper[T]{n: ele, d: i.depth})
-			i.stack = nil
-			i.node = nil
-		}
-		if i.stack == nil && i.node != nil {
-			stackIter = []NodeWrapper[T]{{i.node, i.depth}}
-		}
-		i.stackIter = stackIter
+	if i.stack == nil && i.node != nil {
+		i.stack = []NodeWrapper[T]{{i.node, i.depth}}
 	}
 
 	// Iterate through the stack until it's empty
-	for len(i.stackIter) > 0 {
-		nodeW := i.stackIter[len(i.stackIter)-1]
-		i.stackIter = i.stackIter[:len(i.stackIter)-1]
+	for len(i.stack) > 0 {
+		nodeW := i.stack[len(i.stack)-1]
+		i.stack = i.stack[:len(i.stack)-1]
 
 		node := nodeW.n
 
@@ -100,7 +88,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				key := n4.keys[itr]
 				if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
-					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
+					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
 				}
 			}
 			if n4.leaf != nil && bytes.HasPrefix(n4.leaf.key, i.path) {
@@ -115,7 +103,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				key := n16.keys[itr]
 				if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
-					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
+					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
 				}
 			}
 			if n16.leaf != nil && bytes.HasPrefix(n16.leaf.key, i.path) {
@@ -134,7 +122,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				key := n48.keys[itr]
 				if (nodeW.d < len(i.path) && i.path[nodeW.d] == key) || (nodeW.d >= len(i.path)) {
-					i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
+					i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
 				}
 			}
 			if n48.leaf != nil && bytes.HasPrefix(n48.leaf.key, i.path) {
@@ -147,7 +135,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				i.stackIter = append(i.stackIter, NodeWrapper[T]{nodeCh, nodeW.d + int(n256.partialLen) + 1})
+				i.stack = append(i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n256.partialLen) + 1})
 			}
 			if n256.leaf != nil && bytes.HasPrefix(n256.leaf.key, i.path) {
 				return n256.leaf.key, n256.leaf.value, true
@@ -172,11 +160,11 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 
 	if len(prefixKey) == 0 {
 		i.node = node
-		i.stack = []Node[T]{node}
+		i.stack = []NodeWrapper[T]{{node, i.depth}}
 		return node.getMutateCh()
 	}
 
-	i.stack = []Node[T]{node}
+	i.stack = []NodeWrapper[T]{{node, i.depth}}
 	i.node = node
 
 	for {
@@ -213,7 +201,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefixKey []byte) (watch <-chan struct{}) 
 			return node.getMutateCh()
 		}
 
-		i.stack = []Node[T]{node}
+		i.stack = []NodeWrapper[T]{{node, i.depth}}
 		i.node = node
 		i.depth = depth
 
@@ -236,9 +224,9 @@ func (i *Iterator[T]) recurseMin(n Node[T]) Node[T] {
 	if nCh > 1 {
 		// Add all the other edges to the stack (the min node will be added as
 		// we recurse)
-		var allCh []Node[T]
+		var allCh []NodeWrapper[T]
 		for itr := nCh - 1; itr >= 1; itr-- {
-			allCh = append(allCh, n.getChild(int(itr)))
+			allCh = append(allCh, NodeWrapper[T]{n.getChild(int(itr)), 0})
 		}
 		i.stack = append(allCh, i.stack...)
 	}
@@ -252,14 +240,14 @@ func (i *Iterator[T]) recurseMin(n Node[T]) Node[T] {
 func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 	node := i.node
 
-	i.stack = []Node[T]{}
+	i.stack = []NodeWrapper[T]{}
 	i.lowerBound = true
 
 	prefix := getTreeKey(prefixKey)
 
 	found := func(n Node[T]) {
 		i.stack = append(
-			[]Node[T]{n},
+			[]NodeWrapper[T]{{n, 0}},
 			i.stack...,
 		)
 	}
@@ -286,7 +274,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 
 		if node == nil {
 			if parent != nil && parent.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{parent.getNodeLeaf(), 0}}, i.stack...)
 			}
 			return
 		}
@@ -304,7 +292,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			// leaf under this subtree.
 			findMin(node)
 			if parent != nil && parent.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{parent.getNodeLeaf(), 0}}, i.stack...)
 			}
 			return
 		}
@@ -314,7 +302,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 			// bound
 			i.node = nil
 			if parent != nil && parent.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{parent.getNodeLeaf(), 0}}, i.stack...)
 			}
 			return
 		}
@@ -322,7 +310,7 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		if node.isLeaf() && node.getNodeLeaf() != nil && bytes.Compare(node.getNodeLeaf().getKey(), prefix) >= 0 {
 			found(node)
 			if parent != nil && parent.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{parent.getNodeLeaf(), 0}}, i.stack...)
 			}
 			return
 		}
@@ -343,9 +331,9 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		}
 
 		if depth >= len(prefix) {
-			i.stack = append([]Node[T]{node}, i.stack...)
+			i.stack = append([]NodeWrapper[T]{{node, 0}}, i.stack...)
 			if parent != nil && parent.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{parent.getNodeLeaf(), 0}}, i.stack...)
 			}
 			return
 		}
@@ -358,12 +346,12 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 
 		for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
 			if node.getChild(itr) != nil {
-				i.stack = append([]Node[T]{node.getChild(itr)}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{node.getChild(itr), 0}}, i.stack...)
 			}
 		}
 
 		if parent != nil && parent.getNodeLeaf() != nil {
-			i.stack = append([]Node[T]{parent.getNodeLeaf()}, i.stack...)
+			i.stack = append([]NodeWrapper[T]{{parent.getNodeLeaf(), 0}}, i.stack...)
 		}
 
 		if idx == -1 {

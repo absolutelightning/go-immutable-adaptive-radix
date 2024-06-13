@@ -43,7 +43,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 	// iterating the whole tree from the root node. Either way this needs to end
 	// up as nil so just set it here.
 	ri.i.seenMismatch = false
-	ri.i.stack = make([]Node[T], 0)
+	ri.i.stack = make([]NodeWrapper[T], 0)
 	ri.i.reverseLowerBound = true
 	n := ri.i.node
 	ri.i.node = nil
@@ -57,7 +57,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 
 	found := func(n Node[T]) {
 		ri.i.stack = append(
-			[]Node[T]{n},
+			[]NodeWrapper[T]{{n, 0}},
 			ri.i.stack...,
 		)
 		// We need to mark this node as expanded in advance too otherwise the
@@ -90,7 +90,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// if it finds a node in the stack that has _not_ been marked as expanded
 			// so in this one case we don't call `found` and instead let the iterator
 			// do the expansion and recursion through all the children.
-			ri.i.stack = append([]Node[T]{n}, ri.i.stack...)
+			ri.i.stack = append([]NodeWrapper[T]{{n, 0}}, ri.i.stack...)
 			return
 		}
 
@@ -100,7 +100,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// reverse lower bound since nothing comes before our current search
 			// prefix.
 			if n.getNodeLeaf() != nil {
-				ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
+				ri.i.stack = append([]NodeWrapper[T]{{n.getNodeLeaf(), 0}}, ri.i.stack...)
 			}
 			return
 		}
@@ -139,7 +139,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			if mismatchIdx < int(n.getPartialLen()) && !ri.i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
 				if n.getNodeLeaf() != nil {
-					ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
+					ri.i.stack = append([]NodeWrapper[T]{{n.getNodeLeaf(), 0}}, ri.i.stack...)
 				}
 				n = nil
 				return
@@ -151,12 +151,12 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 		}
 
 		if depth >= len(prefix) {
-			ri.i.stack = append([]Node[T]{n}, ri.i.stack...)
+			ri.i.stack = append([]NodeWrapper[T]{{n, 0}}, ri.i.stack...)
 			return
 		}
 
 		if n.getNodeLeaf() != nil {
-			ri.i.stack = append([]Node[T]{n.getNodeLeaf()}, ri.i.stack...)
+			ri.i.stack = append([]NodeWrapper[T]{{n.getNodeLeaf(), 0}}, ri.i.stack...)
 		}
 
 		idx := n.getLowerBoundCh(prefix[depth])
@@ -171,7 +171,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 
 		for itr := 0; itr < idx; itr++ {
 			if n.getChild(itr) != nil {
-				ri.i.stack = append([]Node[T]{n.getChild(itr)}, ri.i.stack...)
+				ri.i.stack = append([]NodeWrapper[T]{{n.getChild(itr), 0}}, ri.i.stack...)
 			}
 		}
 
@@ -197,8 +197,10 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 
 	// Iterate through the stack until it's empty
 	for len(i.stack) > 0 {
-		node := i.stack[0]
+		nodeW := i.stack[0]
 		i.stack = i.stack[1:]
+
+		node := nodeW.n
 
 		if node == nil {
 			return nil, zero, false
@@ -232,7 +234,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 		case node4:
 			n4 := currentNode.(*Node4[T])
 			if n4.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n4.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{n4.getNodeLeaf(), 0}}, i.stack...)
 			}
 			for itr := 0; itr < int(n4.getNumChildren()); itr++ {
 				nodeCh := n4.children[itr]
@@ -240,15 +242,15 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 					continue
 				}
 				child := (n4.children[itr]).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
+				newStack := make([]NodeWrapper[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
-				newStack[0] = child
+				newStack[0] = NodeWrapper[T]{child, 0}
 				i.stack = newStack
 			}
 		case node16:
 			n16 := currentNode.(*Node16[T])
 			if n16.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n16.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{n16.getNodeLeaf(), 0}}, i.stack...)
 			}
 			for itr := 0; itr < int(n16.getNumChildren()); itr++ {
 				nodeCh := n16.children[itr]
@@ -256,15 +258,15 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 					continue
 				}
 				child := (nodeCh).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
+				newStack := make([]NodeWrapper[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
-				newStack[0] = child
+				newStack[0] = NodeWrapper[T]{child, 0}
 				i.stack = newStack
 			}
 		case node48:
 			n48 := currentNode.(*Node48[T])
 			if n48.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n48.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{n48.getNodeLeaf(), 0}}, i.stack...)
 			}
 			for itr := 0; itr < int(n48.getNumChildren()); itr++ {
 				idx := n48.keys[itr]
@@ -276,15 +278,15 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 					continue
 				}
 				child := (nodeCh).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
+				newStack := make([]NodeWrapper[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
-				newStack[0] = child
+				newStack[0] = NodeWrapper[T]{child, 0}
 				i.stack = newStack
 			}
 		case node256:
 			n256 := currentNode.(*Node256[T])
 			if n256.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n256.getNodeLeaf()}, i.stack...)
+				i.stack = append([]NodeWrapper[T]{{n256.getNodeLeaf(), 0}}, i.stack...)
 			}
 			for itr := 0; itr < int(n256.getNumChildren()); itr++ {
 				nodeCh := n256.children[itr]
@@ -292,9 +294,9 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 					continue
 				}
 				child := (n256.children[itr]).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
+				newStack := make([]NodeWrapper[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
-				newStack[0] = child
+				newStack[0] = NodeWrapper[T]{child, 0}
 				i.stack = newStack
 			}
 		}
