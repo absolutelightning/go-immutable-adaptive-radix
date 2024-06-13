@@ -357,11 +357,11 @@ func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
 		}
 
 		if depth >= len(prefix) {
+			i.stack = append(i.stack, NodeWrapper[T]{node, 0})
 			if parent != nil && parent.getNodeLeaf() != nil {
 				i.stack = append(i.stack, NodeWrapper[T]{parent.getNodeLeaf(), 0})
 				return
 			}
-			i.stack = append(i.stack, NodeWrapper[T]{node, 0})
 			return
 		}
 
