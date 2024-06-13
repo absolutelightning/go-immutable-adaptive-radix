@@ -347,6 +347,9 @@ func getTreeKey(key []byte) []byte {
 }
 
 func getKey(key []byte) []byte {
+	if len(key) == 0 {
+		return key
+	}
 	return key[:len(key)-1]
 }
 
