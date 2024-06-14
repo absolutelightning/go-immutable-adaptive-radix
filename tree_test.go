@@ -1911,17 +1911,40 @@ func BenchmarkSeekPrefixWatchART(b *testing.B) {
 	}
 }
 
-func BenchmarkSeekPrefixWatchARTSeekPrefix(b *testing.B) {
+func BenchmarkSeekLowerBound(b *testing.B) {
 	r := NewRadixTree[int]()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
 		r, _, _ = r.Insert([]byte(uuid1), n)
 		iter := r.root.Iterator()
-		iter.SeekPrefixWatch([]byte(uuid1))
+		iter.SeekLowerBound([]byte(""))
 		count := 0
 		for {
 			_, _, f := iter.Next()
+			if f {
+				count++
+			} else {
+				break
+			}
+		}
+		if r.Len() != count {
+			//b.Fatalf("hello")
+		}
+	}
+}
+
+func BenchmarkSeekReverseLowerBound(b *testing.B) {
+	r := NewRadixTree[int]()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		uuid1, _ := uuid.GenerateUUID()
+		r, _, _ = r.Insert([]byte(uuid1), n)
+		iter := r.root.ReverseIterator()
+		iter.SeekReverseLowerBound([]byte(""))
+		count := 0
+		for {
+			_, _, f := iter.Previous()
 			if f {
 				count++
 			} else {
