@@ -40,10 +40,6 @@ func (i *Iterator[T]) Path() string {
 func (i *Iterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
-	if i.stack == nil && i.node != nil {
-		i.stack = append(i.stack, i.node)
-	}
-
 	// Iterate through the stack until it's empty
 	for len(i.stack) > 0 {
 		node := i.stack[len(i.stack)-1]
@@ -178,7 +174,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 				// If there's a mismatch, set the node to nil to break the loop
 				if node.getNodeLeaf() != nil {
 					if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
-						i.stack = nil
+						i.stack = []Node[T]{node}
 						i.node = node
 					} else {
 						i.stack = nil
@@ -188,7 +184,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 				minNode := minimum(node)
 				if minNode != nil {
 					if hasPrefix(minNode.getKey(), prefix) {
-						i.stack = nil
+						i.stack = []Node[T]{node}
 						i.node = node
 					} else {
 						i.stack = nil
@@ -204,7 +200,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 			// If the prefix is exhausted, break the loop
 			if node.getNodeLeaf() != nil {
 				if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
-					i.stack = nil
+					i.stack = []Node[T]{node}
 					i.node = node
 				} else {
 					i.stack = nil
@@ -214,7 +210,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 			minNode := minimum(node)
 			if minNode != nil {
 				if hasPrefix(minNode.getKey(), prefix) {
-					i.stack = nil
+					i.stack = []Node[T]{node}
 					i.node = node
 				} else {
 					i.stack = nil
@@ -230,7 +226,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 			// If the child node doesn't exist, break the loop
 			if node.getNodeLeaf() != nil {
 				if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
-					i.stack = nil
+					i.stack = []Node[T]{node}
 					i.node = node
 				} else {
 					i.stack = nil
