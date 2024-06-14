@@ -60,8 +60,8 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			return nil, zero, false
 		}
 
-		switch node.getArtNodeType() {
-		case leafType:
+		switch node.(type) {
+		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])
 			if i.lowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
@@ -73,7 +73,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			return getKey(leafCh.key), leafCh.value, true
-		case node4:
+		case *Node4[T]:
 			n4 := node.(*Node4[T])
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
 				nodeCh := n4.children[itr]
@@ -100,7 +100,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if n4.leaf != nil && i.seeKPrefixWatch {
 				return getKey(n4.leaf.key), n4.leaf.value, true
 			}
-		case node16:
+		case *Node16[T]:
 			n16 := node.(*Node16[T])
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
 				nodeCh := n16.children[itr]
@@ -127,7 +127,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if n16.leaf != nil && i.seeKPrefixWatch {
 				return getKey(n16.leaf.key), n16.leaf.value, true
 			}
-		case node48:
+		case *Node48[T]:
 			n48 := node.(*Node48[T])
 			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
@@ -158,7 +158,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if n48.leaf != nil && i.seeKPrefixWatch {
 				return getKey(n48.leaf.key), n48.leaf.value, true
 			}
-		case node256:
+		case *Node256[T]:
 			n256 := node.(*Node256[T])
 			for itr := 255; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
