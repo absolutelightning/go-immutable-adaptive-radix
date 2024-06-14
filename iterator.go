@@ -90,9 +90,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if hasPrefix(getKey(n4.leaf.key), i.path) {
-					return getKey(n4.leaf.key), n4.leaf.value, true
-				}
+				return getKey(n4.leaf.key), n4.leaf.value, true
 			}
 		case *Node16[T]:
 			n16 := node.(*Node16[T])
@@ -111,9 +109,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if hasPrefix(getKey(n16.leaf.key), i.path) {
-					return getKey(n16.leaf.key), n16.leaf.value, true
-				}
+				return getKey(n16.leaf.key), n16.leaf.value, true
 			}
 		case *Node48[T]:
 			n48 := node.(*Node48[T])
@@ -136,9 +132,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if hasPrefix(getKey(n48.leaf.key), i.path) {
-					return getKey(n48.leaf.key), n48.leaf.value, true
-				}
+				return getKey(n48.leaf.key), n48.leaf.value, true
 			}
 		case *Node256[T]:
 			n256 := node.(*Node256[T])
@@ -157,9 +151,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if hasPrefix(getKey(n256.leaf.key), i.path) {
-					return getKey(n256.leaf.key), n256.leaf.value, true
-				}
+				return getKey(n256.leaf.key), n256.leaf.value, true
 			}
 		}
 	}
@@ -202,8 +194,25 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
-				i.stack = nil
-				i.node = node
+				if node.getNodeLeaf() != nil {
+					if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
+						i.stack = nil
+						i.node = node
+					} else {
+						i.stack = nil
+						i.node = nil
+					}
+				}
+				minNode := minimum(node)
+				if minNode != nil {
+					if hasPrefix(minNode.getKey(), prefix) {
+						i.stack = nil
+						i.node = node
+					} else {
+						i.stack = nil
+						i.node = nil
+					}
+				}
 				return node.getMutateCh()
 			}
 			depth += int(node.getPartialLen())
@@ -211,9 +220,25 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 
 		if depth >= len(prefix) {
 			// If the prefix is exhausted, break the loop
-			i.stack = nil
-			i.node = node
-			i.depth = depth
+			if node.getNodeLeaf() != nil {
+				if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
+					i.stack = nil
+					i.node = node
+				} else {
+					i.stack = nil
+					i.node = nil
+				}
+			}
+			minNode := minimum(node)
+			if minNode != nil {
+				if hasPrefix(minNode.getKey(), prefix) {
+					i.stack = nil
+					i.node = node
+				} else {
+					i.stack = nil
+					i.node = nil
+				}
+			}
 			return node.getMutateCh()
 		}
 
@@ -221,8 +246,15 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 		child, _ := findChild[T](node, prefix[depth])
 		if child == nil {
 			// If the child node doesn't exist, break the loop
-			i.stack = nil
-			i.node = node
+			if node.getNodeLeaf() != nil {
+				if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
+					i.stack = nil
+					i.node = node
+				} else {
+					i.stack = nil
+					i.node = nil
+				}
+			}
 			return node.getMutateCh()
 		}
 
