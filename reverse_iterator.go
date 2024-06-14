@@ -206,8 +206,8 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			return nil, zero, false
 		}
 
-		switch node.getArtNodeType() {
-		case leafType:
+		switch node.(type) {
+		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])
 			if ri.i.reverseLowerBound {
 				if bytes.Compare(getKey(leafCh.key), getKey(ri.i.path)) <= 0 {
@@ -219,7 +219,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				continue
 			}
 			return getKey(leafCh.key), leafCh.value, true
-		case node4:
+		case *Node4[T]:
 			n4 := node.(*Node4[T])
 			if !ri.i.seeKPrefixWatch && n4.leaf != nil {
 				if bytes.Compare(n4.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
@@ -242,7 +242,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			if n4.leaf != nil && ri.i.seeKPrefixWatch && hasPrefix(getKey(n4.leaf.key), ri.i.path) {
 				return getKey(n4.leaf.key), n4.leaf.value, true
 			}
-		case node16:
+		case *Node16[T]:
 			n16 := node.(*Node16[T])
 			if !ri.i.seeKPrefixWatch && n16.leaf != nil {
 				if bytes.Compare(n16.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
@@ -259,7 +259,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			if n16.leaf != nil && ri.i.seeKPrefixWatch && hasPrefix(getKey(n16.leaf.key), ri.i.path) {
 				return getKey(n16.leaf.key), n16.leaf.value, true
 			}
-		case node48:
+		case *Node48[T]:
 			n48 := node.(*Node48[T])
 			if !ri.i.seeKPrefixWatch && n48.leaf != nil {
 				if bytes.Compare(n48.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
@@ -284,7 +284,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			if n48.leaf != nil && ri.i.seeKPrefixWatch && hasPrefix(getKey(n48.leaf.key), ri.i.path) {
 				return getKey(n48.leaf.key), n48.leaf.value, true
 			}
-		case node256:
+		case *Node256[T]:
 			n256 := node.(*Node256[T])
 			if !ri.i.seeKPrefixWatch && n256.leaf != nil {
 				if bytes.Compare(n256.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
