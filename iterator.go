@@ -60,14 +60,14 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, n4.children[itr])
 			}
+			if i.seeKPrefixWatch && n4L != nil {
+				return getKey(n4L.key), n4L.value, true
+			}
 			if i.lowerBound && n4L != nil {
 				if bytes.Compare(n4L.key, i.path) >= 0 {
 					return getKey(n4L.key), n4L.value, true
 				}
 				continue
-			}
-			if i.seeKPrefixWatch && n4L != nil {
-				return getKey(n4L.key), n4L.value, true
 			}
 		case *Node16[T]:
 			n16 := node.(*Node16[T])
@@ -75,14 +75,13 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, n16.children[itr])
 			}
+			if i.seeKPrefixWatch && n16L != nil {
+				return getKey(n16L.key), n16L.value, true
+			}
 			if i.lowerBound && n16L != nil {
 				if bytes.Compare(n16L.key, i.path) >= 0 {
 					return getKey(n16.leaf.key), n16.leaf.value, true
 				}
-				continue
-			}
-			if i.seeKPrefixWatch && n16L != nil {
-				return getKey(n16L.key), n16L.value, true
 			}
 		case *Node48[T]:
 			n48 := node.(*Node48[T])
@@ -98,14 +97,13 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, nodeCh)
 			}
+			if i.seeKPrefixWatch && n48L != nil {
+				return getKey(n48L.key), n48L.value, true
+			}
 			if i.lowerBound && n48L != nil {
 				if bytes.Compare(n48L.key, i.path) >= 0 {
 					return getKey(n48L.key), n48L.value, true
 				}
-				continue
-			}
-			if i.seeKPrefixWatch && n48L != nil {
-				return getKey(n48L.key), n48L.value, true
 			}
 		case *Node256[T]:
 			n256 := node.(*Node256[T])
@@ -117,14 +115,13 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, nodeCh)
 			}
+			if i.seeKPrefixWatch && n256L != nil {
+				return getKey(n256L.key), n256L.value, true
+			}
 			if i.lowerBound && n256L != nil {
 				if bytes.Compare(n256L.key, i.path) >= 0 {
 					return getKey(n256L.key), n256L.value, true
 				}
-				continue
-			}
-			if i.seeKPrefixWatch && n256L != nil {
-				return getKey(n256L.key), n256L.value, true
 			}
 		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])
