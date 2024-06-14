@@ -189,6 +189,10 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 	var zero T
 
+	if ri.expandedParents == nil {
+		ri.expandedParents = make(map[Node[T]]struct{})
+	}
+
 	if ri.i.stack == nil && ri.i.node != nil {
 		ri.i.stack = []Node[T]{ri.i.node}
 	}
@@ -235,6 +239,9 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				}
 				continue
 			}
+			if n4.leaf != nil && ri.i.seeKPrefixWatch && hasPrefix(getKey(n4.leaf.key), ri.i.path) {
+				return getKey(n4.leaf.key), n4.leaf.value, true
+			}
 		case node16:
 			n16 := node.(*Node16[T])
 			if !ri.i.seeKPrefixWatch && n16.leaf != nil {
@@ -248,6 +255,9 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 			for itr := 0; itr < int(n16.numChildren); itr++ {
 				ri.i.stack = append(ri.i.stack, n16.children[itr])
+			}
+			if n16.leaf != nil && ri.i.seeKPrefixWatch && hasPrefix(getKey(n16.leaf.key), ri.i.path) {
+				return getKey(n16.leaf.key), n16.leaf.value, true
 			}
 		case node48:
 			n48 := node.(*Node48[T])
@@ -291,6 +301,9 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 					continue
 				}
 				ri.i.stack = append(ri.i.stack, nodeCh)
+			}
+			if n256.leaf != nil && ri.i.seeKPrefixWatch && hasPrefix(getKey(n256.leaf.key), ri.i.path) {
+				return getKey(n256.leaf.key), n256.leaf.value, true
 			}
 		}
 	}
