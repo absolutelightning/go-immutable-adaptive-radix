@@ -90,7 +90,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if len(n4.leaf.key) >= len(i.path) {
+				if hasPrefix(getKey(n4.leaf.key), i.path) {
 					return getKey(n4.leaf.key), n4.leaf.value, true
 				}
 			}
@@ -111,7 +111,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if len(n16.leaf.key) >= len(i.path) {
+				if hasPrefix(getKey(n16.leaf.key), i.path) {
 					return getKey(n16.leaf.key), n16.leaf.value, true
 				}
 			}
@@ -136,7 +136,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if len(n48.leaf.key) >= len(i.path) {
+				if hasPrefix(getKey(n48.leaf.key), i.path) {
 					return getKey(n48.leaf.key), n48.leaf.value, true
 				}
 			}
@@ -157,7 +157,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				continue
 			}
 			if hasLeaf && i.seeKPrefixWatch {
-				if len(n256.leaf.key) >= len(i.path) {
+				if hasPrefix(getKey(n256.leaf.key), i.path) {
 					return getKey(n256.leaf.key), n256.leaf.value, true
 				}
 			}
@@ -200,17 +200,10 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 		if node.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
-			if mismatchIdx < int(node.getPartialLen()) || mismatchIdx >= len(prefix) {
-				i.stack = nil
-				i.node = node
-				i.depth = depth
-				return node.getMutateCh()
-			}
 			if mismatchIdx < int(node.getPartialLen()) {
 				// If there's a mismatch, set the node to nil to break the loop
 				i.stack = nil
 				i.node = node
-				i.depth = depth
 				return node.getMutateCh()
 			}
 			depth += int(node.getPartialLen())
