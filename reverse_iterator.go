@@ -43,7 +43,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 	// iterating the whole tree from the root node. Either way this needs to end
 	// up as nil so just set it here.
 	ri.i.seenMismatch = false
-	ri.i.stack = make([]NodeWrapper[T], 0)
+	ri.i.stack = make([]Node[T], 0)
 	ri.i.reverseLowerBound = true
 	n := ri.i.node
 	ri.i.node = nil
@@ -58,7 +58,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 	found := func(n Node[T]) {
 		ri.i.stack = append(
 			ri.i.stack,
-			NodeWrapper[T]{n, 0},
+			n,
 		)
 	}
 
@@ -84,7 +84,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// if it finds a node in the stack that has _not_ been marked as expanded
 			// so in this one case we don't call `found` and instead let the iterator
 			// do the expansion and recursion through all the children.
-			ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n, 0})
+			ri.i.stack = append(ri.i.stack, n)
 			return
 		}
 
@@ -94,7 +94,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			// reverse lower bound since nothing comes before our current search
 			// prefix.
 			if n.getNodeLeaf() != nil {
-				ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n.getNodeLeaf(), 0})
+				ri.i.stack = append(ri.i.stack, n.getNodeLeaf())
 			}
 			return
 		}
@@ -133,7 +133,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 			if mismatchIdx < int(n.getPartialLen()) && !ri.i.seenMismatch {
 				// If there's a mismatch, set the node to nil to break the loop
 				if n.getNodeLeaf() != nil {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n.getNodeLeaf(), 0})
+					ri.i.stack = append(ri.i.stack, n.getNodeLeaf())
 				}
 				n = nil
 				return
@@ -145,12 +145,12 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 		}
 
 		if depth >= len(prefix) {
-			ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n, 0})
+			ri.i.stack = append(ri.i.stack, n)
 			return
 		}
 
 		if n.getNodeLeaf() != nil {
-			ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n, 0})
+			ri.i.stack = append(ri.i.stack, n)
 		}
 
 		idx := n.getLowerBoundCh(prefix[depth])
@@ -169,7 +169,7 @@ func (ri *ReverseIterator[T]) SeekReverseLowerBound(key []byte) {
 
 		for itr := 0; itr < idx; itr++ {
 			if n.getChild(itr) != nil {
-				ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n.getChild(itr), 0})
+				ri.i.stack = append(ri.i.stack, n.getChild(itr))
 			}
 		}
 
@@ -193,15 +193,13 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 	}
 
 	if ri.i.stack == nil && ri.i.node != nil {
-		ri.i.stack = []NodeWrapper[T]{{ri.i.node, ri.i.depth}}
+		ri.i.stack = []Node[T]{ri.i.node}
 	}
 
 	// Iterate through the stack until it's empty
 	for len(ri.i.stack) > 0 {
-		nodeW := ri.i.stack[len(ri.i.stack)-1]
+		node := ri.i.stack[len(ri.i.stack)-1]
 		ri.i.stack = ri.i.stack[:len(ri.i.stack)-1]
-
-		node := nodeW.n
 
 		if node == nil {
 			return nil, zero, false
@@ -235,7 +233,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			n4 := node.(*Node4[T])
 			if !ri.i.seeKPrefixWatch && n4.leaf != nil {
 				if bytes.Compare(n4.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n4.leaf, 0})
+					ri.i.stack = append(ri.i.stack, n4.leaf)
 				}
 			}
 			for itr := 0; itr < int(n4.numChildren); itr++ {
@@ -243,16 +241,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				key := n4.keys[itr]
-				if ri.i.seeKPrefixWatch {
-					if (nodeW.d < len(ri.i.path) && ri.i.path[nodeW.d] == key) || (nodeW.d+int(n4.partialLen) >= len(ri.i.path)) {
-						ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
-					} else if (nodeW.n.getNodeLeaf() != nil) && hasPrefix(getKey(nodeW.n.getNodeLeaf().getKey()), ri.i.path) {
-						ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeW.n.getNodeLeaf(), nodeW.d + int(n4.partialLen) + 1})
-					}
-				} else {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n4.partialLen) + 1})
-				}
+				ri.i.stack = append(ri.i.stack, nodeCh)
 			}
 			if ri.i.lowerBound && n4.leaf != nil {
 				if bytes.Compare(n4.leaf.key, ri.i.path) <= 0 {
@@ -272,7 +261,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			n16 := node.(*Node16[T])
 			if !ri.i.seeKPrefixWatch && n16.leaf != nil {
 				if bytes.Compare(n16.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n16.leaf, 0})
+					ri.i.stack = append(ri.i.stack, n16.leaf)
 				}
 			}
 			for itr := 0; itr < int(n16.numChildren); itr++ {
@@ -280,16 +269,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				key := n16.keys[itr]
-				if ri.i.seeKPrefixWatch {
-					if (nodeW.d < len(ri.i.path) && ri.i.path[nodeW.d] == key) || (nodeW.d+int(n16.partialLen) >= len(ri.i.path)) {
-						ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
-					} else if (nodeW.n.getNodeLeaf() != nil) && hasPrefix(getKey(nodeW.n.getNodeLeaf().getKey()), ri.i.path) {
-						ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeW.n.getNodeLeaf(), nodeW.d + int(n16.partialLen) + 1})
-					}
-				} else {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n16.partialLen) + 1})
-				}
+				ri.i.stack = append(ri.i.stack, nodeCh)
 			}
 			if ri.i.lowerBound && n16.leaf != nil {
 				if bytes.Compare(n16.leaf.key, ri.i.path) <= 0 {
@@ -308,7 +288,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			n48 := node.(*Node48[T])
 			if !ri.i.seeKPrefixWatch && n48.leaf != nil {
 				if bytes.Compare(n48.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n48.leaf, 0})
+					ri.i.stack = append(ri.i.stack, n48.leaf)
 				}
 			}
 			for itr := 0; itr < 256; itr++ {
@@ -320,16 +300,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				key := n48.keys[itr]
-				if ri.i.seeKPrefixWatch {
-					if (nodeW.d < len(ri.i.path) && ri.i.path[nodeW.d] == key) || (nodeW.d+int(n48.partialLen) >= len(ri.i.path)) {
-						ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
-					} else if (nodeW.n.getNodeLeaf() != nil) && hasPrefix(getKey(nodeW.n.getNodeLeaf().getKey()), ri.i.path) {
-						ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeW.n.getNodeLeaf(), nodeW.d + int(n48.partialLen) + 1})
-					}
-				} else {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n48.partialLen) + 1})
-				}
+				ri.i.stack = append(ri.i.stack, nodeCh)
 			}
 			if ri.i.lowerBound && n48.leaf != nil {
 				if bytes.Compare(n48.leaf.key, ri.i.path) <= 0 {
@@ -351,7 +322,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			n256 := node.(*Node256[T])
 			if !ri.i.seeKPrefixWatch && n256.leaf != nil {
 				if bytes.Compare(n256.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
-					ri.i.stack = append(ri.i.stack, NodeWrapper[T]{n256.leaf, 0})
+					ri.i.stack = append(ri.i.stack, n256.leaf)
 				}
 			}
 			for itr := 0; itr < 256; itr++ {
@@ -359,7 +330,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				ri.i.stack = append(ri.i.stack, NodeWrapper[T]{nodeCh, nodeW.d + int(n256.partialLen) + 1})
+				ri.i.stack = append(ri.i.stack, nodeCh)
 			}
 			if ri.i.lowerBound && n256.leaf != nil {
 				if bytes.Compare(n256.leaf.key, ri.i.path) <= 0 {

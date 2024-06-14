@@ -1910,3 +1910,26 @@ func BenchmarkSeekPrefixWatchART(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkSeekPrefixWatchARTSeekPrefix(b *testing.B) {
+	r := NewRadixTree[int]()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		uuid1, _ := uuid.GenerateUUID()
+		r, _, _ = r.Insert([]byte(uuid1), n)
+		iter := r.root.Iterator()
+		iter.SeekPrefixWatch([]byte(uuid1))
+		count := 0
+		for {
+			_, _, f := iter.Next()
+			if f {
+				count++
+			} else {
+				break
+			}
+		}
+		if r.Len() != count {
+			//b.Fatalf("hello")
+		}
+	}
+}

@@ -347,10 +347,11 @@ func getTreeKey(key []byte) []byte {
 }
 
 func getKey(key []byte) []byte {
-	if len(key) == 0 {
+	keyLen := len(key)
+	if keyLen == 0 {
 		return key
 	}
-	return key[:len(key)-1]
+	return key[:keyLen-1]
 }
 
 func (t *Txn[T]) removeChild(n Node[T], c byte) Node[T] {

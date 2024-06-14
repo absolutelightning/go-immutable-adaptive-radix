@@ -71,8 +71,8 @@ func (n *Node256[T]) isLeaf() bool {
 // Iterator is used to return an Iterator at
 // the given node to walk the tree
 func (n *Node256[T]) Iterator() *Iterator[T] {
-	stack := make([]NodeWrapper[T], 0)
-	stack = append(stack, NodeWrapper[T]{n, 0})
+	stack := make([]Node[T], 0)
+	stack = append(stack, n)
 	nodeT := Node[T](n)
 	return &Iterator[T]{
 		stack: stack,
@@ -188,7 +188,7 @@ func (n *Node256[T]) ReverseIterator() *ReverseIterator[T] {
 	nodeT := Node[T](n)
 	return &ReverseIterator[T]{
 		i: &Iterator[T]{
-			stack: []NodeWrapper[T]{{nodeT, 0}},
+			stack: []Node[T]{nodeT},
 			node:  nodeT,
 		},
 	}
