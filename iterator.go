@@ -54,31 +54,19 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 		}
 
 		switch node.(type) {
-		case *NodeLeaf[T]:
-			leafCh := node.(*NodeLeaf[T])
-			if i.lowerBound {
-				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
-					return getKey(leafCh.key), leafCh.value, true
-				}
-				continue
-			}
-			if !leafCh.matchPrefix([]byte(i.Path())) {
-				continue
-			}
-			return getKey(leafCh.key), leafCh.value, true
 		case *Node4[T]:
 			n4 := node.(*Node4[T])
 			n4L := n4.leaf
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, n4.children[itr])
 			}
-			if n4L != nil && i.lowerBound {
+			if i.lowerBound && n4L != nil {
 				if bytes.Compare(n4L.key, i.path) >= 0 {
 					return getKey(n4L.key), n4L.value, true
 				}
 				continue
 			}
-			if n4L != nil && i.seeKPrefixWatch {
+			if i.seeKPrefixWatch && n4L != nil {
 				return getKey(n4L.key), n4L.value, true
 			}
 		case *Node16[T]:
@@ -87,13 +75,13 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, n16.children[itr])
 			}
-			if n16L != nil && i.lowerBound {
+			if i.lowerBound && n16L != nil {
 				if bytes.Compare(n16L.key, i.path) >= 0 {
 					return getKey(n16.leaf.key), n16.leaf.value, true
 				}
 				continue
 			}
-			if n16L != nil && i.seeKPrefixWatch {
+			if i.seeKPrefixWatch && n16L != nil {
 				return getKey(n16L.key), n16L.value, true
 			}
 		case *Node48[T]:
@@ -110,13 +98,13 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, nodeCh)
 			}
-			if n48L != nil && i.lowerBound {
+			if i.lowerBound && n48L != nil {
 				if bytes.Compare(n48L.key, i.path) >= 0 {
 					return getKey(n48L.key), n48L.value, true
 				}
 				continue
 			}
-			if n48L != nil && i.seeKPrefixWatch {
+			if i.seeKPrefixWatch && n48L != nil {
 				return getKey(n48L.key), n48L.value, true
 			}
 		case *Node256[T]:
@@ -129,15 +117,27 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, nodeCh)
 			}
-			if n256L != nil && i.lowerBound {
+			if i.lowerBound && n256L != nil {
 				if bytes.Compare(n256L.key, i.path) >= 0 {
 					return getKey(n256L.key), n256L.value, true
 				}
 				continue
 			}
-			if n256L != nil && i.seeKPrefixWatch {
+			if i.seeKPrefixWatch && n256L != nil {
 				return getKey(n256L.key), n256L.value, true
 			}
+		case *NodeLeaf[T]:
+			leafCh := node.(*NodeLeaf[T])
+			if i.lowerBound {
+				if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
+					return getKey(leafCh.key), leafCh.value, true
+				}
+				continue
+			}
+			if !leafCh.matchPrefix([]byte(i.Path())) {
+				continue
+			}
+			return getKey(leafCh.key), leafCh.value, true
 		}
 	}
 	return nil, zero, false
