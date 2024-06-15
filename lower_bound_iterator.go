@@ -292,6 +292,33 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 			return
 		}
 
+		if i.seenMismatch && parent != nil && parent.getNodeLeaf() != nil {
+			nL := node.getNodeLeaf()
+			if nL != nil {
+				if bytes.Compare(nL.getKey(), i.path) >= 0 {
+					i.stack = append(i.stack, node)
+				}
+			} else {
+				for itr := int(node.getNumChildren()) - 1; itr >= 0; itr-- {
+					if node.getChild(itr) != nil {
+						nCh := node.getChild(itr)
+						nChL := nCh.getNodeLeaf()
+						if nChL == nil {
+							i.stack = append(i.stack, node.getChild(itr))
+						} else {
+							if bytes.Compare(nChL.key, i.path) >= 0 {
+								i.stack = append(i.stack, node.getChild(itr))
+							}
+						}
+					}
+				}
+			}
+			if bytes.Compare(parent.getNodeLeaf().getKey(), i.path) >= 0 {
+				i.stack = append(i.stack, parent.getNodeLeaf())
+			}
+			return
+		}
+
 		for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
 			if node.getChild(itr) != nil {
 				nCh := node.getChild(itr)
@@ -308,12 +335,6 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 
 		if idx >= 0 && node.getKeyAtIdx(idx) != prefix[depth] {
 			i.seenMismatch = true
-		}
-
-		if parent != nil && parent.getNodeLeaf() != nil {
-			if bytes.Compare(parent.getNodeLeaf().getKey(), i.path) >= 0 {
-				i.stack = append(i.stack, parent.getNodeLeaf())
-			}
 		}
 
 		if idx == -1 {
