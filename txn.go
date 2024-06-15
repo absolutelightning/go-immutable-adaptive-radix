@@ -145,7 +145,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		} else if bytes.HasPrefix(getKey(newLeaf2L.getKey()), getKey(nodeLeaf.getKey())) {
 
-			newNodeLeaf := nodeLeaf.clone(true)
+			newNodeLeaf := nodeLeaf.clone(false)
 			t.tree.maxNodeId++
 			newNodeLeaf.setId(t.tree.maxNodeId)
 			newNode.setNodeLeaf(newNodeLeaf.(*NodeLeaf[T]))
