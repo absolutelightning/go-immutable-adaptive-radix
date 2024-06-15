@@ -114,12 +114,6 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 	i.stack = nil
 	depth := 0
 
-	if len(prefix) == 0 {
-		i.node = node
-		i.stack = append(i.stack, node)
-		return node.getMutateCh()
-	}
-
 	i.stack = []Node[T]{node}
 	i.node = node
 
