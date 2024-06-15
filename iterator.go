@@ -190,6 +190,9 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 						i.stack = nil
 						i.node = nil
 					}
+				} else {
+					i.stack = []Node[T]{node}
+					i.node = node
 				}
 				return node.getMutateCh()
 			}
@@ -216,6 +219,9 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 					i.stack = nil
 					i.node = nil
 				}
+			} else {
+				i.stack = []Node[T]{node}
+				i.node = node
 			}
 			return node.getMutateCh()
 		}
@@ -232,6 +238,9 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 					i.stack = nil
 					i.node = nil
 				}
+			} else {
+				i.stack = []Node[T]{node}
+				i.node = node
 			}
 			return node.getMutateCh()
 		}
