@@ -398,7 +398,6 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 		nodeToReturn := n.getChild(0)
 		// Is not leaf
 		if n.getArtNodeType() != leafType {
-			nodeToReturn = t.writeNode(nodeToReturn, false)
 			// Concatenate the prefixes
 			prefix := int(n.getPartialLen())
 			if prefix < maxPrefixLen {

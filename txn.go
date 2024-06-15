@@ -145,10 +145,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		} else if bytes.HasPrefix(getKey(newLeaf2L.getKey()), getKey(nodeLeaf.getKey())) {
 
-			newNodeLeaf := nodeLeaf.clone(false)
-			t.tree.maxNodeId++
-			newNodeLeaf.setId(t.tree.maxNodeId)
-			newNode.setNodeLeaf(newNodeLeaf.(*NodeLeaf[T]))
+			newNode.setNodeLeaf(nodeLeaf)
 			newNode = t.addChild(newNode, newLeaf2L.getKey()[depth+longestPrefix], newLeaf2)
 
 		} else {
@@ -390,7 +387,7 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
 	for ch := range t.trackChnMap {
-		if ch != nil {
+		if ch != nil && !isClosed(ch) {
 			close(ch)
 		}
 	}
@@ -494,6 +491,9 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 			node.setChild(slow, node.getChild(itr))
 			slow++
 		}
+	}
+	for itr := slow; itr < len(node.getChildren()); itr++ {
+		node.setChild(itr, nil)
 	}
 	node.setNumChildren(uint8(numCh))
 
