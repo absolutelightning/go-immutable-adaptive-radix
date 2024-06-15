@@ -11,19 +11,12 @@ import (
 // down to a specified path. This will iterate over the same values that
 // the Node.WalkPath method will.
 type LowerBoundIterator[T any] struct {
-	path              []byte
-	node              Node[T]
-	stack             []Node[T]
-	depth             int
-	pos               Node[T]
-	reverseLowerBound bool
-	seenMismatch      bool
-	iterPath          []byte
-	stackItrSet       bool
-}
-
-func (i *LowerBoundIterator[T]) GetIterPath() []byte {
-	return i.iterPath
+	path         []byte
+	node         Node[T]
+	stack        []Node[T]
+	depth        int
+	pos          Node[T]
+	seenMismatch bool
 }
 
 // Front returns the current node that has been iterated to.
@@ -114,121 +107,6 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 		}
 	}
 	return nil, zero, false
-}
-
-func (i *LowerBoundIterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
-	// Start from the node
-
-	node := i.node
-
-	i.path = prefix
-
-	i.stack = nil
-	depth := 0
-
-	if len(prefix) == 0 {
-		i.node = node
-		i.stack = append(i.stack, node)
-		return node.getMutateCh()
-	}
-
-	i.stack = []Node[T]{node}
-	i.node = node
-
-	for {
-		// Check if the node matches the prefix
-
-		// Determine the child index to proceed based on the next byte of the prefix
-		if node.getPartialLen() > 0 {
-			// If the node has a prefix, compare it with the prefix
-			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
-			if mismatchIdx < int(node.getPartialLen()) {
-				// If there's a mismatch, set the node to nil to break the loop
-				if node.getNodeLeaf() != nil {
-					if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
-						i.stack = []Node[T]{node}
-						i.node = node
-					} else {
-						i.stack = nil
-						i.node = nil
-					}
-				}
-				minNode := minimum(node)
-				if minNode != nil {
-					if hasPrefix(minNode.getKey(), prefix) {
-						i.stack = []Node[T]{node}
-						i.node = node
-					} else {
-						i.stack = nil
-						i.node = nil
-					}
-				} else {
-					i.stack = []Node[T]{node}
-					i.node = node
-				}
-				return node.getMutateCh()
-			}
-			depth += int(node.getPartialLen())
-		}
-
-		if depth >= len(prefix) {
-			// If the prefix is exhausted, break the loop
-			if node.getNodeLeaf() != nil {
-				if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
-					i.stack = []Node[T]{node}
-					i.node = node
-				} else {
-					i.stack = nil
-					i.node = nil
-				}
-			}
-			minNode := minimum(node)
-			if minNode != nil {
-				if hasPrefix(minNode.getKey(), prefix) {
-					i.stack = []Node[T]{node}
-					i.node = node
-				} else {
-					i.stack = nil
-					i.node = nil
-				}
-			} else {
-				i.stack = []Node[T]{node}
-				i.node = node
-			}
-			return node.getMutateCh()
-		}
-
-		// Get the next child node based on the prefix
-		child, _ := findChild[T](node, prefix[depth])
-		if child == nil {
-			// If the child node doesn't exist, break the loop
-			if node.getNodeLeaf() != nil {
-				if hasPrefix(node.getNodeLeaf().getKey(), prefix) {
-					i.stack = []Node[T]{node}
-					i.node = node
-				} else {
-					i.stack = nil
-					i.node = nil
-				}
-			} else {
-				i.stack = []Node[T]{node}
-				i.node = node
-			}
-			return node.getMutateCh()
-		}
-
-		i.stack = []Node[T]{node}
-		i.node = node
-		i.depth = depth
-
-		node = child
-		// Move to the next level in the tree
-		depth++
-	}
-}
-
-func (i *LowerBoundIterator[T]) SeekPrefix(prefixKey []byte) {
-	i.SeekPrefixWatch(prefixKey)
 }
 
 func (i *LowerBoundIterator[T]) recurseMin(n Node[T]) Node[T] {
