@@ -209,3 +209,12 @@ func (n *Node4[T]) getNodeLeaf() *NodeLeaf[T] {
 func (n *Node4[T]) setNodeLeaf(nl *NodeLeaf[T]) {
 	n.leaf = nl
 }
+func (n *Node4[T]) LowerBoundIterator() *LowerBoundIterator[T] {
+	stack := make([]Node[T], 0)
+	stack = append(stack, n)
+	nodeT := Node[T](n)
+	return &LowerBoundIterator[T]{
+		stack: stack,
+		node:  nodeT,
+	}
+}

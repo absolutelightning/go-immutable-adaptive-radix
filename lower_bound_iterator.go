@@ -10,31 +10,32 @@ import (
 // Iterator is used to iterate over a set of nodes from the node
 // down to a specified path. This will iterate over the same values that
 // the Node.WalkPath method will.
-type Iterator[T any] struct {
-	path         []byte
-	node         Node[T]
-	stack        []Node[T]
-	depth        int
-	pos          Node[T]
-	seenMismatch bool
-	iterPath     []byte
-	stackItrSet  bool
+type LowerBoundIterator[T any] struct {
+	path              []byte
+	node              Node[T]
+	stack             []Node[T]
+	depth             int
+	pos               Node[T]
+	reverseLowerBound bool
+	seenMismatch      bool
+	iterPath          []byte
+	stackItrSet       bool
 }
 
-func (i *Iterator[T]) GetIterPath() []byte {
+func (i *LowerBoundIterator[T]) GetIterPath() []byte {
 	return i.iterPath
 }
 
 // Front returns the current node that has been iterated to.
-func (i *Iterator[T]) Front() Node[T] {
+func (i *LowerBoundIterator[T]) Front() Node[T] {
 	return i.pos
 }
 
-func (i *Iterator[T]) Path() string {
+func (i *LowerBoundIterator[T]) Path() string {
 	return string(i.path)
 }
 
-func (i *Iterator[T]) Next() ([]byte, T, bool) {
+func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 	var zero T
 
 	// Iterate through the stack until it's empty
@@ -54,7 +55,10 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, n4.children[itr])
 			}
 			if n4L != nil {
-				return getKey(n4L.key), n4L.value, true
+				if bytes.Compare(n4L.key, i.path) >= 0 {
+					return getKey(n4L.key), n4L.value, true
+				}
+				continue
 			}
 		case *Node16[T]:
 			n16 := node.(*Node16[T])
@@ -63,7 +67,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, n16.children[itr])
 			}
 			if n16L != nil {
-				return getKey(n16L.key), n16L.value, true
+				if bytes.Compare(n16L.key, i.path) >= 0 {
+					return getKey(n16.leaf.key), n16.leaf.value, true
+				}
 			}
 		case *Node48[T]:
 			n48 := node.(*Node48[T])
@@ -80,7 +86,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, nodeCh)
 			}
 			if n48L != nil {
-				return getKey(n48L.key), n48L.value, true
+				if bytes.Compare(n48L.key, i.path) >= 0 {
+					return getKey(n48L.key), n48L.value, true
+				}
 			}
 		case *Node256[T]:
 			n256 := node.(*Node256[T])
@@ -93,20 +101,22 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, nodeCh)
 			}
 			if n256L != nil {
-				return getKey(n256L.key), n256L.value, true
+				if bytes.Compare(n256L.key, i.path) >= 0 {
+					return getKey(n256L.key), n256L.value, true
+				}
 			}
 		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])
-			if !leafCh.matchPrefix([]byte(i.Path())) {
-				continue
+			if bytes.Compare(getKey(leafCh.key), getKey(i.path)) >= 0 {
+				return getKey(leafCh.key), leafCh.value, true
 			}
-			return getKey(leafCh.key), leafCh.value, true
+			continue
 		}
 	}
 	return nil, zero, false
 }
 
-func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
+func (i *LowerBoundIterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 	// Start from the node
 
 	node := i.node
@@ -217,11 +227,11 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 	}
 }
 
-func (i *Iterator[T]) SeekPrefix(prefixKey []byte) {
+func (i *LowerBoundIterator[T]) SeekPrefix(prefixKey []byte) {
 	i.SeekPrefixWatch(prefixKey)
 }
 
-func (i *Iterator[T]) recurseMin(n Node[T]) Node[T] {
+func (i *LowerBoundIterator[T]) recurseMin(n Node[T]) Node[T] {
 	// Traverse to the minimum child
 	if n.isLeaf() {
 		return n
@@ -243,7 +253,7 @@ func (i *Iterator[T]) recurseMin(n Node[T]) Node[T] {
 	return nil
 }
 
-func (i *Iterator[T]) SeekLowerBound(prefixKey []byte) {
+func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 	node := i.node
 
 	i.stack = []Node[T]{}

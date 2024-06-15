@@ -200,3 +200,13 @@ func (n *NodeLeaf[T]) getNodeLeaf() *NodeLeaf[T] {
 func (n *NodeLeaf[T]) setNodeLeaf(nl *NodeLeaf[T]) {
 	// no op
 }
+
+func (n *NodeLeaf[T]) LowerBoundIterator() *LowerBoundIterator[T] {
+	stack := make([]Node[T], 0)
+	stack = append(stack, n)
+	nodeT := Node[T](n)
+	return &LowerBoundIterator[T]{
+		stack: stack,
+		node:  nodeT,
+	}
+}

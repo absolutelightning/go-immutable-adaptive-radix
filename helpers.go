@@ -517,3 +517,10 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 	}
 	return n
 }
+
+func hasPrefix(key []byte, prefix []byte) bool {
+	if len(prefix) == 0 {
+		return true
+	}
+	return bytes.HasPrefix(key, prefix)
+}

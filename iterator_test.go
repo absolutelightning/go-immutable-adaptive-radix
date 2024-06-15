@@ -45,7 +45,7 @@ func TestIterateLowerBoundFuzz(t *testing.T) {
 		t.Log("NewKey: ", newKey, "SearchKey: ", searchKey)
 
 		// Now iterate the tree from searchKey to the end
-		it := r.Root().Iterator()
+		it := r.Root().LowerBoundIterator()
 		var result []string
 		it.SeekLowerBound([]byte(searchKey))
 		for {
@@ -392,7 +392,7 @@ func TestIterateLowerBound(t *testing.T) {
 			}
 			// Get and seek iterator
 			root := r.root
-			iter := root.Iterator()
+			iter := root.LowerBoundIterator()
 			iter.SeekLowerBound([]byte(test.search))
 
 			// Consume all the keys

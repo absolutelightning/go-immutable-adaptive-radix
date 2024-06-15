@@ -35,6 +35,7 @@ type Node[T any] interface {
 	setNodeLeaf(*NodeLeaf[T])
 
 	Iterator() *Iterator[T]
+	LowerBoundIterator() *LowerBoundIterator[T]
 	PathIterator([]byte) *PathIterator[T]
 	ReverseIterator() *ReverseIterator[T]
 }
