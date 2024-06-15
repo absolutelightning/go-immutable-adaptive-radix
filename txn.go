@@ -90,7 +90,6 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 		t.size++
 		t.tree.size++
 	}
-	t.trackChannel(t.tree.root)
 	t.tree.root = newRoot
 	return oldVal, old == 1
 }
