@@ -405,9 +405,9 @@ func TestIterateLowerBound(t *testing.T) {
 			[]string{"ge", "gfff"},
 		},
 		{
-			[]string{"ggab", "ggafe"},
-			"ggagfdf",
-			[]string{"ggab"},
+			[]string{"ee", "eeedd", "eeegd", "efbb", "eg", "fbaacf", "fbffgg", "fced", "fcedfba", "ffbaef", "ffdcgfe", "ffdf", "fgadb", "gacbbec", "gafe", "gbb", "gcfbaab", "gf"},
+			"edcffef",
+			[]string{"ee", "eeedd", "eeegd", "efbb", "eg", "fbaacf", "fbffgg", "fced", "fcedfba", "ffbaef", "ffdcgfe", "ffdf", "fgadb", "gacbbec", "gafe", "gbb", "gcfbaab", "gf"},
 		},
 	}
 
