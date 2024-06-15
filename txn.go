@@ -31,7 +31,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(false)
+	nc := n.clone(!trackCh)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
@@ -145,7 +145,10 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		} else if bytes.HasPrefix(getKey(newLeaf2L.getKey()), getKey(nodeLeaf.getKey())) {
 
-			newNode.setNodeLeaf(nodeLeaf)
+			newNodeLeaf := nodeLeaf.clone(true)
+			t.tree.maxNodeId++
+			newNodeLeaf.setId(t.tree.maxNodeId)
+			newNode.setNodeLeaf(newNodeLeaf.(*NodeLeaf[T]))
 			newNode = t.addChild(newNode, newLeaf2L.getKey()[depth+longestPrefix], newLeaf2)
 
 		} else {
