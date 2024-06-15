@@ -18,7 +18,7 @@ type Txn[T any] struct {
 
 	trackMutate bool
 
-	trackChnMap map[chan struct{}]struct{}
+	trackChnSlice []chan struct{}
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
@@ -64,7 +64,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
-		oldMaxNodeId: t.oldMaxNodeId,
+		oldMaxNodeId: t.tree.maxNodeId,
 	}
 	return txn
 }
@@ -386,12 +386,12 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // to trigger notifications. This doesn't require any additional state but it
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
-	for ch := range t.trackChnMap {
+	for _, ch := range t.trackChnSlice {
 		if ch != nil && !isClosed(ch) {
 			close(ch)
 		}
 	}
-	t.trackChnMap = nil
+	t.trackChnSlice = nil
 }
 
 func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
@@ -565,10 +565,10 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	}
 
 	ch := node.getMutateCh()
-	if t.trackChnMap == nil {
-		t.trackChnMap = make(map[chan struct{}]struct{})
+	if t.trackChnSlice == nil {
+		t.trackChnSlice = make([]chan struct{}, 0)
 	}
-	t.trackChnMap[ch] = struct{}{}
+	t.trackChnSlice = append(t.trackChnSlice, ch)
 	node.setMutateCh(make(chan struct{}))
 }
 
