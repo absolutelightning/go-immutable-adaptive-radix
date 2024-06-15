@@ -100,7 +100,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			if !leafCh.matchPrefix([]byte(i.Path())) {
 				continue
 			}
-			return getKey(leafCh.key), leafCh.value, true
+			if hasPrefix(leafCh.key, i.path) {
+				return getKey(leafCh.key), leafCh.value, true
+			}
 		}
 	}
 	return nil, zero, false
