@@ -142,6 +142,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 						i.stack = nil
 						i.node = nil
 					}
+					return node.getMutateCh()
 				}
 				minNode := minimum(node)
 				if minNode != nil {
@@ -171,6 +172,7 @@ func (i *Iterator[T]) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 					i.stack = nil
 					i.node = nil
 				}
+				return node.getMutateCh()
 			}
 			minNode := minimum(node)
 			if minNode != nil {
