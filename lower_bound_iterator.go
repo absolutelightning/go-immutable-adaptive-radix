@@ -297,11 +297,14 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 
 		if i.seenMismatch && parent != nil && parent.getNodeLeaf() != nil {
 			nL := node.getNodeLeaf()
+			addedNode := false
 			if nL != nil {
 				if bytes.Compare(nL.getKey(), i.path) >= 0 {
 					i.stack = append(i.stack, node)
+					addedNode = true
 				}
-			} else {
+			}
+			if !addedNode {
 				for itr := int(node.getNumChildren()) - 1; itr >= 0; itr-- {
 					if node.getChild(itr) != nil {
 						nCh := node.getChild(itr)
