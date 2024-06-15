@@ -1399,6 +1399,11 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			t.Fatalf("bad")
 		}
 
+		if i == 2 {
+			otherWatch, _, _ := r.GetWatch([]byte("foo/b"))
+			fmt.Println(otherWatch)
+		}
+
 		otherWatch, _, ok := r.GetWatch([]byte("foo/b"))
 		if otherWatch == nil {
 			t.Fatalf("bad")
@@ -1407,6 +1412,10 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		txn := r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobarbaz"), nil)
+		if i == 2 {
+			fmt.Println("otherwatch")
+			fmt.Println(otherWatch)
+		}
 		switch i {
 		case 0:
 			r = txn.Commit()
@@ -1465,7 +1474,8 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.Commit()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
@@ -1522,7 +1532,8 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.Commit()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
@@ -1974,6 +1985,56 @@ func BenchmarkSeekReverseLowerBound(b *testing.B) {
 		}
 		if r.Len() != count {
 			//b.Fatalf("hello")
+		}
+	}
+}
+
+func TestRawIterator(t *testing.T) {
+	r := NewRadixTree[any]()
+
+	keys := []string{
+		"foo/bar/baz",
+		"foo/baz/bar",
+		"foo/zip/zap",
+		"foobar",
+		"zipzap",
+	}
+	for _, k := range keys {
+		r, _, _ = r.Insert([]byte(k), nil)
+	}
+	rit := r.rawIterator()
+	for {
+		rit.Next()
+		val := rit.Front()
+		if val == nil {
+			break
+		}
+		fmt.Println("node")
+		fmt.Println(val.getArtNodeType())
+		fmt.Println(string(val.getKey()))
+		fmt.Println(string(val.getPartial()))
+		if val.getNodeLeaf() != nil {
+			fmt.Println("nodeleaf")
+			fmt.Println(string(val.getNodeLeaf().getKey()))
+		}
+	}
+
+	fmt.Println("batman")
+	r, _, _ = r.Insert([]byte("foobarbaz"), nil)
+	rit = r.rawIterator()
+	for {
+		rit.Next()
+		val := rit.Front()
+		if val == nil {
+			break
+		}
+		fmt.Println("node")
+		fmt.Println(val.getArtNodeType())
+		fmt.Println(string(val.getKey()))
+		fmt.Println(string(val.getPartial()))
+		if val.getNodeLeaf() != nil {
+			fmt.Println("nodeleaf")
+			fmt.Println(string(val.getNodeLeaf().getKey()))
 		}
 	}
 }

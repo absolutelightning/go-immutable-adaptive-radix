@@ -60,6 +60,9 @@ func (i *rawIterator[T]) Next() {
 			path := last.path + string(elem.getPartial()[:min(maxPrefixLen, int(elem.getPartialLen()))])
 			switch elem.getArtNodeType() {
 			case node4, node16:
+				if elem.getNodeLeaf() != nil {
+					i.stack = append(i.stack, rawStackEntry[T]{string(elem.getNodeLeaf().getKey()), elem.getNodeLeaf()})
+				}
 				for itr := 0; itr < int(elem.getNumChildren()); itr++ {
 					if elem.getChild(itr) != nil {
 						i.stack = append(i.stack, rawStackEntry[T]{path + string(elem.getKeyAtIdx(itr)), elem.getChild(itr)})
@@ -67,6 +70,9 @@ func (i *rawIterator[T]) Next() {
 				}
 				break
 			case node48:
+				if elem.getNodeLeaf() != nil {
+					i.stack = append(i.stack, rawStackEntry[T]{string(elem.getNodeLeaf().getKey()), elem.getNodeLeaf()})
+				}
 				for itr := 0; itr < 256; itr++ {
 					if elem.getKeyAtIdx(itr) != 0 {
 						idx := int(elem.getKeyAtIdx(itr) - 1)
@@ -78,6 +84,9 @@ func (i *rawIterator[T]) Next() {
 				}
 				break
 			case node256:
+				if elem.getNodeLeaf() != nil {
+					i.stack = append(i.stack, rawStackEntry[T]{string(elem.getNodeLeaf().getKey()), elem.getNodeLeaf()})
+				}
 				for itr := 0; itr < 256; itr++ {
 					if elem.getKeyAtIdx(itr) != 0 {
 						ch := elem.getChild(itr)
@@ -88,6 +97,12 @@ func (i *rawIterator[T]) Next() {
 				}
 				break
 			}
+		}
+
+		if elem.getNodeLeaf() != nil {
+			i.pos = elem.getNodeLeaf()
+			i.path = string(elem.getNodeLeaf().getKey())
+			return
 		}
 
 		i.pos = elem
