@@ -1274,6 +1274,8 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
 		}
+		fmt.Println("from test")
+		fmt.Println(rootWatch)
 
 		// Verify root and parent triggered, and leaf affected
 		select {

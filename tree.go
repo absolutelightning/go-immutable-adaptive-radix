@@ -48,6 +48,14 @@ func (t *RadixTree[T]) Len() int {
 	return int(t.size)
 }
 
+func (t *RadixTree[T]) rawIterator() *rawIterator[T] {
+	rwIt := &rawIterator[T]{
+		node: t.root,
+	}
+	rwIt.Next()
+	return rwIt
+}
+
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 	return t.root.PathIterator(path)
 }
