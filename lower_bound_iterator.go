@@ -256,7 +256,6 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 				if bytes.Compare(parent.getNodeLeaf().getKey(), i.path) >= 0 {
 					i.stack = append(i.stack, parent.getNodeLeaf())
 				}
-				return
 			}
 			return
 		}
@@ -277,7 +276,17 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 					i.stack = append(i.stack, node)
 				}
 			} else {
-				i.stack = append(i.stack, node)
+				for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
+					nCh := node.getChild(itr)
+					nChL := nCh.getNodeLeaf()
+					if nChL == nil {
+						i.stack = append(i.stack, node.getChild(itr))
+					} else {
+						if bytes.Compare(nChL.key, i.path) >= 0 {
+							i.stack = append(i.stack, node.getChild(itr))
+						}
+					}
+				}
 			}
 			node = nil
 			return
@@ -305,6 +314,10 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 			if bytes.Compare(parent.getNodeLeaf().getKey(), i.path) >= 0 {
 				i.stack = append(i.stack, parent.getNodeLeaf())
 			}
+		}
+
+		if idx == -1 {
+			return
 		}
 
 		parent = node
