@@ -1261,6 +1261,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		txn := r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobarbaz"), nil)
+
 		switch i {
 		case 0:
 			r = txn.Commit()
@@ -1274,8 +1275,6 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
 		}
-		fmt.Println("from test")
-		fmt.Println(rootWatch)
 
 		// Verify root and parent triggered, and leaf affected
 		select {

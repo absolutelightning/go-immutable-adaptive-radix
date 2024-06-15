@@ -5,8 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"fmt"
-	"strings"
 )
 
 const defaultModifiedCache = 8192
@@ -413,23 +411,29 @@ func (t *Txn[T]) slowNotify() {
 			return
 		}
 		snapElem := snapIter.Front()
+		cmp := 0
 
 		// If we've exhausted the nodes in the new root, we know we need
 		// to invalidate everything that remains in the old snapshot. We
 		// know from the loop condition there's something in the old
 		// snapshot.
 		if rootIter.Front() == nil {
-			close(snapElem.getMutateCh())
+			if !isClosed(snapElem.getMutateCh()) {
+				close(snapElem.getMutateCh())
+			}
 			if snapElem.isLeaf() {
-				close(snapElem.getNodeLeaf().getMutateCh())
+				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
+					close(snapElem.getNodeLeaf().getMutateCh())
+				}
 			}
 			snapIter.Next()
 			continue
 		}
 
-		// Do one string compare so we can check the various conditions
-		// below without repeating the compare.
-		cmp := strings.Compare(snapIter.Path(), rootIter.Path())
+		rootElem := rootIter.Front()
+		if snapElem.getId() < rootElem.getId() {
+			cmp = -1
+		}
 
 		// If the snapshot is behind the root, then we must have deleted
 		// this node during the transaction.
@@ -442,19 +446,9 @@ func (t *Txn[T]) slowNotify() {
 			continue
 		}
 
-		// If the snapshot is ahead of the root, then we must have added
-		// this node during the transaction.
-		if cmp > 0 {
-			rootIter.Next()
-			continue
-		}
-
 		// If we have the same path, then we need to see if we mutated a
 		// node and possibly the leaf.
-		rootElem := rootIter.Front()
 		if snapElem != rootElem {
-			fmt.Println("from slow notify")
-			fmt.Println(snapElem.getMutateCh())
 			close(snapElem.getMutateCh())
 			if snapElem.getNodeLeaf() != nil && (snapElem.getNodeLeaf() != rootElem.getNodeLeaf()) {
 				close(snapElem.getNodeLeaf().getMutateCh())
@@ -647,7 +641,6 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 		t.trackChnMap = make(map[chan struct{}]struct{})
 	}
 	t.trackChnMap[ch] = struct{}{}
-	node.setMutateCh(make(chan struct{}))
 }
 
 // isClosed returns true if the given channel is closed.
