@@ -462,11 +462,28 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		}
 	}
 
+	slow := 0
+	numCh := 0
+
 	node = t.writeNode(node, true)
 
-	for idx, ch := range newChIndxMap {
-		node.setChild(idx, ch)
+	for itr := 0; itr < int(node.getNumChildren()); itr++ {
+		newCh, ok := newChIndxMap[itr]
+		if ok {
+			if newCh == nil {
+				continue
+			} else {
+				numCh++
+				node.setChild(slow, newCh)
+				slow++
+			}
+		} else {
+			numCh++
+			node.setChild(slow, node.getChild(itr))
+			slow++
+		}
 	}
+	node.setNumChildren(uint8(numCh))
 
 	return node, numDel
 }
