@@ -1917,7 +1917,7 @@ func BenchmarkSeekLowerBound(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
 		r, _, _ = r.Insert([]byte(uuid1), n)
-		iter := r.root.Iterator()
+		iter := r.root.LowerBoundIterator()
 		iter.SeekLowerBound([]byte(""))
 		count := 0
 		for {
