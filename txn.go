@@ -404,11 +404,21 @@ func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
 func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
 	key := getTreeKey(prefix)
 	newRoot, numDeletions := t.deletePrefix(t.tree.root, key, 0)
+	if newRoot == nil {
+		t.tree.root = &Node4[T]{
+			leaf: &NodeLeaf[T]{
+				id: t.tree.maxNodeId + 1,
+			},
+			id: t.tree.maxNodeId,
+		}
+		t.tree.maxNodeId += 2
+	} else {
+		t.tree.root = newRoot
+	}
 	if numDeletions != 0 {
 		if t.trackMutate {
 			t.trackChannel(t.tree.root)
 		}
-		t.tree.root = newRoot
 		t.tree.size = t.tree.size - uint64(numDeletions)
 		t.size = t.tree.size
 		return true

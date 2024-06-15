@@ -1888,6 +1888,26 @@ func BenchmarkDeleteART(b *testing.B) {
 	}
 }
 
+func BenchmarkDeletePrefixART(b *testing.B) {
+	r := NewRadixTree[int]()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		uuid1, _ := uuid.GenerateUUID()
+		r, _, _ = r.Insert([]byte(uuid1), n)
+		r, _ = r.DeletePrefix([]byte(""))
+	}
+}
+
+func BenchmarkLongestPrefixART(b *testing.B) {
+	r := NewRadixTree[int]()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		uuid1, _ := uuid.GenerateUUID()
+		r, _, _ = r.Insert([]byte(uuid1), n)
+		_, _, _ = r.LongestPrefix([]byte(""))
+	}
+}
+
 func BenchmarkSeekPrefixWatchART(b *testing.B) {
 	r := NewRadixTree[int]()
 	b.ResetTimer()
