@@ -5,7 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"strings"
 )
 
 const defaultModifiedCache = 8192
@@ -420,69 +419,49 @@ func (t *Txn[T]) slowNotify() {
 		// know from the loop condition there's something in the old
 		// snapshot.
 		if rootIter.Front() == nil {
-			if !isClosed(snapElem.getMutateCh()) {
-				close(snapElem.getMutateCh())
-			}
+			close(snapElem.getMutateCh())
 			if snapElem.isLeaf() {
-				if !isClosed(snapElem.getMutateCh()) {
-					close(snapElem.getMutateCh())
-				}
+				close(snapElem.getNodeLeaf().getMutateCh())
 			}
 			snapIter.Next()
 			continue
 		}
 
+		rootElem := rootIter.Front()
 		// Do one string compare so we can check the various conditions
 		// below without repeating the compare.
-		cmp := strings.Compare(snapIter.Path(), rootIter.Path())
-
-		rootElem := rootIter.Front()
-
-		if cmp < 0 && rootElem.getId() < snapElem.getId() {
-			if !isClosed(snapElem.getMutateCh()) {
-				close(snapElem.getMutateCh())
-			}
-			if snapElem.getNodeLeaf() != nil {
-				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
-					close(snapElem.getNodeLeaf().getMutateCh())
-				}
-			}
-			snapIter.Next()
-			continue
+		cmp := 0
+		if snapElem.getId() < rootElem.getId() {
+			cmp = -1
+		} else if snapElem.getId() > rootElem.getId() {
+			cmp = 1
 		}
 
 		// If the snapshot is behind the root, then we must have deleted
 		// this node during the transaction.
-		if cmp < 0 && rootElem.getId() > snapElem.getId() {
-			if !isClosed(snapElem.getMutateCh()) {
-				close(snapElem.getMutateCh())
-			}
-			if snapElem.getNodeLeaf() != nil && (snapElem.getNodeLeaf() != rootElem.getNodeLeaf()) {
-				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
-					close(snapElem.getNodeLeaf().getMutateCh())
-				}
+		if cmp < 0 {
+			close(snapElem.getMutateCh())
+			if snapElem.isLeaf() {
+				close(snapElem.getNodeLeaf().getMutateCh())
 			}
 			snapIter.Next()
+			rootIter.Next()
 			continue
 		}
 
 		// If the snapshot is ahead of the root, then we must have added
 		// this node during the transaction.
 		if cmp > 0 {
-			snapIter.Next()
+			rootIter.Next()
 			continue
 		}
 
 		// If we have the same path, then we need to see if we mutated a
 		// node and possibly the leaf.
-		if snapElem != rootElem && snapElem.getId() != rootElem.getId() {
-			if !isClosed(snapElem.getMutateCh()) {
-				close(snapElem.getMutateCh())
-			}
+		if snapElem != rootElem {
+			close(snapElem.getMutateCh())
 			if snapElem.getNodeLeaf() != nil && (snapElem.getNodeLeaf() != rootElem.getNodeLeaf()) {
-				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
-					close(snapElem.getNodeLeaf().getMutateCh())
-				}
+				close(snapElem.getNodeLeaf().getMutateCh())
 			}
 		}
 		snapIter.Next()
