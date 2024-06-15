@@ -51,8 +51,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			n4 := node.(*Node4[T])
 			n4L := n4.leaf
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
-				nCh := n4.children[itr]
-				i.stack = append(i.stack, nCh)
+				i.stack = append(i.stack, n4.children[itr])
 			}
 			if n4L != nil && hasPrefix(n4L.key, i.path) {
 				return getKey(n4L.key), n4L.value, true
@@ -61,8 +60,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			n16 := node.(*Node16[T])
 			n16L := n16.leaf
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
-				nCh := n16.children[itr]
-				i.stack = append(i.stack, nCh)
+				i.stack = append(i.stack, n16.children[itr])
 			}
 			if n16L != nil && hasPrefix(n16L.key, i.path) {
 				return getKey(n16L.key), n16L.value, true
