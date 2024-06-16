@@ -16,8 +16,6 @@ type Txn[T any] struct {
 
 	size uint64
 
-	oldMaxNodeId uint64
-
 	trackMutate bool
 
 	trackChnSlice []chan struct{}
@@ -26,7 +24,7 @@ type Txn[T any] struct {
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
-	if n.getId() > t.oldMaxNodeId {
+	if n.getId() > t.snap.maxNodeId {
 		return n
 	}
 	if trackCh {
@@ -49,10 +47,9 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 		t.maxNodeId,
 	}
 	txn := &Txn[T]{
-		size:         t.size,
-		tree:         newTree,
-		snap:         t,
-		oldMaxNodeId: t.maxNodeId,
+		size: t.size,
+		tree: newTree,
+		snap: t,
 	}
 	return txn
 }
@@ -67,10 +64,9 @@ func (t *Txn[T]) Clone() *Txn[T] {
 		t.tree.maxNodeId,
 	}
 	txn := &Txn[T]{
-		size:         t.size,
-		tree:         newTree,
-		snap:         t.tree,
-		oldMaxNodeId: t.tree.maxNodeId,
+		size: t.size,
+		tree: newTree,
+		snap: t.tree,
 	}
 	return txn
 }
