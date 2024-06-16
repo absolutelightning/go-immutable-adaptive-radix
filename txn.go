@@ -437,7 +437,7 @@ func (t *Txn[T]) slowNotify() {
 			if !isClosed(snapElem.getMutateCh()) {
 				close(snapElem.getMutateCh())
 			}
-			if snapElem.isLeaf() {
+			if snapElem.getNodeLeaf() != nil {
 				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
 					close(snapElem.getNodeLeaf().getMutateCh())
 				}
@@ -457,11 +457,13 @@ func (t *Txn[T]) slowNotify() {
 			if !isClosed(snapElem.getMutateCh()) {
 				close(snapElem.getMutateCh())
 			}
-			if snapElem.isLeaf() {
-				if snapElem.getNodeLeaf() != rootElem.getNodeLeaf() {
-					if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
-						close(snapElem.getNodeLeaf().getMutateCh())
-					}
+			if snapElem.getNodeLeaf() != nil && rootElem.getNodeLeaf() != nil && snapElem.getNodeLeaf() != rootElem.getNodeLeaf() {
+				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
+					close(snapElem.getNodeLeaf().getMutateCh())
+				}
+			} else if snapElem.getNodeLeaf() != nil && rootElem.getNodeLeaf() == nil {
+				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
+					close(snapElem.getNodeLeaf().getMutateCh())
 				}
 			}
 			snapIter.Next()
