@@ -1313,6 +1313,8 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 
 		iter = r.Root().Iterator()
 		missingWatch = iter.SeekPrefixWatch([]byte("foobarbaz"))
+		fmt.Println("leafwatch")
+		fmt.Println(leafWatch)
 
 		// Delete to a sub-child should trigger the leaf!
 		txn = r.Txn(true)
@@ -1343,6 +1345,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		default:
 			t.Fatalf("bad")
 		}
+		fmt.Println("leafwatchhere", leafWatch)
 		select {
 		case <-leafWatch:
 		default:
@@ -1464,7 +1467,8 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.Commit()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")
@@ -1521,7 +1525,8 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			r = txn.CommitOnly()
 			txn.Notify()
 		default:
-			r = txn.Commit()
+			r = txn.CommitOnly()
+			txn.slowNotify()
 		}
 		if hasAnyClosedMutateCh(r) {
 			t.Fatalf("bad")

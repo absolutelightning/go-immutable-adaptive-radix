@@ -5,12 +5,14 @@ package adaptive
 
 import (
 	"bytes"
+	"strings"
 )
 
 const defaultModifiedCache = 8192
 
 type Txn[T any] struct {
 	tree *RadixTree[T]
+	snap *RadixTree[T]
 
 	size uint64
 
@@ -19,6 +21,8 @@ type Txn[T any] struct {
 	trackMutate bool
 
 	trackChnSlice []chan struct{}
+
+	trackOverflow bool
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
@@ -48,6 +52,7 @@ func (t *RadixTree[T]) Txn(write bool) *Txn[T] {
 		txn := &Txn[T]{
 			size:         t.size,
 			tree:         newTree,
+			snap:         t,
 			oldMaxNodeId: t.maxNodeId,
 		}
 		return txn
@@ -55,6 +60,7 @@ func (t *RadixTree[T]) Txn(write bool) *Txn[T] {
 	return &Txn[T]{
 		size:         t.size,
 		tree:         t,
+		snap:         t,
 		oldMaxNodeId: t.maxNodeId,
 	}
 }
@@ -71,6 +77,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
+		snap:         t.tree,
 		oldMaxNodeId: t.tree.maxNodeId,
 	}
 	return txn
@@ -299,17 +306,11 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil, false
 	}
 
-	if node.isLeaf() {
-		t.trackChannel(node)
-		if leafMatches(node.getKey(), key) == 0 {
-			return nil, node, true
-		}
-	}
-
 	// Handle hitting a leaf node
 	if node.getNodeLeaf() != nil {
 		nodeL := node.getNodeLeaf()
 		if leafMatches(nodeL.getKey(), key) == 0 {
+			t.trackChannel(node)
 			node = t.writeNode(node, true)
 			node.setNodeLeaf(nil)
 			if node.getNumChildren() > 0 {
@@ -380,7 +381,17 @@ func (t *Txn[T]) Notify() {
 		return
 	}
 
-	t.slowNotify()
+	if t.trackOverflow {
+		t.slowNotify()
+		return
+	}
+
+	for _, ch := range t.trackChnSlice {
+		if ch != nil && !isClosed(ch) {
+			close(ch)
+		}
+	}
+	t.trackChnSlice = nil
 }
 
 // Commit is used to finalize the transaction and return a new tree. If mutation
@@ -408,12 +419,63 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // to trigger notifications. This doesn't require any additional state but it
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
-	for _, ch := range t.trackChnSlice {
-		if ch != nil && !isClosed(ch) {
-			close(ch)
+	snapIter := t.snap.rawIterator()
+	rootIter := t.tree.rawIterator()
+	for snapIter.Front() != nil || rootIter.Front() != nil {
+		// If we've exhausted the nodes in the old snapshot, we know
+		// there's nothing remaining to notify.
+		if snapIter.Front() == nil {
+			return
 		}
+		snapElem := snapIter.Front()
+
+		// If we've exhausted the nodes in the new root, we know we need
+		// to invalidate everything that remains in the old snapshot. We
+		// know from the loop condition there's something in the old
+		// snapshot.
+		if rootIter.Front() == nil {
+			close(snapElem.getMutateCh())
+			if snapElem.isLeaf() {
+				close(snapElem.getNodeLeaf().getMutateCh())
+			}
+			snapIter.Next()
+			continue
+		}
+
+		// Do one string compare so we can check the various conditions
+		// below without repeating the compare.
+		cmp := strings.Compare(snapIter.Path(), rootIter.Path())
+
+		// If the snapshot is behind the root, then we must have deleted
+		// this node during the transaction.
+		if cmp < 0 {
+			close(snapElem.getMutateCh())
+			if snapElem.isLeaf() {
+				close(snapElem.getNodeLeaf().getMutateCh())
+			}
+			snapIter.Next()
+			continue
+		}
+
+		// If the snapshot is ahead of the root, then we must have added
+		// this node during the transaction.
+		if cmp > 0 {
+			rootIter.Next()
+			continue
+		}
+
+		// If we have the same path, then we need to see if we mutated a
+		// node and possibly the leaf.
+		rootElem := rootIter.Front()
+		if snapElem != rootElem {
+			close(snapElem.getMutateCh())
+			if snapElem.getNodeLeaf() != nil && (snapElem.getNodeLeaf() != rootElem.getNodeLeaf()) {
+				close(snapElem.getNodeLeaf().getMutateCh())
+			}
+		}
+		snapIter.Next()
+		rootIter.Next()
 	}
-	t.trackChnSlice = nil
 }
 
 func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
@@ -587,12 +649,17 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 		return
 	}
 
+	if len(t.trackChnSlice) >= defaultModifiedCache {
+		t.trackChnSlice = nil
+		t.trackOverflow = true
+		return
+	}
+
 	ch := node.getMutateCh()
 	if t.trackChnSlice == nil {
 		t.trackChnSlice = make([]chan struct{}, 0)
 	}
 	t.trackChnSlice = append(t.trackChnSlice, ch)
-	node.setMutateCh(make(chan struct{}))
 }
 
 // isClosed returns true if the given channel is closed.

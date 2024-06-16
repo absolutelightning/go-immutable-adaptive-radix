@@ -52,6 +52,15 @@ func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 	return t.root.PathIterator(path)
 }
 
+func (t *RadixTree[T]) rawIterator() *rawIterator[T] {
+	rawIt := &rawIterator[T]{
+		node: t.root,
+		pos:  t.root,
+	}
+	rawIt.Next()
+	return rawIt
+}
+
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
 	txn := t.Txn(true)
 	old, ok := txn.Insert(key, value)
