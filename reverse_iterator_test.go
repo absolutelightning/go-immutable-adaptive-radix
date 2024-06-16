@@ -396,7 +396,7 @@ func TestReverseIterator_SeekPrefixWatch(t *testing.T) {
 	ch := it.SeekPrefixWatch(key)
 
 	// Change prefix
-	tx := r.Txn(true)
+	tx := r.Txn()
 	tx.TrackMutate(true)
 	tx.Insert(key, "value")
 	tx.Commit()

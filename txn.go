@@ -35,34 +35,26 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(!trackCh)
+	nc := n.clone(false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
-func (t *RadixTree[T]) Txn(write bool) *Txn[T] {
-	if write {
-		newTree := &RadixTree[T]{
-			t.root,
-			t.size,
-			t.maxNodeId,
-		}
-		txn := &Txn[T]{
-			size:         t.size,
-			tree:         newTree,
-			snap:         t,
-			oldMaxNodeId: t.maxNodeId,
-		}
-		return txn
+func (t *RadixTree[T]) Txn() *Txn[T] {
+	newTree := &RadixTree[T]{
+		t.root,
+		t.size,
+		t.maxNodeId,
 	}
-	return &Txn[T]{
+	txn := &Txn[T]{
 		size:         t.size,
-		tree:         t,
+		tree:         newTree,
 		snap:         t,
 		oldMaxNodeId: t.maxNodeId,
 	}
+	return txn
 }
 
 // Clone makes an independent copy of the transaction. The new transaction

@@ -62,7 +62,7 @@ func (t *RadixTree[T]) rawIterator() *rawIterator[T] {
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
-	txn := t.Txn(true)
+	txn := t.Txn()
 	old, ok := txn.Insert(key, value)
 	return txn.Commit(), old, ok
 }
@@ -72,7 +72,7 @@ func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 }
 
 func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn(true)
+	txn := t.Txn()
 	old, ok := txn.Delete(key)
 	return txn.Commit(), old, ok
 }
@@ -327,7 +327,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
-	txn := t.Txn(true)
+	txn := t.Txn()
 	ok := txn.DeletePrefix(key)
 	return txn.Commit(), ok
 }
