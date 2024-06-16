@@ -13,12 +13,6 @@ type Iterator[T any] struct {
 	depth        int
 	pos          Node[T]
 	seenMismatch bool
-	iterPath     []byte
-	stackItrSet  bool
-}
-
-func (i *Iterator[T]) GetIterPath() []byte {
-	return i.iterPath
 }
 
 // Front returns the current node that has been iterated to.

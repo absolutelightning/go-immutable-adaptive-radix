@@ -544,6 +544,7 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 		n.setPartial(make([]byte, maxPrefixLen))
 		n.setPartialLen(maxPrefixLen)
 	}
+	n.getMutateCh()
 	return n
 }
 

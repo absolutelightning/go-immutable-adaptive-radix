@@ -71,12 +71,8 @@ func (n *Node256[T]) isLeaf() bool {
 // Iterator is used to return an Iterator at
 // the given node to walk the tree
 func (n *Node256[T]) Iterator() *Iterator[T] {
-	stack := make([]Node[T], 0)
-	stack = append(stack, n)
-	nodeT := Node[T](n)
 	return &Iterator[T]{
-		stack: stack,
-		node:  nodeT,
+		node: n,
 	}
 }
 
@@ -185,11 +181,9 @@ func (n *Node256[T]) getLowerBoundCh(c byte) int {
 }
 
 func (n *Node256[T]) ReverseIterator() *ReverseIterator[T] {
-	nodeT := Node[T](n)
 	return &ReverseIterator[T]{
 		i: &Iterator[T]{
-			stack: []Node[T]{nodeT},
-			node:  nodeT,
+			node: n,
 		},
 	}
 }
@@ -207,11 +201,8 @@ func (n *Node256[T]) setNodeLeaf(nl *NodeLeaf[T]) {
 }
 
 func (n *Node256[T]) LowerBoundIterator() *LowerBoundIterator[T] {
-	stack := make([]Node[T], 0)
-	stack = append(stack, n)
 	nodeT := Node[T](n)
 	return &LowerBoundIterator[T]{
-		stack: stack,
-		node:  nodeT,
+		node: nodeT,
 	}
 }
