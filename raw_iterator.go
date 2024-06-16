@@ -23,7 +23,7 @@ type rawIterator[T any] struct {
 // rawStackEntry is used to keep track of the cumulative common path as well as
 // its associated edges in the frontier.
 type rawStackEntry[T any] struct {
-	path  string
+	paths []string
 	nodes []Node[T]
 }
 
@@ -44,9 +44,8 @@ func (i *rawIterator[T]) Next() {
 	if i.stack == nil && i.node != nil {
 		i.stack = []rawStackEntry[T]{
 			{
-				nodes: []Node[T]{
-					i.node,
-				},
+				nodes: []Node[T]{i.node},
+				paths: []string{""},
 			},
 		}
 	}
@@ -56,10 +55,12 @@ func (i *rawIterator[T]) Next() {
 		n := len(i.stack)
 		last := i.stack[n-1]
 		elem := last.nodes[0]
+		elemPath := last.paths[0]
 
 		// Update the stack.
 		if len(last.nodes) > 1 {
 			i.stack[n-1].nodes = last.nodes[1:]
+			i.stack[n-1].paths = last.paths[1:]
 		} else {
 			i.stack = i.stack[:n-1]
 		}
@@ -68,13 +69,20 @@ func (i *rawIterator[T]) Next() {
 		if elem != nil && elem.getNumChildren() > 0 {
 			partial := bytes.Trim(elem.getPartial(), "\x00")
 			length := min(maxPrefixLen, int(elem.getPartialLen()))
+			newPath := elemPath
 			if len(partial) > length {
-				i.path = last.path + string(partial[:length])
+				newPath = elemPath + string(partial[:length])
 			} else {
-				i.path = last.path + string(partial)
+				newPath = elemPath + string(partial)
 			}
-			path := last.path + string(elem.getPartial()[:elem.getPartialLen()])
-			i.stack = append(i.stack, rawStackEntry[T]{path, elem.getChildren()})
+			rawStEntry := rawStackEntry[T]{}
+			for idx, ch := range elem.getChildren() {
+				if ch != nil {
+					rawStEntry.nodes = append(rawStEntry.nodes, ch)
+					rawStEntry.paths = append(rawStEntry.paths, newPath+string(elem.getKeyAtIdx(idx)))
+				}
+			}
+			i.stack = append(i.stack, rawStEntry)
 		}
 
 		if elem != nil {
@@ -82,9 +90,9 @@ func (i *rawIterator[T]) Next() {
 			partial := bytes.Trim(elem.getPartial(), "\x00")
 			length := min(maxPrefixLen, int(elem.getPartialLen()))
 			if len(partial) > length {
-				i.path = last.path + string(partial[:length])
+				i.path = elemPath + string(partial[:length])
 			} else {
-				i.path = last.path + string(partial)
+				i.path = elemPath + string(partial)
 			}
 			return
 		}

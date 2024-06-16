@@ -434,9 +434,13 @@ func (t *Txn[T]) slowNotify() {
 		// know from the loop condition there's something in the old
 		// snapshot.
 		if rootIter.Front() == nil {
-			close(snapElem.getMutateCh())
+			if !isClosed(snapElem.getMutateCh()) {
+				close(snapElem.getMutateCh())
+			}
 			if snapElem.isLeaf() {
-				close(snapElem.getNodeLeaf().getMutateCh())
+				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
+					close(snapElem.getNodeLeaf().getMutateCh())
+				}
 			}
 			snapIter.Next()
 			continue
@@ -446,12 +450,19 @@ func (t *Txn[T]) slowNotify() {
 		// below without repeating the compare.
 		cmp := strings.Compare(snapIter.Path(), rootIter.Path())
 
+		rootElem := rootIter.Front()
 		// If the snapshot is behind the root, then we must have deleted
 		// this node during the transaction.
 		if cmp < 0 {
-			close(snapElem.getMutateCh())
+			if !isClosed(snapElem.getMutateCh()) {
+				close(snapElem.getMutateCh())
+			}
 			if snapElem.isLeaf() {
-				close(snapElem.getNodeLeaf().getMutateCh())
+				if snapElem.getNodeLeaf() != rootElem.getNodeLeaf() {
+					if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
+						close(snapElem.getNodeLeaf().getMutateCh())
+					}
+				}
 			}
 			snapIter.Next()
 			continue
@@ -466,11 +477,14 @@ func (t *Txn[T]) slowNotify() {
 
 		// If we have the same path, then we need to see if we mutated a
 		// node and possibly the leaf.
-		rootElem := rootIter.Front()
 		if snapElem != rootElem {
-			close(snapElem.getMutateCh())
+			if !isClosed(snapElem.getMutateCh()) {
+				close(snapElem.getMutateCh())
+			}
 			if snapElem.getNodeLeaf() != nil && (snapElem.getNodeLeaf() != rootElem.getNodeLeaf()) {
-				close(snapElem.getNodeLeaf().getMutateCh())
+				if !isClosed(snapElem.getNodeLeaf().getMutateCh()) {
+					close(snapElem.getNodeLeaf().getMutateCh())
+				}
 			}
 		}
 		snapIter.Next()
@@ -639,6 +653,10 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 func (t *Txn[T]) trackChannel(node Node[T]) {
 	// In overflow, make sure we don't store any more objects.
 	// If this would overflow the state we reject it and set the flag (since
+
+	if t.trackOverflow {
+		return
+	}
 
 	if !t.trackMutate {
 		return

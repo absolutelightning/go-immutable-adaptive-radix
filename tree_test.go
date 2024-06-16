@@ -1313,8 +1313,6 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 
 		iter = r.Root().Iterator()
 		missingWatch = iter.SeekPrefixWatch([]byte("foobarbaz"))
-		fmt.Println("leafwatch")
-		fmt.Println(leafWatch)
 
 		// Delete to a sub-child should trigger the leaf!
 		txn = r.Txn(true)
@@ -1691,10 +1689,12 @@ func TestTrackMutate_HugeTxn(t *testing.T) {
 
 	// Commit and make sure we overflowed but didn't take on extra stuff.
 	r = txn.CommitOnly()
+	if !txn.trackOverflow || txn.trackChnSlice != nil {
+		t.Fatalf("bad")
+	}
 
 	// Now do the trigger.
-	//txn.Notify()
-	txn.Commit()
+	txn.Notify()
 
 	// Make sure no closed channels escaped the transaction.
 	if hasAnyClosedMutateCh(r) {
