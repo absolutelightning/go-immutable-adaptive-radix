@@ -5,7 +5,6 @@ package adaptive
 
 import (
 	"bytes"
-	"sort"
 )
 
 func checkPrefix(partial []byte, partialLen int, key []byte, depth int) int {
@@ -62,9 +61,14 @@ func (t *Txn[T]) addChild(n Node[T], c byte, child Node[T]) Node[T] {
 // addChild4 adds a child node to a node4.
 func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 	if n.getNumChildren() < 4 {
-		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
-			return n.getKeyAtIdx(i) > c
-		})
+		idx := 0
+		for i := 0; i < int(n.getNumChildren()); i++ {
+			if n.getKeyAtIdx(i) <= c {
+				idx = i + 1
+			} else {
+				break
+			}
+		}
 		// Shift to make room
 		length := int(n.getNumChildren()) - idx
 		copy(n.getKeys()[idx+1:], n.getKeys()[idx:idx+length])
@@ -92,9 +96,14 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 // addChild16 adds a child node to a node16.
 func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 	if n.getNumChildren() < 16 {
-		idx := sort.Search(int(n.getNumChildren()), func(i int) bool {
-			return n.getKeyAtIdx(i) > c
-		})
+		idx := 0
+		for i := 0; i < int(n.getNumChildren()); i++ {
+			if n.getKeyAtIdx(i) <= c {
+				idx = i + 1
+			} else {
+				break
+			}
+		}
 		// Set the child
 		length := int(n.getNumChildren()) - idx
 		copy(n.getKeys()[idx+1:], n.getKeys()[idx:idx+length])
@@ -307,21 +316,31 @@ func findChild[T any](n Node[T], c byte) (Node[T], int) {
 	case node4:
 		keys := n.getKeys()
 		nCh := int(n.getNumChildren())
-		idx := sort.Search(nCh, func(i int) bool {
-			return keys[i] > c
-		})
-		if idx >= 1 && keys[idx-1] == c {
-			return n.getChild(idx - 1), idx - 1
+		idx := 0
+		for i := 0; i < nCh; i++ {
+			if keys[i] <= c {
+				idx = i
+			} else {
+				break
+			}
+		}
+		if idx >= 0 && keys[idx] == c {
+			return n.getChild(idx), idx
 		}
 	case node16:
 		keys := n.getKeys()
 		// Compare the key to all 16 stored keys
 		nCh := int(n.getNumChildren())
-		idx := sort.Search(nCh, func(i int) bool {
-			return keys[i] > c
-		})
-		if idx >= 1 && keys[idx-1] == c {
-			return n.getChild(idx - 1), idx - 1
+		idx := 0
+		for i := 0; i < nCh; i++ {
+			if keys[i] <= c {
+				idx = i
+			} else {
+				break
+			}
+		}
+		if idx >= 0 && keys[idx] == c {
+			return n.getChild(idx), idx
 		}
 	case node48:
 		i := n.getKeyAtIdx(int(c))
@@ -370,10 +389,14 @@ func (t *Txn[T]) removeChild(n Node[T], c byte) Node[T] {
 }
 
 func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
-	pos := sort.Search(int(n.getNumChildren()), func(i int) bool {
-		return n.getKeyAtIdx(i) >= c
-	})
-
+	pos := 0
+	for i := 0; i < int(n.getNumChildren()); i++ {
+		if n.getKeyAtIdx(i) < c {
+			pos = i + 1
+		} else {
+			break
+		}
+	}
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	slow := 0
 	children := n.getChildren()
@@ -421,10 +444,14 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 }
 
 func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
-	pos := sort.Search(int(n.getNumChildren()), func(i int) bool {
-		return n.getKeyAtIdx(i) >= c
-	})
-
+	pos := 0
+	for i := 0; i < int(n.getNumChildren()); i++ {
+		if n.getKeyAtIdx(i) < c {
+			pos = i + 1
+		} else {
+			break
+		}
+	}
 	copy(n.getKeys()[pos:], n.getKeys()[pos+1:])
 	children := n.getChildren()
 	slow := 0
