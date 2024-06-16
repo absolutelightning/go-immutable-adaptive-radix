@@ -10,7 +10,6 @@ type Iterator[T any] struct {
 	path         []byte
 	node         Node[T]
 	stack        []Node[T]
-	depth        int
 	pos          Node[T]
 	seenMismatch bool
 }
@@ -148,7 +147,6 @@ func (i *Iterator[T]) SeekPrefix(prefix []byte) Node[T] {
 
 		i.stack = []Node[T]{node}
 		i.node = node
-		i.depth = depth
 
 		node = child
 		// Move to the next level in the tree
