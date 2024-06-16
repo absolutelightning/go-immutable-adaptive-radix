@@ -40,15 +40,24 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
-func (t *RadixTree[T]) Txn() *Txn[T] {
-	newTree := &RadixTree[T]{
-		t.root,
-		t.size,
-		t.maxNodeId,
+func (t *RadixTree[T]) Txn(write bool) *Txn[T] {
+	if write {
+		newTree := &RadixTree[T]{
+			t.root,
+			t.size,
+			t.maxNodeId,
+		}
+		txn := &Txn[T]{
+			size:          t.size,
+			tree:          newTree,
+			snap:          t,
+			trackOverflow: true,
+		}
+		return txn
 	}
 	txn := &Txn[T]{
 		size:          t.size,
-		tree:          newTree,
+		tree:          t,
 		snap:          t,
 		trackOverflow: true,
 	}
