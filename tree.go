@@ -161,7 +161,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 				}
 			}
 			nL := n.getNodeLeaf()
-			if leafMatches(nL.getKey(), key) == 0 {
+			if nL != nil && leafMatches(nL.getKey(), key) == 0 {
 				return nL.getValue(), true
 			}
 		}
