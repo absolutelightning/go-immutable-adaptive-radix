@@ -395,7 +395,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 1 && n.getNodeLeaf() == nil {
-		nodeToReturn := n.getChild(0)
+		nodeToReturn := t.writeNode(n.getChild(0), false)
 		// Is not leaf
 		if n.getArtNodeType() != leafType {
 			// Concatenate the prefixes
