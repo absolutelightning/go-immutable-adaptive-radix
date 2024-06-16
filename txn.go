@@ -47,9 +47,10 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 		t.maxNodeId,
 	}
 	txn := &Txn[T]{
-		size: t.size,
-		tree: newTree,
-		snap: t,
+		size:          t.size,
+		tree:          newTree,
+		snap:          t,
+		trackOverflow: true,
 	}
 	return txn
 }
@@ -379,6 +380,7 @@ func (t *Txn[T]) Notify() {
 			close(ch)
 		}
 	}
+	t.trackOverflow = false
 	t.trackChnSlice = nil
 }
 
