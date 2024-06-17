@@ -53,7 +53,7 @@ func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
-	txn := t.Txn()
+	txn := t.Txn(true)
 	old, ok := txn.Insert(key, value)
 	return txn.Commit(), old, ok
 }
@@ -63,7 +63,7 @@ func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 }
 
 func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn()
+	txn := t.Txn(true)
 	old, ok := txn.Delete(key)
 	return txn.Commit(), old, ok
 }
@@ -161,7 +161,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 				}
 			}
 			nL := n.getNodeLeaf()
-			if leafMatches(nL.getKey(), key) == 0 {
+			if nL != nil && leafMatches(nL.getKey(), key) == 0 {
 				return nL.getValue(), true
 			}
 		}
@@ -318,51 +318,9 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
-	txn := t.Txn()
+	txn := t.Txn(true)
 	ok := txn.DeletePrefix(key)
 	return txn.Commit(), ok
-}
-
-func (t *RadixTree[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int) {
-	// Get terminated
-	if node == nil {
-		return nil, 0
-	}
-	// Handle hitting a leaf node
-	if isLeaf[T](node) {
-		if bytes.HasPrefix(getKey(node.getKey()), getKey(key)) {
-			return nil, 1
-		}
-		return node, 0
-	}
-
-	// Bail if the prefix does not match
-	if node.getPartialLen() > 0 {
-		prefixLen := checkPrefix(node.getPartial(), int(node.getPartialLen()), key, depth)
-		if prefixLen < min(maxPrefixLen, len(getKey(key))) {
-			depth += prefixLen
-		} else {
-			return node, 0
-		}
-	}
-
-	numDel := 0
-
-	// Recurse on the children
-	var newChIndxMap = make(map[int]Node[T])
-	for idx, ch := range node.getChildren() {
-		if ch != nil {
-			newCh, del := t.deletePrefix(ch, key, depth+1)
-			newChIndxMap[idx] = newCh
-			numDel += del
-		}
-	}
-
-	for idx, ch := range newChIndxMap {
-		node.setChild(idx, ch)
-	}
-
-	return node, numDel
 }
 
 // findChild finds the child node pointer based on the given character in the ART tree node.

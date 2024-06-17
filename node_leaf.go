@@ -93,12 +93,9 @@ func (l *NodeLeaf[T]) prefixContainsMatch(key []byte) bool {
 }
 
 func (n *NodeLeaf[T]) Iterator() *Iterator[T] {
-	stack := make([]NodeWrapper[T], 0)
-	stack = append(stack, NodeWrapper[T]{n, 0})
 	nodeT := Node[T](n)
 	return &Iterator[T]{
-		stack: stack,
-		node:  nodeT,
+		node: nodeT,
 	}
 }
 
@@ -180,11 +177,9 @@ func (n *NodeLeaf[T]) getLowerBoundCh(c byte) int {
 }
 
 func (n *NodeLeaf[T]) ReverseIterator() *ReverseIterator[T] {
-	nodeT := Node[T](n)
 	return &ReverseIterator[T]{
 		i: &Iterator[T]{
-			stack: []NodeWrapper[T]{{nodeT, 0}},
-			node:  nodeT,
+			node: n,
 		},
 	}
 }
@@ -199,4 +194,10 @@ func (n *NodeLeaf[T]) getNodeLeaf() *NodeLeaf[T] {
 
 func (n *NodeLeaf[T]) setNodeLeaf(nl *NodeLeaf[T]) {
 	// no op
+}
+
+func (n *NodeLeaf[T]) LowerBoundIterator() *LowerBoundIterator[T] {
+	return &LowerBoundIterator[T]{
+		node: n,
+	}
 }

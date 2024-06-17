@@ -18,7 +18,7 @@ type Txn[T any] struct {
 
 	trackMutate bool
 
-	trackChnMap map[chan struct{}]struct{}
+	trackChnSlice []chan struct{}
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
@@ -31,25 +31,32 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(false)
+	nc := n.clone(!trackCh)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
-func (t *RadixTree[T]) Txn() *Txn[T] {
-	newTree := &RadixTree[T]{
-		t.root,
-		t.size,
-		t.maxNodeId,
+func (t *RadixTree[T]) Txn(write bool) *Txn[T] {
+	if write {
+		newTree := &RadixTree[T]{
+			t.root,
+			t.size,
+			t.maxNodeId,
+		}
+		txn := &Txn[T]{
+			size:         t.size,
+			tree:         newTree,
+			oldMaxNodeId: t.maxNodeId,
+		}
+		return txn
 	}
-	txn := &Txn[T]{
+	return &Txn[T]{
 		size:         t.size,
-		tree:         newTree,
+		tree:         t,
 		oldMaxNodeId: t.maxNodeId,
 	}
-	return txn
 }
 
 // Clone makes an independent copy of the transaction. The new transaction
@@ -64,7 +71,7 @@ func (t *Txn[T]) Clone() *Txn[T] {
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
-		oldMaxNodeId: t.oldMaxNodeId,
+		oldMaxNodeId: t.tree.maxNodeId,
 	}
 	return txn
 }
@@ -90,7 +97,6 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 		t.size++
 		t.tree.size++
 	}
-	t.trackChannel(t.tree.root)
 	t.tree.root = newRoot
 	return oldVal, old == 1
 }
@@ -293,6 +299,13 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil, false
 	}
 
+	if node.isLeaf() {
+		t.trackChannel(node)
+		if leafMatches(node.getKey(), key) == 0 {
+			return nil, node, true
+		}
+	}
+
 	// Handle hitting a leaf node
 	if node.getNodeLeaf() != nil {
 		nodeL := node.getNodeLeaf()
@@ -331,6 +344,14 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		node.setChild(idx, newChild)
 		if newChild == nil {
 			node = t.removeChild(node, key[depth])
+		}
+	}
+
+	if node.getNumChildren() == 0 {
+		if node.getNodeLeaf() != nil {
+			return node, val, mutate
+		} else {
+			return nil, val, mutate
 		}
 	}
 
@@ -387,12 +408,12 @@ func (t *Txn[T]) CommitOnly() *RadixTree[T] {
 // to trigger notifications. This doesn't require any additional state but it
 // is very expensive to compute.
 func (t *Txn[T]) slowNotify() {
-	for ch := range t.trackChnMap {
-		if ch != nil {
+	for _, ch := range t.trackChnSlice {
+		if ch != nil && !isClosed(ch) {
 			close(ch)
 		}
 	}
-	t.trackChnMap = nil
+	t.trackChnSlice = nil
 }
 
 func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
@@ -404,11 +425,21 @@ func (t *Txn[T]) LongestPrefix(prefix []byte) ([]byte, T, bool) {
 func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
 	key := getTreeKey(prefix)
 	newRoot, numDeletions := t.deletePrefix(t.tree.root, key, 0)
+	if newRoot == nil {
+		t.tree.root = &Node4[T]{
+			leaf: &NodeLeaf[T]{
+				id: t.tree.maxNodeId + 1,
+			},
+			id: t.tree.maxNodeId,
+		}
+		t.tree.maxNodeId += 2
+	} else {
+		t.tree.root = newRoot
+	}
 	if numDeletions != 0 {
 		if t.trackMutate {
 			t.trackChannel(t.tree.root)
 		}
-		t.tree.root = newRoot
 		t.tree.size = t.tree.size - uint64(numDeletions)
 		t.size = t.tree.size
 		return true
@@ -462,11 +493,31 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 		}
 	}
 
+	slow := 0
+	numCh := 0
+
 	node = t.writeNode(node, true)
 
-	for idx, ch := range newChIndxMap {
-		node.setChild(idx, ch)
+	for itr := 0; itr < int(node.getNumChildren()); itr++ {
+		newCh, ok := newChIndxMap[itr]
+		if ok {
+			if newCh == nil {
+				continue
+			} else {
+				numCh++
+				node.setChild(slow, newCh)
+				slow++
+			}
+		} else {
+			numCh++
+			node.setChild(slow, node.getChild(itr))
+			slow++
+		}
 	}
+	for itr := slow; itr < len(node.getChildren()); itr++ {
+		node.setChild(itr, nil)
+	}
+	node.setNumChildren(uint8(numCh))
 
 	return node, numDel
 }
@@ -536,10 +587,10 @@ func (t *Txn[T]) trackChannel(node Node[T]) {
 	}
 
 	ch := node.getMutateCh()
-	if t.trackChnMap == nil {
-		t.trackChnMap = make(map[chan struct{}]struct{})
+	if t.trackChnSlice == nil {
+		t.trackChnSlice = make([]chan struct{}, 0)
 	}
-	t.trackChnMap[ch] = struct{}{}
+	t.trackChnSlice = append(t.trackChnSlice, ch)
 	node.setMutateCh(make(chan struct{}))
 }
 
