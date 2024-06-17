@@ -39,7 +39,7 @@ func NewRadixTree[T any]() *RadixTree[T] {
 	}
 	rt.root.setId(rt.maxNodeId)
 	rt.root.getNodeLeaf().setId(rt.maxNodeId + 1)
-	rt.maxNodeId++
+	rt.maxNodeId += 2
 	return rt
 }
 
@@ -57,7 +57,6 @@ func (t *RadixTree[T]) rawIterator() *rawIterator[T] {
 		node: t.root,
 		pos:  t.root,
 	}
-	rawIt.Next()
 	return rawIt
 }
 

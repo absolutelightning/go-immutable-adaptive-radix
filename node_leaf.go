@@ -157,14 +157,14 @@ func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
 	// end up with the same chan
 	// Fast path if there is already a chan
 	ch := n.mutateCh.Load()
-	if ch != nil {
+	if ch != nil && !isClosed(*ch) {
 		return *ch
 	}
 
 	// No chan yet, create one
 	newCh := make(chan struct{})
 
-	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
+	swapped := n.mutateCh.CompareAndSwap(ch, &newCh)
 	if swapped {
 		return newCh
 	}
