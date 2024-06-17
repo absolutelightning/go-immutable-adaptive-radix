@@ -1915,7 +1915,7 @@ func BenchmarkSeekPrefixWatchART(b *testing.B) {
 		uuid1, _ := uuid.GenerateUUID()
 		r, _, _ = r.Insert([]byte(uuid1), n)
 		iter := r.root.Iterator()
-		iter.SeekPrefixWatch([]byte(uuid1[:5]))
+		iter.SeekPrefixWatch([]byte(""))
 		count := 0
 		for {
 			_, _, f := iter.Next()
