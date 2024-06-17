@@ -57,6 +57,7 @@ func (t *RadixTree[T]) rawIterator() *rawIterator[T] {
 		node: t.root,
 		pos:  t.root,
 	}
+	rawIt.Next()
 	return rawIt
 }
 

@@ -42,10 +42,27 @@ func (i *rawIterator[T]) Path() string {
 func (i *rawIterator[T]) Next() {
 	// Initialize our stack if needed.
 	if i.stack == nil && i.node != nil {
+		if i.node.isLeaf() {
+			if i.node.getArtNodeType() == leafType {
+				i.path = string(getKey(i.node.getKey()))
+			} else if i.node.getNodeLeaf() != nil {
+				i.path = string(getKey(i.node.getNodeLeaf().getKey()))
+			}
+		} else {
+			length := min(maxPrefixLen, int(i.node.getPartialLen()))
+			partial := i.node.getPartial()
+			path := ""
+			if len(partial) > length {
+				path = string(partial[:length])
+			} else {
+				path = string(partial)
+			}
+			i.path = path
+		}
 		i.stack = []rawStackEntry[T]{
 			{
 				nodes: []Node[T]{i.node},
-				paths: []string{""},
+				paths: []string{i.path},
 			},
 		}
 	}
@@ -76,24 +93,44 @@ func (i *rawIterator[T]) Next() {
 				newPath = elemPath + string(partial)
 			}
 			rawStEntry := rawStackEntry[T]{}
-			for idx, ch := range elem.getChildren() {
+			for itr := 0; itr < int(elem.getNumChildren()); itr++ {
+				ch := elem.getChild(itr)
 				if ch != nil {
-					rawStEntry.nodes = append(rawStEntry.nodes, ch)
-					rawStEntry.paths = append(rawStEntry.paths, newPath+string(elem.getKeyAtIdx(idx)))
+					if ch.isLeaf() {
+						rawStEntry.nodes = append(rawStEntry.nodes, ch)
+						if ch.getArtNodeType() == leafType {
+							rawStEntry.paths = append(rawStEntry.paths, string(getKey(ch.getKey())))
+						} else if ch.getNodeLeaf() != nil {
+							rawStEntry.paths = append(rawStEntry.paths, string(getKey(ch.getNodeLeaf().getKey())))
+						}
+					} else {
+						rawStEntry.nodes = append(rawStEntry.nodes, ch)
+						rawStEntry.paths = append(rawStEntry.paths, newPath+string(elem.getKeyAtIdx(itr)))
+					}
 				}
 			}
 			i.stack = append(i.stack, rawStEntry)
 		}
 
 		if elem != nil {
-			i.pos = elem
-			partial := bytes.Trim(elem.getPartial(), "\x00")
-			length := min(maxPrefixLen, int(elem.getPartialLen()))
-			if len(partial) > length {
-				i.path = elemPath + string(partial[:length])
+			if elem.isLeaf() {
+				if elem.getArtNodeType() == leafType {
+					i.path = string(getKey(elem.getKey()))
+				} else if elem.getNodeLeaf() != nil {
+					i.path = string(getKey(elem.getNodeLeaf().getKey()))
+				}
 			} else {
-				i.path = elemPath + string(partial)
+				length := min(maxPrefixLen, int(elem.getPartialLen()))
+				partial := elem.getPartial()
+				path := elemPath
+				if len(partial) > length {
+					path = path + string(partial[:length])
+				} else {
+					path = path + string(partial)
+				}
+				i.path = path
 			}
+			i.pos = elem
 			return
 		}
 	}

@@ -127,9 +127,6 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		nodeLeaf := node.getNodeLeaf()
 
-		t.trackChannel(node)
-		node = t.writeNode(node, false)
-
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](newLeaf2L, nodeLeaf, depth)
 		newNode := t.allocNode(node4)

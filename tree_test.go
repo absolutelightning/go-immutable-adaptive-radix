@@ -1343,7 +1343,6 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		default:
 			t.Fatalf("bad")
 		}
-		fmt.Println("leafwatchhere", leafWatch)
 		select {
 		case <-leafWatch:
 		default:
