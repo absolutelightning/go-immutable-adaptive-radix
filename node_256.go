@@ -4,6 +4,8 @@
 package adaptive
 
 import (
+	"bytes"
+	"sort"
 	"sync/atomic"
 )
 
@@ -12,7 +14,8 @@ type Node256[T any] struct {
 	partialLen  uint32
 	numChildren uint8
 	partial     []byte
-	children    [256]Node[T]
+	keys        []byte
+	children    []Node[T]
 	mutateCh    atomic.Pointer[chan struct{}]
 	leaf        *NodeLeaf[T]
 }
@@ -21,24 +24,16 @@ func (n *Node256[T]) getId() uint64 {
 	return n.id
 }
 
-func (n *Node256[T]) getPartialLen() uint32 {
-	return n.partialLen
-}
-
 func (n *Node256[T]) setId(id uint64) {
 	n.id = id
 }
 
+func (n *Node256[T]) getPartialLen() uint32 {
+	return n.partialLen
+}
+
 func (n *Node256[T]) setPartialLen(partialLen uint32) {
 	n.partialLen = partialLen
-}
-
-func (n *Node256[T]) getKeyLen() uint32 {
-	return 0
-}
-
-func (n *Node256[T]) setKeyLen(keyLen uint32) {
-
 }
 
 func (n *Node256[T]) getArtNodeType() nodeType {
@@ -84,15 +79,11 @@ func (n *Node256[T]) PathIterator(path []byte) *PathIterator[T] {
 	}
 }
 
-func (n *Node256[T]) matchPrefix(_ []byte) bool {
-	// No partial keys in NODE256, always match
-	return true
+func (n *Node256[T]) matchPrefix(prefix []byte) bool {
+	return bytes.HasPrefix(n.partial, prefix)
 }
 
 func (n *Node256[T]) getChild(index int) Node[T] {
-	if index < 0 || index >= 256 {
-		return nil
-	}
 	return n.children[index]
 }
 
@@ -100,21 +91,30 @@ func (n *Node256[T]) clone(keepWatch bool) Node[T] {
 	newNode := &Node256[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		keys:        make([]byte, len(n.keys)),
+		children:    make([]Node[T], n.numChildren),
 	}
+	newNode.setId(n.getId())
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	}
 	newNode.setNodeLeaf(n.getNodeLeaf())
 	newPartial := make([]byte, maxPrefixLen)
-	newNode.setId(n.getId())
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
-	cpy := make([]Node[T], len(n.children))
-	copy(cpy, n.children[:])
-	for i := 0; i < 256; i++ {
-		newNode.setChild(i, cpy[i])
+	copy(newNode.keys[:], n.keys[:])
+	for i := 0; i < int(n.numChildren); i++ {
+		newNode.setChild(i, n.children[i])
 	}
 	return newNode
+}
+
+func (n *Node256[T]) getKeyLen() uint32 {
+	return 0
+}
+
+func (n *Node256[T]) setKeyLen(keyLen uint32) {
+
 }
 
 func (n *Node256[T]) setChild(index int, child Node[T]) {
@@ -133,10 +133,11 @@ func (n *Node256[T]) getValue() T {
 }
 
 func (n *Node256[T]) getKeyAtIdx(idx int) byte {
-	return 0
+	return n.keys[idx]
 }
 
 func (n *Node256[T]) setKeyAtIdx(idx int, key byte) {
+	n.keys[idx] = key
 }
 
 func (n *Node256[T]) getChildren() []Node[T] {
@@ -144,7 +145,7 @@ func (n *Node256[T]) getChildren() []Node[T] {
 }
 
 func (n *Node256[T]) getKeys() []byte {
-	return nil
+	return n.keys[:]
 }
 
 func (n *Node256[T]) getMutateCh() chan struct{} {
@@ -172,18 +173,22 @@ func (n *Node256[T]) setKey(key []byte) {
 }
 
 func (n *Node256[T]) getLowerBoundCh(c byte) int {
-	for i := int(c); i < 256; i++ {
-		if n.getChild(i) != nil {
-			return i
-		}
+	nCh := int(n.getNumChildren())
+	idx := sort.Search(nCh, func(i int) bool {
+		return n.keys[i] >= c
+	})
+	// we want lower bound behavior so return even if it's not an exact match
+	if idx < nCh {
+		return idx
 	}
 	return -1
 }
 
 func (n *Node256[T]) ReverseIterator() *ReverseIterator[T] {
+	nodeT := Node[T](n)
 	return &ReverseIterator[T]{
 		i: &Iterator[T]{
-			node: n,
+			node: nodeT,
 		},
 	}
 }
@@ -199,10 +204,13 @@ func (n *Node256[T]) getNodeLeaf() *NodeLeaf[T] {
 func (n *Node256[T]) setNodeLeaf(nl *NodeLeaf[T]) {
 	n.leaf = nl
 }
-
 func (n *Node256[T]) LowerBoundIterator() *LowerBoundIterator[T] {
-	nodeT := Node[T](n)
 	return &LowerBoundIterator[T]{
-		node: nodeT,
+		node: n,
 	}
+}
+
+func (n *Node256[T]) incrementMemory() {
+	n.keys = append(n.keys, 0)
+	n.children = append(n.children, nil)
 }

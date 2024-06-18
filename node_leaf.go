@@ -201,3 +201,7 @@ func (n *NodeLeaf[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 		node: n,
 	}
 }
+
+func (n *NodeLeaf[T]) incrementMemory() {
+
+}

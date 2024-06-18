@@ -31,7 +31,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(!trackCh)
+	nc := n.clone(false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
@@ -129,7 +129,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 			return node, oldVal, true
 		}
 
-		// New value, we must split the leaf into a node4
+		// New value, we must split the leaf into a node256
 		newLeaf2 := t.makeLeaf(key, value)
 		newLeaf2L := newLeaf2.getNodeLeaf()
 
@@ -140,7 +140,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		// Determine longest prefix
 		longestPrefix := longestCommonPrefix[T](newLeaf2L, nodeLeaf, depth)
-		newNode := t.allocNode(node4)
+		newNode := t.allocNode(node256)
 		newNode.setPartialLen(uint32(longestPrefix))
 		copy(newNode.getPartial()[:], key[depth:depth+min(maxPrefixLen, longestPrefix)])
 
@@ -157,7 +157,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 
 		} else {
 			if len(nodeLeaf.getKey()) > depth+longestPrefix {
-				// Add the leafs to the new node4
+				// Add the leafs to the new node256
 				newNode = t.addChild(newNode, nodeLeaf.getKey()[depth+longestPrefix], node)
 			}
 
@@ -203,7 +203,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 				if bytes.HasPrefix(getKey(nL.getKey()), getKey(newLeafL.getKey())) {
 					t.trackChannel(node)
 					node = t.writeNode(node, false)
-					newNode := t.allocNode(node4)
+					newNode := t.allocNode(node256)
 					newNode.setNodeLeaf(newLeaf.(*NodeLeaf[T]))
 					newNode = t.addChild(newNode, key[depth], node)
 					return newNode, zero, true
@@ -220,7 +220,7 @@ func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, o
 		}
 
 		// Create a new node
-		newNode := t.allocNode(node4)
+		newNode := t.allocNode(node256)
 		newNode.setPartialLen(uint32(prefixDiff))
 		copy(newNode.getPartial()[:], node.getPartial()[:min(maxPrefixLen, prefixDiff)])
 		t.trackChannel(node)
@@ -273,7 +273,7 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 	newRoot, l, _ := t.recursiveDelete(t.tree.root, getTreeKey(key), 0)
 
 	if newRoot == nil {
-		t.tree.root = &Node4[T]{
+		t.tree.root = &Node256[T]{
 			leaf: &NodeLeaf[T]{
 				id: t.tree.maxNodeId + 1,
 			},
@@ -426,7 +426,7 @@ func (t *Txn[T]) DeletePrefix(prefix []byte) bool {
 	key := getTreeKey(prefix)
 	newRoot, numDeletions := t.deletePrefix(t.tree.root, key, 0)
 	if newRoot == nil {
-		t.tree.root = &Node4[T]{
+		t.tree.root = &Node256[T]{
 			leaf: &NodeLeaf[T]{
 				id: t.tree.maxNodeId + 1,
 			},
@@ -537,7 +537,7 @@ func (t *Txn[T]) makeLeaf(key []byte, value T) Node[T] {
 	l.setKeyLen(uint32(len(key)))
 	l.setKey(key)
 
-	n4 := t.allocNode(node4)
+	n4 := t.allocNode(node256)
 	n4.setNodeLeaf(l.(*NodeLeaf[T]))
 	t.tree.maxNodeId++
 	n4.setId(t.tree.maxNodeId)
@@ -549,12 +549,6 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	switch ntype {
 	case leafType:
 		n = &NodeLeaf[T]{}
-	case node4:
-		n = &Node4[T]{}
-	case node16:
-		n = &Node16[T]{}
-	case node48:
-		n = &Node48[T]{}
 	case node256:
 		n = &Node256[T]{}
 	default:

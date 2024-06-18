@@ -13,9 +13,6 @@ const maxPrefixLen = 10
 
 const (
 	leafType nodeType = iota
-	node4
-	node16
-	node48
 	node256
 )
 
@@ -34,7 +31,7 @@ type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
 	rt := &RadixTree[T]{size: 0, maxNodeId: 0}
-	rt.root = &Node4[T]{
+	rt.root = &Node256[T]{
 		leaf: &NodeLeaf[T]{},
 	}
 	rt.root.setId(rt.maxNodeId)

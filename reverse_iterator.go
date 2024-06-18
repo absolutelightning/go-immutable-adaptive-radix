@@ -212,8 +212,8 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				return getKey(leafCh.key), leafCh.value, true
 			}
 			continue
-		case *Node4[T]:
-			n4 := node.(*Node4[T])
+		case *Node256[T]:
+			n4 := node.(*Node256[T])
 			if n4.leaf != nil {
 				if bytes.Compare(n4.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
 					ri.i.stack = append(ri.i.stack, n4.leaf)
@@ -228,69 +228,6 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 			}
 			if n4.leaf != nil && hasPrefix(getKey(n4.leaf.key), ri.i.path) {
 				return getKey(n4.leaf.key), n4.leaf.value, true
-			}
-		case *Node16[T]:
-			n16 := node.(*Node16[T])
-			if n16.leaf != nil {
-				if bytes.Compare(n16.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
-					ri.i.stack = append(ri.i.stack, n16.leaf)
-				}
-			}
-			_, ok := ri.expandedParents[node]
-			if ok {
-				continue
-			}
-			for itr := 0; itr < int(n16.numChildren); itr++ {
-				ri.i.stack = append(ri.i.stack, n16.children[itr])
-			}
-			if n16.leaf != nil && hasPrefix(getKey(n16.leaf.key), ri.i.path) {
-				return getKey(n16.leaf.key), n16.leaf.value, true
-			}
-		case *Node48[T]:
-			n48 := node.(*Node48[T])
-			if n48.leaf != nil {
-				if bytes.Compare(n48.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
-					ri.i.stack = append(ri.i.stack, n48.leaf)
-				}
-			}
-			_, ok := ri.expandedParents[node]
-			if ok {
-				continue
-			}
-			for itr := 0; itr < 256; itr++ {
-				idx := n48.keys[itr]
-				if idx == 0 {
-					continue
-				}
-				nodeCh := n48.children[idx-1]
-				if nodeCh == nil {
-					continue
-				}
-				ri.i.stack = append(ri.i.stack, nodeCh)
-			}
-			if n48.leaf != nil && hasPrefix(getKey(n48.leaf.key), ri.i.path) {
-				return getKey(n48.leaf.key), n48.leaf.value, true
-			}
-		case *Node256[T]:
-			n256 := node.(*Node256[T])
-			if n256.leaf != nil {
-				if bytes.Compare(n256.leaf.key, ri.i.path) <= 0 || len(ri.i.path) == 0 {
-					ri.i.stack = append(ri.i.stack, n256.leaf)
-				}
-			}
-			_, ok := ri.expandedParents[node]
-			if ok {
-				continue
-			}
-			for itr := 0; itr < 256; itr++ {
-				nodeCh := n256.children[itr]
-				if nodeCh == nil {
-					continue
-				}
-				ri.i.stack = append(ri.i.stack, nodeCh)
-			}
-			if n256.leaf != nil && hasPrefix(getKey(n256.leaf.key), ri.i.path) {
-				return getKey(n256.leaf.key), n256.leaf.value, true
 			}
 		}
 	}

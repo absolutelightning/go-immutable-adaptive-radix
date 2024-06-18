@@ -41,53 +41,14 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 		}
 
 		switch node.(type) {
-		case *Node4[T]:
-			n4 := node.(*Node4[T])
+		case *Node256[T]:
+			n4 := node.(*Node256[T])
 			n4L := n4.leaf
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, n4.children[itr])
 			}
 			if n4L != nil {
 				return getKey(n4L.key), n4L.value, true
-			}
-		case *Node16[T]:
-			n16 := node.(*Node16[T])
-			n16L := n16.leaf
-			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
-				i.stack = append(i.stack, n16.children[itr])
-			}
-			if n16L != nil {
-				return getKey(n16.leaf.key), n16.leaf.value, true
-			}
-		case *Node48[T]:
-			n48 := node.(*Node48[T])
-			n48L := n48.leaf
-			for itr := 255; itr >= 0; itr-- {
-				idx := n48.keys[itr]
-				if idx == 0 {
-					continue
-				}
-				nodeCh := n48.children[idx-1]
-				if nodeCh == nil {
-					continue
-				}
-				i.stack = append(i.stack, nodeCh)
-			}
-			if n48L != nil {
-				return getKey(n48L.key), n48L.value, true
-			}
-		case *Node256[T]:
-			n256 := node.(*Node256[T])
-			n256L := n256.leaf
-			for itr := 255; itr >= 0; itr-- {
-				nodeCh := n256.children[itr]
-				if nodeCh == nil {
-					continue
-				}
-				i.stack = append(i.stack, nodeCh)
-			}
-			if n256L != nil {
-				return getKey(n256L.key), n256L.value, true
 			}
 		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])

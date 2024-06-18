@@ -33,6 +33,7 @@ type Node[T any] interface {
 	getLowerBoundCh(byte) int
 	getNodeLeaf() *NodeLeaf[T]
 	setNodeLeaf(*NodeLeaf[T])
+	incrementMemory()
 
 	Iterator() *Iterator[T]
 	LowerBoundIterator() *LowerBoundIterator[T]
