@@ -75,7 +75,7 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			n256 := node.(*Node256[T])
 			n256L := n256.leaf
 			for itr := 255; itr >= 0; itr-- {
-				nodeCh := n256.children[itr]
+				nodeCh := n256.children[byte(itr)]
 				if nodeCh == nil {
 					continue
 				}

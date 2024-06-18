@@ -89,11 +89,11 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 		case node256:
 			n256 := currentNode.(*Node256[T])
 			for itr := 255; itr >= 0; itr-- {
-				nodeCh := n256.children[itr]
+				nodeCh := n256.children[byte(itr)]
 				if nodeCh == nil {
 					continue
 				}
-				child := (n256.children[itr]).(Node[T])
+				child := (n256.children[byte(itr)]).(Node[T])
 				newStack := make([]Node[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
 				newStack[0] = child

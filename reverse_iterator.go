@@ -283,7 +283,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				continue
 			}
 			for itr := 0; itr < 256; itr++ {
-				nodeCh := n256.children[itr]
+				nodeCh := n256.children[byte(itr)]
 				if nodeCh == nil {
 					continue
 				}

@@ -12,7 +12,7 @@ type Node256[T any] struct {
 	partialLen  uint32
 	numChildren uint8
 	partial     []byte
-	children    [256]Node[T]
+	children    map[byte]Node[T]
 	mutateCh    atomic.Pointer[chan struct{}]
 	leaf        *NodeLeaf[T]
 }
@@ -93,13 +93,14 @@ func (n *Node256[T]) getChild(index int) Node[T] {
 	if index < 0 || index >= 256 {
 		return nil
 	}
-	return n.children[index]
+	return n.children[byte(index)]
 }
 
 func (n *Node256[T]) clone(keepWatch bool) Node[T] {
 	newNode := &Node256[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		children:    make(map[byte]Node[T], n.numChildren),
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
@@ -109,16 +110,14 @@ func (n *Node256[T]) clone(keepWatch bool) Node[T] {
 	newNode.setId(n.getId())
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
-	cpy := make([]Node[T], len(n.children))
-	copy(cpy, n.children[:])
-	for i := 0; i < 256; i++ {
-		newNode.setChild(i, cpy[i])
+	for k, v := range n.children {
+		newNode.setChild(int(k), v)
 	}
 	return newNode
 }
 
 func (n *Node256[T]) setChild(index int, child Node[T]) {
-	n.children[index] = child
+	n.children[byte(index)] = child
 }
 
 func (n *Node256[T]) getKey() []byte {
@@ -140,7 +139,11 @@ func (n *Node256[T]) setKeyAtIdx(idx int, key byte) {
 }
 
 func (n *Node256[T]) getChildren() []Node[T] {
-	return n.children[:]
+	ch := make([]Node[T], 0, n.numChildren)
+	for _, child := range n.children {
+		ch = append(ch, child)
+	}
+	return ch
 }
 
 func (n *Node256[T]) getKeys() []byte {

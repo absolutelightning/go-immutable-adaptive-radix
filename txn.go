@@ -31,7 +31,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(!trackCh)
+	nc := n.clone(false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
@@ -556,7 +556,9 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	case node48:
 		n = &Node48[T]{}
 	case node256:
-		n = &Node256[T]{}
+		n = &Node256[T]{
+			children: make(map[byte]Node[T], 0),
+		}
 	default:
 		panic("Unknown node type")
 	}
