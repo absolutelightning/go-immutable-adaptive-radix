@@ -46,14 +46,14 @@ func longestCommonPrefix[T any](l1, l2 Node[T], depth int) int {
 func (t *Txn[T]) addChild(n Node[T], c byte, child Node[T]) Node[T] {
 	switch n.getArtNodeType() {
 	case node256:
-		return t.addChild4(n, c, child)
+		return t.addChild256(n, c, child)
 	default:
 		panic("Unknown node type")
 	}
 }
 
-// addChild4 adds a child node to a node256.
-func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
+// addChild256 adds a child node to a node256.
+func (t *Txn[T]) addChild256(n Node[T], c byte, child Node[T]) Node[T] {
 	n.incrementMemory()
 	idx := 0
 	for i := 0; i < int(n.getNumChildren()); i++ {
@@ -213,13 +213,13 @@ func getKey(key []byte) []byte {
 func (t *Txn[T]) removeChild(n Node[T], c byte) Node[T] {
 	switch n.getArtNodeType() {
 	case node256:
-		return t.removeChild4(n, c)
+		return t.removeChild256(n, c)
 	default:
 		panic("invalid node type")
 	}
 }
 
-func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
+func (t *Txn[T]) removeChild256(n Node[T], c byte) Node[T] {
 	pos := 0
 	for i := 0; i < int(n.getNumChildren()); i++ {
 		if n.getKeyAtIdx(i) < c {
