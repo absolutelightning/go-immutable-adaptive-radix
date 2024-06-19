@@ -1776,6 +1776,26 @@ func generateDataset(size int) []string {
 	return dataset
 }
 
+func BenchmarkTestARTree_InsertAndSearchWords(b *testing.B) {
+
+	art := NewRadixTree[int]()
+
+	file, _ := os.Open("test-text/words.txt")
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var lines []string
+	for scanner.Scan() {
+		line := scanner.Text()
+		lines = append(lines, line)
+	}
+
+	b.ResetTimer()
+	for i := 1; i < b.N; i++ {
+		art, _, _ = art.Insert([]byte(lines[i%(len(lines))]), 0)
+	}
+}
+
 func BenchmarkMixedOperations(b *testing.B) {
 	dataset := generateDataset(datasetSize)
 	art := NewRadixTree[int]()
