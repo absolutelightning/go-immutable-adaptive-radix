@@ -43,6 +43,23 @@ func NewRadixTree[T any]() *RadixTree[T] {
 	return rt
 }
 
+func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
+	if deep {
+		nt := &RadixTree[T]{
+			root:      t.root.clone(false, true),
+			size:      t.size,
+			maxNodeId: t.maxNodeId,
+		}
+		return nt
+	}
+	nt := &RadixTree[T]{
+		root:      t.root.clone(false, false),
+		size:      t.size,
+		maxNodeId: t.maxNodeId,
+	}
+	return nt
+}
+
 // Len is used to return the number of elements in the tree
 func (t *RadixTree[T]) Len() int {
 	return int(t.size)
@@ -348,7 +365,6 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 	for i := 0; i < depth*5; i++ {
 		stPadding += " "
 	}
-	fmt.Println()
 	fmt.Print(stPadding + "id -> " + strconv.Itoa(int(node.getId())) + " type -> " + strconv.Itoa(int(node.getArtNodeType())))
 	fmt.Print(" key -> " + string(node.getKey()))
 	fmt.Print(" partial -> " + string(node.getPartial()))

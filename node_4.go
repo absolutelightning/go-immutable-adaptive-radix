@@ -18,8 +18,8 @@ type Node4[T any] struct {
 	children     [4]Node[T]
 	mutateCh     atomic.Pointer[chan struct{}]
 	leaf         *NodeLeaf[T]
-	refCount     int
-	lazyRefCount int
+	refCount     int64
+	lazyRefCount int64
 }
 
 func (n *Node4[T]) getId() uint64 {
@@ -89,7 +89,7 @@ func (n *Node4[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node4[T]) clone(keepWatch bool) Node[T] {
+func (n *Node4[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &Node4[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
@@ -98,15 +98,32 @@ func (n *Node4[T]) clone(keepWatch bool) Node[T] {
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	}
-	newNode.setNodeLeaf(n.getNodeLeaf())
+	if deep {
+		if n.getNodeLeaf() != nil {
+			newNode.setNodeLeaf(n.getNodeLeaf().clone(false, true).(*NodeLeaf[T]))
+		}
+	} else {
+		newNode.setNodeLeaf(n.getNodeLeaf())
+	}
 	newPartial := make([]byte, maxPrefixLen)
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	copy(newNode.keys[:], n.keys[:])
-	cpy := make([]Node[T], len(n.children))
-	copy(cpy, n.children[:])
-	for i := 0; i < 4; i++ {
-		newNode.setChild(i, cpy[i])
+	if deep {
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 4; i++ {
+			if cpy[i] == nil {
+				continue
+			}
+			newNode.setChild(i, cpy[i].clone(keepWatch, true))
+		}
+	} else {
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 4; i++ {
+			newNode.setChild(i, cpy[i])
+		}
 	}
 	return newNode
 }
@@ -212,8 +229,8 @@ func (n *Node4[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 	}
 }
 
-func (n *Node4[T]) incrementLazyRefCount(inc int) {
-	n.lazyRefCount += inc
+func (n *Node4[T]) incrementLazyRefCount(inc int64) {
+	atomic.AddInt64(&n.lazyRefCount, inc)
 }
 
 func (n *Node4[T]) processRefCount() {
@@ -226,7 +243,7 @@ func (n *Node4[T]) processRefCount() {
 	n.lazyRefCount = 0
 }
 
-func (n *Node4[T]) getRefCount() int {
+func (n *Node4[T]) getRefCount() int64 {
 	n.processRefCount()
 	return n.refCount
 }

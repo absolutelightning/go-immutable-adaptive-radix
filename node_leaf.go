@@ -13,8 +13,8 @@ type NodeLeaf[T any] struct {
 	value        T
 	key          []byte
 	mutateCh     atomic.Pointer[chan struct{}]
-	lazyRefCount int
-	refCount     int
+	lazyRefCount int64
+	refCount     int64
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -120,7 +120,7 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) clone(keepWatch bool) Node[T] {
+func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode := &NodeLeaf[T]{
 		key:   make([]byte, len(n.getKey())),
 		value: n.getValue(),
@@ -130,8 +130,7 @@ func (n *NodeLeaf[T]) clone(keepWatch bool) Node[T] {
 	}
 	newNode.setId(n.getId())
 	copy(newNode.key[:], n.key[:])
-	nodeT := Node[T](newNode)
-	return nodeT
+	return newNode
 }
 
 func (n *NodeLeaf[T]) setChild(int, Node[T]) {
@@ -204,8 +203,8 @@ func (n *NodeLeaf[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 	}
 }
 
-func (n *NodeLeaf[T]) incrementLazyRefCount(inc int) {
-	n.lazyRefCount += inc
+func (n *NodeLeaf[T]) incrementLazyRefCount(inc int64) {
+	atomic.AddInt64(&n.lazyRefCount, inc)
 }
 
 func (n *NodeLeaf[T]) processRefCount() {
@@ -213,7 +212,7 @@ func (n *NodeLeaf[T]) processRefCount() {
 	n.lazyRefCount = 0
 }
 
-func (n *NodeLeaf[T]) getRefCount() int {
+func (n *NodeLeaf[T]) getRefCount() int64 {
 	n.processRefCount()
 	return n.refCount
 }

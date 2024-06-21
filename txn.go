@@ -34,7 +34,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 	if n.getRefCount() == 1 {
 		return n
 	}
-	nc := n.clone(!trackCh)
+	nc := n.clone(!trackCh, false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
@@ -43,7 +43,7 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 // Txn starts a new transaction that can be used to mutate the tree
 func (t *RadixTree[T]) Txn() *Txn[T] {
 	newTree := &RadixTree[T]{
-		t.root,
+		t.root.clone(true, false),
 		t.size,
 		t.maxNodeId,
 	}
@@ -61,7 +61,7 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 	newTree := &RadixTree[T]{
-		t.tree.root,
+		t.tree.root.clone(false, false),
 		t.size,
 		t.tree.maxNodeId,
 	}
@@ -100,6 +100,8 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T, bool) {
 	var zero T
+
+	node.processRefCount()
 
 	if t.tree.size == 0 {
 		node = t.writeNode(node, true)
@@ -292,9 +294,12 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 
 func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], Node[T], bool) {
 	// Get terminated
+
 	if node == nil {
 		return nil, nil, false
 	}
+
+	node.processRefCount()
 
 	if node.isLeaf() {
 		t.trackChannel(node)
