@@ -43,6 +43,23 @@ func NewRadixTree[T any]() *RadixTree[T] {
 	return rt
 }
 
+func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
+	if deep {
+		nt := &RadixTree[T]{
+			root:      t.root.clone(true, true),
+			size:      t.size,
+			maxNodeId: t.maxNodeId,
+		}
+		return nt
+	}
+	nt := &RadixTree[T]{
+		root:      t.root.clone(true, false),
+		size:      t.size,
+		maxNodeId: t.maxNodeId,
+	}
+	return nt
+}
+
 // Len is used to return the number of elements in the tree
 func (t *RadixTree[T]) Len() int {
 	return int(t.size)
@@ -53,7 +70,7 @@ func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
-	txn := t.Txn()
+	txn := t.Txn(false)
 	old, ok := txn.Insert(key, value)
 	return txn.Commit(), old, ok
 }
@@ -63,7 +80,7 @@ func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 }
 
 func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn()
+	txn := t.Txn(false)
 	old, ok := txn.Delete(key)
 	return txn.Commit(), old, ok
 }
@@ -318,7 +335,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
-	txn := t.Txn()
+	txn := t.Txn(false)
 	ok := txn.DeletePrefix(key)
 	return txn.Commit(), ok
 }
@@ -348,7 +365,6 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 	for i := 0; i < depth*5; i++ {
 		stPadding += " "
 	}
-	fmt.Println()
 	fmt.Print(stPadding + "id -> " + strconv.Itoa(int(node.getId())) + " type -> " + strconv.Itoa(int(node.getArtNodeType())))
 	fmt.Print(" key -> " + string(node.getKey()))
 	fmt.Print(" partial -> " + string(node.getPartial()))

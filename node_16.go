@@ -10,14 +10,16 @@ import (
 )
 
 type Node16[T any] struct {
-	id          uint64
-	partialLen  uint32
-	numChildren uint8
-	partial     []byte
-	keys        [16]byte
-	children    [16]Node[T]
-	mutateCh    atomic.Pointer[chan struct{}]
-	leaf        *NodeLeaf[T]
+	id           uint64
+	partialLen   uint32
+	numChildren  uint8
+	partial      []byte
+	keys         [16]byte
+	children     [16]Node[T]
+	mutateCh     atomic.Pointer[chan struct{}]
+	leaf         *NodeLeaf[T]
+	refCount     int64
+	lazyRefCount int64
 }
 
 func (n *Node16[T]) getId() uint64 {
@@ -88,27 +90,45 @@ func (n *Node16[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node16[T]) clone(keepWatch bool) Node[T] {
+func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
+	n.processRefCount()
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		refCount:    n.getRefCount(),
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	}
 	newPartial := make([]byte, maxPrefixLen)
-	newNode.setNodeLeaf(n.getNodeLeaf())
+	if deep {
+		if n.getNodeLeaf() != nil {
+			newNode.setNodeLeaf(n.getNodeLeaf().clone(true, true).(*NodeLeaf[T]))
+		}
+	} else {
+		newNode.setNodeLeaf(n.getNodeLeaf())
+	}
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	newNode.setId(n.getId())
 	copy(newNode.keys[:], n.keys[:])
-	cpy := make([]Node[T], len(n.children))
-	copy(cpy, n.children[:])
-	for i := 0; i < 16; i++ {
-		newNode.setChild(i, cpy[i])
+	if deep {
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 16; i++ {
+			if cpy[i] == nil {
+				continue
+			}
+			newNode.setChild(i, cpy[i].clone(keepWatch, true))
+		}
+	} else {
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 16; i++ {
+			newNode.setChild(i, cpy[i])
+		}
 	}
-	nodeT := Node[T](newNode)
-	return nodeT
+	return newNode
 }
 
 func (n *Node16[T]) getKeyLen() uint32 {
@@ -209,4 +229,29 @@ func (n *Node16[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 	return &LowerBoundIterator[T]{
 		node: n,
 	}
+}
+
+func (n *Node16[T]) incrementLazyRefCount(inc int64) {
+	n.lazyRefCount += inc
+}
+
+func (n *Node16[T]) processRefCount() {
+	if n.lazyRefCount == 0 {
+		return
+	}
+	n.refCount += n.lazyRefCount
+	if n.getNodeLeaf() != nil {
+		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
+	}
+	for _, child := range n.children {
+		if child != nil {
+			child.incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	n.lazyRefCount = 0
+}
+
+func (n *Node16[T]) getRefCount() int64 {
+	n.processRefCount()
+	return n.refCount
 }

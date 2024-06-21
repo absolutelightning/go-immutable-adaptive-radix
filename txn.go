@@ -22,28 +22,33 @@ type Txn[T any] struct {
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
-	if n.getId() > t.oldMaxNodeId {
-		return n
-	}
 	if trackCh {
 		t.trackChannel(n)
 		if n.getNodeLeaf() != nil {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
-	nc := n.clone(!trackCh)
+	if n.getId() > t.oldMaxNodeId {
+		return n
+	}
+	if n.getRefCount() <= 1 {
+		return n
+	}
+	nc := n.clone(!trackCh, false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
-func (t *RadixTree[T]) Txn() *Txn[T] {
+func (t *RadixTree[T]) Txn(clone bool) *Txn[T] {
 	newTree := &RadixTree[T]{
-		t.root,
+		t.root.clone(true, clone),
 		t.size,
 		t.maxNodeId,
 	}
+	newTree.root.incrementLazyRefCount(1)
+	newTree.root.processRefCount()
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
@@ -57,7 +62,7 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 	newTree := &RadixTree[T]{
-		t.tree.root,
+		t.tree.root.clone(true, false),
 		t.size,
 		t.tree.maxNodeId,
 	}
@@ -96,6 +101,8 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T, bool) {
 	var zero T
+
+	node.processRefCount()
 
 	if t.tree.size == 0 {
 		node = t.writeNode(node, true)
@@ -288,9 +295,12 @@ func (t *Txn[T]) Delete(key []byte) (T, bool) {
 
 func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], Node[T], bool) {
 	// Get terminated
+
 	if node == nil {
 		return nil, nil, false
 	}
+
+	node.processRefCount()
 
 	if node.isLeaf() {
 		t.trackChannel(node)
@@ -389,6 +399,8 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
+	t.tree.root.incrementLazyRefCount(-1)
+	t.tree.root.processRefCount()
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 		t.tree.maxNodeId,
@@ -541,15 +553,25 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	var n Node[T]
 	switch ntype {
 	case leafType:
-		n = &NodeLeaf[T]{}
+		n = &NodeLeaf[T]{
+			refCount: 1,
+		}
 	case node4:
-		n = &Node4[T]{}
+		n = &Node4[T]{
+			refCount: 1,
+		}
 	case node16:
-		n = &Node16[T]{}
+		n = &Node16[T]{
+			refCount: 1,
+		}
 	case node48:
-		n = &Node48[T]{}
+		n = &Node48[T]{
+			refCount: 1,
+		}
 	case node256:
-		n = &Node256[T]{}
+		n = &Node256[T]{
+			refCount: 1,
+		}
 	default:
 		panic("Unknown node type")
 	}
