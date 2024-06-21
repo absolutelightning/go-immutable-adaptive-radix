@@ -99,9 +99,11 @@ func (n *Node48[T]) getChild(index int) Node[T] {
 }
 
 func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
+	n.processRefCount()
 	newNode := &Node48[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		refCount:    n.getRefCount(),
 	}
 	newNode.setId(n.getId())
 	newPartial := make([]byte, maxPrefixLen)
@@ -109,7 +111,7 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode.setPartial(newPartial)
 	if deep {
 		if n.getNodeLeaf() != nil {
-			newNode.setNodeLeaf(n.getNodeLeaf().clone(false, true).(*NodeLeaf[T]))
+			newNode.setNodeLeaf(n.getNodeLeaf().clone(true, true).(*NodeLeaf[T]))
 		}
 	} else {
 		newNode.setNodeLeaf(n.getNodeLeaf())
@@ -239,7 +241,13 @@ func (n *Node48[T]) incrementLazyRefCount(inc int64) {
 }
 
 func (n *Node48[T]) processRefCount() {
+	if n.lazyRefCount == 0 {
+		return
+	}
 	n.refCount += n.lazyRefCount
+	if n.getNodeLeaf() != nil {
+		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
+	}
 	for _, child := range n.children {
 		if child != nil {
 			child.incrementLazyRefCount(n.lazyRefCount)

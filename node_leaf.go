@@ -121,9 +121,11 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 }
 
 func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
+	n.processRefCount()
 	newNode := &NodeLeaf[T]{
-		key:   make([]byte, len(n.getKey())),
-		value: n.getValue(),
+		key:      make([]byte, len(n.getKey())),
+		value:    n.getValue(),
+		refCount: n.getRefCount(),
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())

@@ -99,16 +99,18 @@ func (n *Node256[T]) getChild(index int) Node[T] {
 }
 
 func (n *Node256[T]) clone(keepWatch, deep bool) Node[T] {
+	n.processRefCount()
 	newNode := &Node256[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		refCount:    n.getRefCount(),
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	}
 	if deep {
 		if n.getNodeLeaf() != nil {
-			newNode.setNodeLeaf(n.getNodeLeaf().clone(false, true).(*NodeLeaf[T]))
+			newNode.setNodeLeaf(n.getNodeLeaf().clone(true, true).(*NodeLeaf[T]))
 		}
 	} else {
 		newNode.setNodeLeaf(n.getNodeLeaf())
@@ -231,7 +233,13 @@ func (n *Node256[T]) incrementLazyRefCount(inc int64) {
 }
 
 func (n *Node256[T]) processRefCount() {
+	if n.lazyRefCount == 0 {
+		return
+	}
 	n.refCount += n.lazyRefCount
+	if n.getNodeLeaf() != nil {
+		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
+	}
 	for _, child := range n.children {
 		if child != nil {
 			child.incrementLazyRefCount(n.lazyRefCount)
