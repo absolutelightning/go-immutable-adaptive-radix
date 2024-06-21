@@ -8,13 +8,15 @@ import (
 )
 
 type Node256[T any] struct {
-	id          uint64
-	partialLen  uint32
-	numChildren uint8
-	partial     []byte
-	children    [256]Node[T]
-	mutateCh    atomic.Pointer[chan struct{}]
-	leaf        *NodeLeaf[T]
+	id           uint64
+	partialLen   uint32
+	numChildren  uint8
+	partial      []byte
+	children     [256]Node[T]
+	mutateCh     atomic.Pointer[chan struct{}]
+	leaf         *NodeLeaf[T]
+	lazyRefCount int64
+	refCount     int64
 }
 
 func (n *Node256[T]) getId() uint64 {
@@ -96,23 +98,42 @@ func (n *Node256[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node256[T]) clone(keepWatch bool) Node[T] {
+func (n *Node256[T]) clone(keepWatch, deep bool) Node[T] {
+	n.processRefCount()
 	newNode := &Node256[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
+		refCount:    n.getRefCount(),
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
 	}
-	newNode.setNodeLeaf(n.getNodeLeaf())
+	if deep {
+		if n.getNodeLeaf() != nil {
+			newNode.setNodeLeaf(n.getNodeLeaf().clone(true, true).(*NodeLeaf[T]))
+		}
+	} else {
+		newNode.setNodeLeaf(n.getNodeLeaf())
+	}
 	newPartial := make([]byte, maxPrefixLen)
 	newNode.setId(n.getId())
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
-	cpy := make([]Node[T], len(n.children))
-	copy(cpy, n.children[:])
-	for i := 0; i < 256; i++ {
-		newNode.setChild(i, cpy[i])
+	if deep {
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 256; i++ {
+			if cpy[i] == nil {
+				continue
+			}
+			newNode.setChild(i, cpy[i].clone(keepWatch, true))
+		}
+	} else {
+		cpy := make([]Node[T], len(n.children))
+		copy(cpy, n.children[:])
+		for i := 0; i < 256; i++ {
+			newNode.setChild(i, cpy[i])
+		}
 	}
 	return newNode
 }
@@ -205,4 +226,29 @@ func (n *Node256[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 	return &LowerBoundIterator[T]{
 		node: nodeT,
 	}
+}
+
+func (n *Node256[T]) incrementLazyRefCount(inc int64) {
+	n.lazyRefCount += inc
+}
+
+func (n *Node256[T]) processRefCount() {
+	if n.lazyRefCount == 0 {
+		return
+	}
+	n.refCount += n.lazyRefCount
+	if n.getNodeLeaf() != nil {
+		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
+	}
+	for _, child := range n.children {
+		if child != nil {
+			child.incrementLazyRefCount(n.lazyRefCount)
+		}
+	}
+	n.lazyRefCount = 0
+}
+
+func (n *Node256[T]) getRefCount() int64 {
+	n.processRefCount()
+	return n.refCount
 }
