@@ -206,12 +206,12 @@ func (n *NodeLeaf[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 }
 
 func (n *NodeLeaf[T]) incrementLazyRefCount(inc int64) {
-	n.lazyRefCount += inc
+	atomic.AddInt64(&n.lazyRefCount, inc)
 }
 
 func (n *NodeLeaf[T]) processRefCount() {
 	n.refCount += n.lazyRefCount
-	n.lazyRefCount = 0
+	atomic.StoreInt64(&n.lazyRefCount, 0)
 }
 
 func (n *NodeLeaf[T]) getRefCount() int64 {
