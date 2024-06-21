@@ -16,6 +16,9 @@ type Node[T any] interface {
 	isLeaf() bool
 	matchPrefix([]byte) bool
 	getChild(int) Node[T]
+	incrementLazyRefCount(delta int)
+	getRefCount() int
+	processRefCount()
 	setChild(int, Node[T])
 	clone(bool) Node[T]
 	setMutateCh(chan struct{})

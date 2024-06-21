@@ -31,6 +31,9 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 			t.trackChannel(n.getNodeLeaf())
 		}
 	}
+	if n.getRefCount() == 1 {
+		return n
+	}
 	nc := n.clone(!trackCh)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
@@ -44,6 +47,7 @@ func (t *RadixTree[T]) Txn() *Txn[T] {
 		t.size,
 		t.maxNodeId,
 	}
+	newTree.root.incrementLazyRefCount(1)
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
@@ -379,6 +383,7 @@ func (t *Txn[T]) Notify() {
 // Commit is used to finalize the transaction and return a new tree. If mutation
 // tracking is turned on then notifications will also be issued.
 func (t *Txn[T]) Commit() *RadixTree[T] {
+	t.tree.root.incrementLazyRefCount(-1)
 	nt := t.CommitOnly()
 	if t.trackMutate {
 		t.Notify()
@@ -560,6 +565,7 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 		n.setPartialLen(maxPrefixLen)
 	}
 	n.getMutateCh()
+	n.incrementLazyRefCount(1)
 	return n
 }
 

@@ -9,10 +9,12 @@ import (
 )
 
 type NodeLeaf[T any] struct {
-	id       uint64
-	value    T
-	key      []byte
-	mutateCh atomic.Pointer[chan struct{}]
+	id           uint64
+	value        T
+	key          []byte
+	mutateCh     atomic.Pointer[chan struct{}]
+	lazyRefCount int
+	refCount     int
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -200,4 +202,18 @@ func (n *NodeLeaf[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 	return &LowerBoundIterator[T]{
 		node: n,
 	}
+}
+
+func (n *NodeLeaf[T]) incrementLazyRefCount(inc int) {
+	n.lazyRefCount += inc
+}
+
+func (n *NodeLeaf[T]) processRefCount() {
+	n.refCount += n.lazyRefCount
+	n.lazyRefCount = 0
+}
+
+func (n *NodeLeaf[T]) getRefCount() int {
+	n.processRefCount()
+	return n.refCount
 }
