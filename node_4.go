@@ -230,7 +230,7 @@ func (n *Node4[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 }
 
 func (n *Node4[T]) incrementLazyRefCount(inc int64) {
-	atomic.AddInt64(&n.lazyRefCount, inc)
+	n.lazyRefCount += inc
 }
 
 func (n *Node4[T]) processRefCount() {
