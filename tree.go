@@ -233,7 +233,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 				}
 			}
 			for _, ch := range n.getChildren() {
-				if ch != nil && (*ch).getNodeLeaf() != nil {
+				if ch != nil && *ch != nil && (*ch).getNodeLeaf() != nil {
 					chNodeLeaf := (*ch).getNodeLeaf()
 					if leafMatches((*chNodeLeaf).getKey(), key) == 0 {
 						return (*chNodeLeaf).getValue(), true
