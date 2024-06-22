@@ -30,7 +30,7 @@ type Node[T any] interface {
 	setKeyLen(uint32)
 	getKeyAtIdx(int) byte
 	setKeyAtIdx(int, byte)
-	getChildren() []Node[T]
+	getChildren() []*Node[T]
 	getKeys() []byte
 	getMutateCh() chan struct{}
 	getLowerBoundCh(byte) int

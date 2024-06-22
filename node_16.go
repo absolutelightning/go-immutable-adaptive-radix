@@ -167,16 +167,8 @@ func (n *Node16[T]) setKeyAtIdx(idx int, key byte) {
 	n.keys[idx] = key
 }
 
-func (n *Node16[T]) getChildren() []Node[T] {
-	ch := make([]Node[T], 0)
-	for _, child := range n.children {
-		if child == nil {
-			ch = append(ch, nil)
-			continue
-		}
-		ch = append(ch, *child)
-	}
-	return ch
+func (n *Node16[T]) getChildren() []*Node[T] {
+	return n.children[:]
 }
 
 func (n *Node16[T]) getKeys() []byte {

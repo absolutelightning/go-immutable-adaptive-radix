@@ -22,6 +22,8 @@ type Txn[T any] struct {
 }
 
 func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
+	n.processRefCount()
+
 	if trackCh {
 		t.trackChannel(n)
 		if n.getNodeLeaf() != nil {
@@ -101,8 +103,6 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T, bool) {
 	var zero T
-
-	node.processRefCount()
 
 	if t.tree.size == 0 {
 		node = t.writeNode(node, true)
@@ -300,8 +300,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil, false
 	}
 
-	node.processRefCount()
-
 	if node.isLeaf() {
 		t.trackChannel(node)
 		if leafMatches(node.getKey(), key) == 0 {
@@ -489,11 +487,11 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	var newChIndxMap = make(map[int]Node[T])
 	for idx, ch := range node.getChildren() {
 		if ch != nil {
-			newCh, del := t.deletePrefix(ch, key, depth+1)
+			newCh, del := t.deletePrefix(*ch, key, depth+1)
 			newChIndxMap[idx] = newCh
 			numDel += del
 			if del > 0 && t.trackMutate {
-				t.trackChannel(ch)
+				t.trackChannel(*ch)
 			}
 		}
 	}

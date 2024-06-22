@@ -126,8 +126,8 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 
 		for _, ch := range n.getChildren() {
 			if ch != nil {
-				if ch.getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey(ch.getNodeLeaf().getKey())) {
-					last = ch.getNodeLeaf()
+				if (*ch).getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey((*ch).getNodeLeaf().getKey())) {
+					last = (*ch).getNodeLeaf()
 				}
 			}
 		}
@@ -193,8 +193,8 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 					}
 				}
 				for _, ch := range n.getChildren() {
-					if ch != nil && ch.getNodeLeaf() != nil {
-						chNodeLeaf := ch.getNodeLeaf()
+					if ch != nil && (*ch).getNodeLeaf() != nil {
+						chNodeLeaf := (*ch).getNodeLeaf()
 						if leafMatches(chNodeLeaf.getKey(), key) == 0 {
 							return chNodeLeaf.getValue(), true
 						}
@@ -212,8 +212,8 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 				}
 			}
 			for _, ch := range n.getChildren() {
-				if ch != nil && ch.getNodeLeaf() != nil {
-					chNodeLeaf := ch.getNodeLeaf()
+				if ch != nil && (*ch).getNodeLeaf() != nil {
+					chNodeLeaf := (*ch).getNodeLeaf()
 					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
 						return chNodeLeaf.getValue(), true
 					}
@@ -231,8 +231,8 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 				}
 			}
 			for _, ch := range n.getChildren() {
-				if ch != nil && ch.getNodeLeaf() != nil {
-					chNodeLeaf := ch.getNodeLeaf()
+				if ch != nil && (*ch).getNodeLeaf() != nil {
+					chNodeLeaf := (*ch).getNodeLeaf()
 					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
 						return chNodeLeaf.getValue(), true
 					}
@@ -282,8 +282,8 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 					}
 				}
 				for _, ch := range n.getChildren() {
-					if ch != nil && ch.getNodeLeaf() != nil {
-						chNodeLeaf := ch.getNodeLeaf()
+					if ch != nil && (*ch).getNodeLeaf() != nil {
+						chNodeLeaf := (*ch).getNodeLeaf()
 						if leafMatches(chNodeLeaf.getKey(), key) == 0 {
 							return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
 						}
@@ -301,8 +301,8 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 				}
 			}
 			for _, ch := range n.getChildren() {
-				if ch != nil && ch.getNodeLeaf() != nil {
-					chNodeLeaf := ch.getNodeLeaf()
+				if ch != nil && (*ch).getNodeLeaf() != nil {
+					chNodeLeaf := (*ch).getNodeLeaf()
 					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
 						return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
 					}
@@ -320,8 +320,8 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 				}
 			}
 			for _, ch := range n.getChildren() {
-				if ch != nil && ch.getNodeLeaf() != nil {
-					chNodeLeaf := ch.getNodeLeaf()
+				if ch != nil && (*ch).getNodeLeaf() != nil {
+					chNodeLeaf := (*ch).getNodeLeaf()
 					if leafMatches(chNodeLeaf.getKey(), key) == 0 {
 						return chNodeLeaf.getValue(), true, chNodeLeaf.getMutateCh()
 					}
@@ -377,7 +377,7 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 	}
 	for _, ch := range node.getChildren() {
 		if ch != nil {
-			t.DFSPrintTreeUtil(ch, depth+1)
+			t.DFSPrintTreeUtil(*ch, depth+1)
 		}
 	}
 }
@@ -397,7 +397,7 @@ func recursiveWalk[T any](n Node[T], fn WalkFn[T]) bool {
 	// Recurse on the children
 	for _, e := range n.getChildren() {
 		if e != nil {
-			if recursiveWalk(e, fn) {
+			if recursiveWalk(*e, fn) {
 				return true
 			}
 		}

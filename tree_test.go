@@ -214,11 +214,9 @@ func TestDebug(t *testing.T) {
 	r := NewRadixTree[any]()
 
 	keys := []string{
-		"ablator",
-		"able",
-		"ablins",
-		"ablow",
-		"ablude",
+		"ablution",
+		"zoothecium",
+		"Zygophyceae",
 	}
 	for _, k := range keys {
 		r, _, _ = r.Insert([]byte(k), nil)
