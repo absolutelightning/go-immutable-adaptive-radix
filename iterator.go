@@ -116,8 +116,18 @@ func (i *Iterator[T]) SeekPrefix(prefix []byte) Node[T] {
 
 	for {
 
-		depth += int(node.getPartialLen())
-
+		if !node.isLeaf() && node.getPartialLen() > 0 {
+			// If the node has a prefix, compare it with the prefix
+			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
+			if mismatchIdx < int(node.getPartialLen()) {
+				// If there's a mismatch, set the node to nil to break the loop
+				i.node = node
+				i.stack = []Node[T]{node}
+				return node
+			}
+			depth += int(node.getPartialLen())
+		}
+	
 		if depth >= len(prefix) {
 			// If the prefix is exhausted, break the loop
 			i.node = node
