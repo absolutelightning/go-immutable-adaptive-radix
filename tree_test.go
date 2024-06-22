@@ -118,8 +118,8 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 
 	artLeafMin := art.Minimum()
 	artLeafMax := art.Maximum()
-	require.Equal(t, (*artLeafMin).getKey(), getTreeKey([]byte("A")))
-	require.Equal(t, (*artLeafMax).getKey(), getTreeKey([]byte("zythum")))
+	require.Equal(t, (artLeafMin).getKey(), getTreeKey([]byte("A")))
+	require.Equal(t, (artLeafMax).getKey(), getTreeKey([]byte("zythum")))
 }
 
 func TestARTree_InsertVeryLongKey(t *testing.T) {

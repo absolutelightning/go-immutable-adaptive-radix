@@ -120,7 +120,7 @@ func (n *NodeLeaf[T]) getChild(index int) *Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) clone(keepWatch, deep bool) *Node[T] {
+func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	n.processRefCount()
 	newNode := &NodeLeaf[T]{
 		key:      make([]byte, len(n.getKey())),
@@ -132,8 +132,7 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) *Node[T] {
 	}
 	newNode.setId(n.getId())
 	copy(newNode.key[:], n.key[:])
-	nodeT := Node[T](newNode)
-	return &nodeT
+	return newNode
 }
 
 func (n *NodeLeaf[T]) setChild(int, *Node[T]) {
@@ -192,11 +191,11 @@ func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
 }
 
-func (n *NodeLeaf[T]) getNodeLeaf() *Node[T] {
+func (n *NodeLeaf[T]) getNodeLeaf() Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) setNodeLeaf(nl *Node[T]) {
+func (n *NodeLeaf[T]) setNodeLeaf(nl Node[T]) {
 	// no op
 }
 

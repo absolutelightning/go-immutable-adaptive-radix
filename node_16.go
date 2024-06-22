@@ -17,7 +17,7 @@ type Node16[T any] struct {
 	keys         [16]byte
 	children     [16]*Node[T]
 	mutateCh     atomic.Pointer[chan struct{}]
-	leaf         *Node[T]
+	leaf         Node[T]
 	refCount     int64
 	lazyRefCount int64
 }
@@ -93,7 +93,7 @@ func (n *Node16[T]) getChild(index int) *Node[T] {
 	return n.children[index]
 }
 
-func (n *Node16[T]) clone(keepWatch, deep bool) *Node[T] {
+func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	n.processRefCount()
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
@@ -106,7 +106,7 @@ func (n *Node16[T]) clone(keepWatch, deep bool) *Node[T] {
 	newPartial := make([]byte, maxPrefixLen)
 	if deep {
 		if n.getNodeLeaf() != nil {
-			newNode.setNodeLeaf((*n.getNodeLeaf()).clone(true, true))
+			newNode.setNodeLeaf(n.getNodeLeaf())
 		}
 	} else {
 		newNode.setNodeLeaf(n.getNodeLeaf())
@@ -122,7 +122,8 @@ func (n *Node16[T]) clone(keepWatch, deep bool) *Node[T] {
 			if cpy[i] == nil || *cpy[i] == nil {
 				continue
 			}
-			newNode.setChild(i, (*cpy[i]).clone(keepWatch, true))
+			cloneCh := (*cpy[i]).clone(keepWatch, true)
+			newNode.setChild(i, &cloneCh)
 		}
 	} else {
 		cpy := make([]*Node[T], len(n.children))
@@ -134,8 +135,7 @@ func (n *Node16[T]) clone(keepWatch, deep bool) *Node[T] {
 			newNode.setChild(i, cpy[i])
 		}
 	}
-	nodeT := Node[T](newNode)
-	return &nodeT
+	return newNode
 }
 
 func (n *Node16[T]) getKeyLen() uint32 {
@@ -224,11 +224,11 @@ func (n *Node16[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
 }
 
-func (n *Node16[T]) getNodeLeaf() *Node[T] {
+func (n *Node16[T]) getNodeLeaf() Node[T] {
 	return n.leaf
 }
 
-func (n *Node16[T]) setNodeLeaf(nl *Node[T]) {
+func (n *Node16[T]) setNodeLeaf(nl Node[T]) {
 	n.leaf = nl
 }
 
@@ -248,7 +248,7 @@ func (n *Node16[T]) processRefCount() {
 	}
 	n.refCount += n.lazyRefCount
 	if n.getNodeLeaf() != nil {
-		(*n.getNodeLeaf()).incrementLazyRefCount(n.lazyRefCount)
+		(n.getNodeLeaf()).incrementLazyRefCount(n.lazyRefCount)
 	}
 	for _, child := range n.children {
 		if child != nil && *child != nil {

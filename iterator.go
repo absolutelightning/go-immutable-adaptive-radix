@@ -42,22 +42,21 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, *n4.children[itr])
 			}
-			n4L := n4.leaf
-			if n4L != nil && hasPrefix((*n4L).getKey(), i.path) {
-				return getKey((*n4L).getKey()), (*n4L).getValue(), true
+			nodeLeaf := n4.getNodeLeaf()
+			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *Node16[T]:
 			n16 := node.(*Node16[T])
-			n16L := n16.leaf
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, *n16.children[itr])
 			}
-			if n16L != nil && hasPrefix((*n16L).getKey(), i.path) {
-				return getKey((*n16L).getKey()), (*n16L).getValue(), true
+			nodeLeaf := n16.getNodeLeaf()
+			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *Node48[T]:
 			n48 := node.(*Node48[T])
-			n48L := n48.leaf
 			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
 				if idx == 0 {
@@ -69,12 +68,12 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, *nodeCh)
 			}
-			if n48L != nil && hasPrefix((*n48L).getKey(), i.path) {
-				return getKey((*n48L).getKey()), (*n48L).getValue(), true
+			nodeLeaf := n48.getNodeLeaf()
+			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *Node256[T]:
 			n256 := node.(*Node256[T])
-			n256L := n256.leaf
 			for itr := 255; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
@@ -82,8 +81,9 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, *nodeCh)
 			}
-			if n256L != nil && hasPrefix((*n256L).getKey(), i.path) {
-				return getKey((*n256L).getKey()), (*n256L).getValue(), true
+			nodeLeaf := n256.getNodeLeaf()
+			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])

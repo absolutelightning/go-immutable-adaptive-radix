@@ -38,7 +38,7 @@ func NewRadixTree[T any]() *RadixTree[T] {
 		id: rt.maxNodeId + 1,
 	})
 	rt.root = &Node4[T]{
-		leaf: &leaf,
+		leaf: leaf,
 	}
 	rt.root.setId(rt.maxNodeId)
 	rt.maxNodeId++
@@ -48,14 +48,14 @@ func NewRadixTree[T any]() *RadixTree[T] {
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	if deep {
 		nt := &RadixTree[T]{
-			root:      *t.root.clone(true, true),
+			root:      t.root.clone(true, true),
 			size:      t.size,
 			maxNodeId: t.maxNodeId,
 		}
 		return nt
 	}
 	nt := &RadixTree[T]{
-		root:      *t.root.clone(true, false),
+		root:      t.root.clone(true, false),
 		size:      t.size,
 		maxNodeId: t.maxNodeId,
 	}
@@ -99,7 +99,8 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 		return nil, zero, false
 	}
 
-	var child, last *Node[T]
+	var child *Node[T]
+	var last Node[T]
 	depth := 0
 
 	n := t.root
@@ -122,13 +123,13 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 			break
 		}
 
-		if n.getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey((*n.getNodeLeaf()).getKey())) {
+		if n.getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey((n.getNodeLeaf()).getKey())) {
 			last = n.getNodeLeaf()
 		}
 
 		for _, ch := range n.getChildren() {
 			if ch != nil {
-				if (*ch).getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey((*(*ch).getNodeLeaf()).getKey())) {
+				if (*ch).getNodeLeaf() != nil && bytes.HasPrefix(getKey(key), getKey((*ch).getNodeLeaf().getKey())) {
 					last = (*ch).getNodeLeaf()
 				}
 			}
@@ -144,17 +145,17 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 	}
 
 	if last != nil {
-		return getKey((*last).getKey()), (*last).getValue(), true
+		return getKey((last).getKey()), (last).getValue(), true
 	}
 
 	return nil, zero, false
 }
 
-func (t *RadixTree[T]) Minimum() *Node[T] {
+func (t *RadixTree[T]) Minimum() Node[T] {
 	return minimum[T](t.root)
 }
 
-func (t *RadixTree[T]) Maximum() *Node[T] {
+func (t *RadixTree[T]) Maximum() Node[T] {
 	return maximum[T](t.root)
 }
 
@@ -180,8 +181,8 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 				}
 			}
 			nL := n.getNodeLeaf()
-			if nL != nil && leafMatches((*nL).getKey(), key) == 0 {
-				return (*nL).getValue(), true
+			if nL != nil && leafMatches((nL).getKey(), key) == 0 {
+				return (nL).getValue(), true
 			}
 		}
 
@@ -190,15 +191,15 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
 				if n.getNodeLeaf() != nil {
-					if leafMatches((*n.getNodeLeaf()).getKey(), key) == 0 {
-						return (*n.getNodeLeaf()).getValue(), true
+					if leafMatches((n.getNodeLeaf()).getKey(), key) == 0 {
+						return (n.getNodeLeaf()).getValue(), true
 					}
 				}
 				for _, ch := range n.getChildren() {
 					if ch != nil && (*ch).getNodeLeaf() != nil {
 						chNodeLeaf := (*ch).getNodeLeaf()
-						if leafMatches((*chNodeLeaf).getKey(), key) == 0 {
-							return (*chNodeLeaf).getValue(), true
+						if leafMatches((chNodeLeaf).getKey(), key) == 0 {
+							return (chNodeLeaf).getValue(), true
 						}
 					}
 				}
@@ -209,15 +210,15 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 
 		if depth >= len(key) {
 			if n.getNodeLeaf() != nil {
-				if leafMatches((*n.getNodeLeaf()).getKey(), key) == 0 {
-					return (*n.getNodeLeaf()).getValue(), true
+				if leafMatches((n.getNodeLeaf()).getKey(), key) == 0 {
+					return (n.getNodeLeaf()).getValue(), true
 				}
 			}
 			for _, ch := range n.getChildren() {
 				if ch != nil && (*ch).getNodeLeaf() != nil {
 					chNodeLeaf := (*ch).getNodeLeaf()
-					if leafMatches((*chNodeLeaf).getKey(), key) == 0 {
-						return (*chNodeLeaf).getValue(), true
+					if leafMatches((chNodeLeaf).getKey(), key) == 0 {
+						return (chNodeLeaf).getValue(), true
 					}
 				}
 			}
@@ -228,15 +229,15 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
 			if n.getNodeLeaf() != nil {
-				if leafMatches((*n.getNodeLeaf()).getKey(), key) == 0 {
-					return (*n.getNodeLeaf()).getValue(), true
+				if leafMatches((n.getNodeLeaf()).getKey(), key) == 0 {
+					return (n.getNodeLeaf()).getValue(), true
 				}
 			}
 			for _, ch := range n.getChildren() {
 				if ch != nil && *ch != nil && (*ch).getNodeLeaf() != nil {
 					chNodeLeaf := (*ch).getNodeLeaf()
-					if leafMatches((*chNodeLeaf).getKey(), key) == 0 {
-						return (*chNodeLeaf).getValue(), true
+					if leafMatches((chNodeLeaf).getKey(), key) == 0 {
+						return (chNodeLeaf).getValue(), true
 					}
 				}
 			}
@@ -269,8 +270,8 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			}
 			// Check if the expanded path matches
 			nL := n.getNodeLeaf()
-			if leafMatches((*nL).getKey(), key) == 0 {
-				return (*nL).getValue(), true, (*nL).getMutateCh()
+			if leafMatches((nL).getKey(), key) == 0 {
+				return (nL).getValue(), true, (nL).getMutateCh()
 			}
 		}
 
@@ -279,15 +280,15 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 			prefixLen := checkPrefix(n.getPartial(), int(n.getPartialLen()), key, depth)
 			if prefixLen != min(maxPrefixLen, int(n.getPartialLen())) {
 				if n.getNodeLeaf() != nil {
-					if leafMatches((*n.getNodeLeaf()).getKey(), key) == 0 {
-						return (*n.getNodeLeaf()).getValue(), true, (*n.getNodeLeaf()).getMutateCh()
+					if leafMatches((n.getNodeLeaf()).getKey(), key) == 0 {
+						return (n.getNodeLeaf()).getValue(), true, (n.getNodeLeaf()).getMutateCh()
 					}
 				}
 				for _, ch := range n.getChildren() {
 					if ch != nil && (*ch).getNodeLeaf() != nil {
 						chNodeLeaf := (*ch).getNodeLeaf()
-						if leafMatches((*chNodeLeaf).getKey(), key) == 0 {
-							return (*chNodeLeaf).getValue(), true, (*chNodeLeaf).getMutateCh()
+						if leafMatches((chNodeLeaf).getKey(), key) == 0 {
+							return (chNodeLeaf).getValue(), true, (chNodeLeaf).getMutateCh()
 						}
 					}
 				}
@@ -298,15 +299,15 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 
 		if depth >= len(key) {
 			if n.getNodeLeaf() != nil {
-				if leafMatches((*n.getNodeLeaf()).getKey(), key) == 0 {
-					return (*n.getNodeLeaf()).getValue(), true, (*n.getNodeLeaf()).getMutateCh()
+				if leafMatches((n.getNodeLeaf()).getKey(), key) == 0 {
+					return (n.getNodeLeaf()).getValue(), true, (n.getNodeLeaf()).getMutateCh()
 				}
 			}
 			for _, ch := range n.getChildren() {
 				if ch != nil && (*ch).getNodeLeaf() != nil {
 					chNodeLeaf := (*ch).getNodeLeaf()
-					if leafMatches((*chNodeLeaf).getKey(), key) == 0 {
-						return (*chNodeLeaf).getValue(), true, (*chNodeLeaf).getMutateCh()
+					if leafMatches((chNodeLeaf).getKey(), key) == 0 {
+						return (chNodeLeaf).getValue(), true, (chNodeLeaf).getMutateCh()
 					}
 				}
 			}
@@ -317,15 +318,15 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 		child, _ = t.findChild(n, key[depth])
 		if child == nil {
 			if n.getNodeLeaf() != nil {
-				if leafMatches((*n.getNodeLeaf()).getKey(), key) == 0 {
-					return (*n.getNodeLeaf()).getValue(), true, (*n.getNodeLeaf()).getMutateCh()
+				if leafMatches((n.getNodeLeaf()).getKey(), key) == 0 {
+					return (n.getNodeLeaf()).getValue(), true, (n.getNodeLeaf()).getMutateCh()
 				}
 			}
 			for _, ch := range n.getChildren() {
 				if ch != nil && *ch != nil && (*ch).getNodeLeaf() != nil {
 					chNodeLeaf := (*ch).getNodeLeaf()
-					if leafMatches((*chNodeLeaf).getKey(), key) == 0 {
-						return (*chNodeLeaf).getValue(), true, (*chNodeLeaf).getMutateCh()
+					if leafMatches((chNodeLeaf).getKey(), key) == 0 {
+						return (chNodeLeaf).getValue(), true, (chNodeLeaf).getMutateCh()
 					}
 				}
 			}
@@ -392,7 +393,7 @@ func (t *RadixTree[T]) DFSPrintTree() {
 // recursively. Returns true if the walk should be aborted
 func recursiveWalk[T any](n Node[T], fn WalkFn[T]) bool {
 	// Visit the leaf values if any
-	if n.isLeaf() && n.getNodeLeaf() != nil && fn(getKey((*n.getNodeLeaf()).getKey()), n.getValue()) {
+	if n.isLeaf() && n.getNodeLeaf() != nil && fn(getKey((n.getNodeLeaf()).getKey()), n.getValue()) {
 		return true
 	}
 

@@ -85,8 +85,8 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(*n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(&nL)
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL)
 		}
 		oldChildren := n.getChildren()[:n.getNumChildren()]
 		for itr := 0; itr < len(oldChildren); itr++ {
@@ -122,8 +122,8 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 	} else {
 		newNode := t.allocNode(node48)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(*n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(&nL)
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL)
 		}
 		// Copy the child pointers and populate the key map
 		for idx := 0; idx < int(n.getNumChildren()); idx++ {
@@ -151,8 +151,8 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 	} else {
 		newNode := t.allocNode(node256)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(*n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(&nL)
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL)
 		}
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
@@ -203,9 +203,9 @@ func prefixMismatch[T any](n Node[T], key []byte, keyLen, depth int) int {
 		if l == nil {
 			return idx
 		}
-		maxCmp = min(len((*l).getKey()), keyLen) - depth
+		maxCmp = min(len(l.getKey()), keyLen) - depth
 		for ; idx < maxCmp; idx++ {
-			if (*l).getKey()[idx+depth] != key[depth+idx] {
+			if l.getKey()[idx+depth] != key[depth+idx] {
 				return idx
 			}
 		}
@@ -214,14 +214,14 @@ func prefixMismatch[T any](n Node[T], key []byte, keyLen, depth int) int {
 }
 
 // minimum finds the minimum leaf under a node.
-func minimum[T any](node Node[T]) *Node[T] {
+func minimum[T any](node Node[T]) Node[T] {
 	// Handle base cases
 	if node == nil {
 		return nil
 	}
 	if isLeaf[T](node) {
 		if node.getArtNodeType() == leafType {
-			return &node
+			return node
 		}
 		return node.getNodeLeaf()
 	}
@@ -268,7 +268,7 @@ func minimum[T any](node Node[T]) *Node[T] {
 }
 
 // maximum finds the maximum leaf under a node.
-func maximum[T any](node Node[T]) *Node[T] {
+func maximum[T any](node Node[T]) Node[T] {
 	// Handle base cases
 	if node == nil {
 		return nil
@@ -276,7 +276,7 @@ func maximum[T any](node Node[T]) *Node[T] {
 
 	if isLeaf[T](node) {
 		if node.getArtNodeType() == leafType {
-			return &node
+			return node
 		}
 		return node.getNodeLeaf()
 	}
@@ -470,8 +470,8 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 			n4.setChild(indx, ch)
 		}
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(*n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(&nL)
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL)
 		}
 		newNode.setNodeLeaf(n.getNodeLeaf())
 		return newNode
@@ -491,8 +491,8 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 		t.trackChannel(n)
 		t.copyHeader(newNode, n)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(*n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(&nL)
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL)
 		}
 		child := 0
 		for i := 0; i < 256; i++ {
@@ -519,8 +519,8 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 		t.copyHeader(newNode, n)
 		t.trackChannel(n)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(*n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(&nL)
+			nL := t.writeNode(n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(nL)
 		}
 		pos := 0
 		for i := 0; i < 256; i++ {
