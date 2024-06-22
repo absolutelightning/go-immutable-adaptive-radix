@@ -16,7 +16,7 @@ type Node48[T any] struct {
 	keys         [256]byte
 	children     [48]*Node[T]
 	mutateCh     atomic.Pointer[chan struct{}]
-	leaf         *NodeLeaf[T]
+	leaf         *Node[T]
 	lazyRefCount int64
 	refCount     int64
 }
@@ -94,14 +94,14 @@ func (n *Node48[T]) matchPrefix(prefix []byte) bool {
 	return false
 }
 
-func (n *Node48[T]) getChild(index int) Node[T] {
+func (n *Node48[T]) getChild(index int) *Node[T] {
 	if n.children[index] == nil {
 		return nil
 	}
-	return *n.children[index]
+	return n.children[index]
 }
 
-func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
+func (n *Node48[T]) clone(keepWatch, deep bool) *Node[T] {
 	n.processRefCount()
 	newNode := &Node48[T]{
 		partialLen:  n.getPartialLen(),
@@ -114,7 +114,7 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 	newNode.setPartial(newPartial)
 	if deep {
 		if n.getNodeLeaf() != nil {
-			newNode.setNodeLeaf(n.getNodeLeaf().clone(true, true).(*NodeLeaf[T]))
+			newNode.setNodeLeaf((*n.getNodeLeaf()).clone(true, true))
 		}
 	} else {
 		newNode.setNodeLeaf(n.getNodeLeaf())
@@ -139,10 +139,11 @@ func (n *Node48[T]) clone(keepWatch, deep bool) Node[T] {
 			if cpy[i] == nil {
 				continue
 			}
-			newNode.setChild(i, *cpy[i])
+			newNode.setChild(i, cpy[i])
 		}
 	}
-	return newNode
+	nodeT := Node[T](newNode)
+	return &nodeT
 }
 
 func (n *Node48[T]) getKeyLen() uint32 {
@@ -153,8 +154,8 @@ func (n *Node48[T]) setKeyLen(keyLen uint32) {
 
 }
 
-func (n *Node48[T]) setChild(index int, child Node[T]) {
-	n.children[index] = &child
+func (n *Node48[T]) setChild(index int, child *Node[T]) {
+	n.children[index] = child
 }
 
 func (n *Node48[T]) getKey() []byte {
@@ -228,11 +229,11 @@ func (n *Node48[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
 }
 
-func (n *Node48[T]) getNodeLeaf() *NodeLeaf[T] {
+func (n *Node48[T]) getNodeLeaf() *Node[T] {
 	return n.leaf
 }
 
-func (n *Node48[T]) setNodeLeaf(nl *NodeLeaf[T]) {
+func (n *Node48[T]) setNodeLeaf(nl *Node[T]) {
 	n.leaf = nl
 }
 func (n *Node48[T]) LowerBoundIterator() *LowerBoundIterator[T] {
@@ -252,7 +253,7 @@ func (n *Node48[T]) processRefCount() {
 	}
 	n.refCount += n.lazyRefCount
 	if n.getNodeLeaf() != nil {
-		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
+		(*n.getNodeLeaf()).incrementLazyRefCount(n.lazyRefCount)
 	}
 	for _, child := range n.children {
 		if child != nil && *child != nil {

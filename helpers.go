@@ -72,25 +72,25 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		copy(oldChildren[idx+1:], oldChildren[idx:idx+length])
 		for itr := 0; itr < len(oldChildren); itr++ {
 			if oldChildren[itr] != nil {
-				n.setChild(itr, *oldChildren[itr])
+				n.setChild(itr, oldChildren[itr])
 			}
 		}
 
 		// Insert element
 		n.setKeyAtIdx(idx, c)
-		n.setChild(idx, child)
+		n.setChild(idx, &child)
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
 		newNode := t.allocNode(node16)
 		// Copy the child pointers and the key map
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+			nL := t.writeNode(*n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(&nL)
 		}
 		oldChildren := n.getChildren()[:n.getNumChildren()]
 		for itr := 0; itr < len(oldChildren); itr++ {
-			newNode.setChild(itr, *oldChildren[itr])
+			newNode.setChild(itr, oldChildren[itr])
 		}
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
 		t.copyHeader(newNode, n)
@@ -111,19 +111,19 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		copy(oldChildren[idx+1:], oldChildren[idx:idx+length])
 		for itr := 0; itr < len(oldChildren); itr++ {
 			if oldChildren[itr] != nil {
-				n.setChild(itr, *oldChildren[itr])
+				n.setChild(itr, oldChildren[itr])
 			}
 		}
 		// Insert element
 		n.setKeyAtIdx(idx, c)
-		n.setChild(idx, child)
+		n.setChild(idx, &child)
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
 		newNode := t.allocNode(node48)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+			nL := t.writeNode(*n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(&nL)
 		}
 		// Copy the child pointers and populate the key map
 		for idx := 0; idx < int(n.getNumChildren()); idx++ {
@@ -144,15 +144,15 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 		for n.getChild(pos) != nil {
 			pos++
 		}
-		n.setChild(pos, child)
+		n.setChild(pos, &child)
 		n.setKeyAtIdx(int(c), byte(pos+1))
 		n.setNumChildren(n.getNumChildren() + 1)
 		return n
 	} else {
 		newNode := t.allocNode(node256)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+			nL := t.writeNode(*n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(&nL)
 		}
 		for i := 0; i < 256; i++ {
 			if n.getKeyAtIdx(i) != 0 {
@@ -167,7 +167,7 @@ func (t *Txn[T]) addChild48(n Node[T], c byte, child Node[T]) Node[T] {
 // addChild256 adds a child node to a node256.
 func (t *Txn[T]) addChild256(n Node[T], c byte, child Node[T]) Node[T] {
 	n.setNumChildren(n.getNumChildren() + 1)
-	n.setChild(int(c), child)
+	n.setChild(int(c), &child)
 	return n
 }
 
@@ -203,9 +203,9 @@ func prefixMismatch[T any](n Node[T], key []byte, keyLen, depth int) int {
 		if l == nil {
 			return idx
 		}
-		maxCmp = min(len(l.key), keyLen) - depth
+		maxCmp = min(len((*l).getKey()), keyLen) - depth
 		for ; idx < maxCmp; idx++ {
-			if l.key[idx+depth] != key[depth+idx] {
+			if (*l).getKey()[idx+depth] != key[depth+idx] {
 				return idx
 			}
 		}
@@ -214,14 +214,14 @@ func prefixMismatch[T any](n Node[T], key []byte, keyLen, depth int) int {
 }
 
 // minimum finds the minimum leaf under a node.
-func minimum[T any](node Node[T]) *NodeLeaf[T] {
+func minimum[T any](node Node[T]) *Node[T] {
 	// Handle base cases
 	if node == nil {
 		return nil
 	}
 	if isLeaf[T](node) {
 		if node.getArtNodeType() == leafType {
-			return node.(*NodeLeaf[T])
+			return &node
 		}
 		return node.getNodeLeaf()
 	}
@@ -232,12 +232,12 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 		if node.getNodeLeaf() != nil {
 			return node.getNodeLeaf()
 		}
-		return minimum[T](node.getChild(0))
+		return minimum[T](*node.getChild(0))
 	case node16:
 		if node.getNodeLeaf() != nil {
 			return node.getNodeLeaf()
 		}
-		return minimum[T](node.getChild(0))
+		return minimum[T](*node.getChild(0))
 	case node48:
 		if node.getNodeLeaf() != nil {
 			return node.getNodeLeaf()
@@ -248,7 +248,7 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 		}
 		idx = int(node.getKeyAtIdx(idx) - 1)
 		if idx < 48 {
-			return minimum[T](node.getChild(idx))
+			return minimum[T](*node.getChild(idx))
 		}
 	case node256:
 		if node.getNodeLeaf() != nil {
@@ -259,7 +259,7 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 			idx++
 		}
 		if idx < 256 {
-			return minimum[T](node.getChild(idx))
+			return minimum[T](*node.getChild(idx))
 		}
 	default:
 		panic("Unknown node type")
@@ -268,7 +268,7 @@ func minimum[T any](node Node[T]) *NodeLeaf[T] {
 }
 
 // maximum finds the maximum leaf under a node.
-func maximum[T any](node Node[T]) *NodeLeaf[T] {
+func maximum[T any](node Node[T]) *Node[T] {
 	// Handle base cases
 	if node == nil {
 		return nil
@@ -276,7 +276,7 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 
 	if isLeaf[T](node) {
 		if node.getArtNodeType() == leafType {
-			return node.(*NodeLeaf[T])
+			return &node
 		}
 		return node.getNodeLeaf()
 	}
@@ -284,9 +284,9 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 	var idx int
 	switch node.getArtNodeType() {
 	case node4:
-		return maximum[T](node.getChild(int(node.getNumChildren() - 1)))
+		return maximum[T](*node.getChild(int(node.getNumChildren() - 1)))
 	case node16:
-		return maximum[T](node.getChild(int(node.getNumChildren() - 1)))
+		return maximum[T](*node.getChild(int(node.getNumChildren() - 1)))
 	case node48:
 		idx = 255
 		for idx >= 0 && node.getKeyAtIdx(idx) == 0 {
@@ -294,7 +294,7 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 		}
 		idx = int(node.getKeyAtIdx(idx) - 1)
 		if idx < 48 {
-			return maximum[T](node.getChild(idx))
+			return maximum[T](*node.getChild(idx))
 		}
 	case node256:
 		idx = 255
@@ -302,7 +302,7 @@ func maximum[T any](node Node[T]) *NodeLeaf[T] {
 			idx--
 		}
 		if idx >= 0 {
-			return maximum[T](node.getChild(idx))
+			return maximum[T](*node.getChild(idx))
 		}
 	default:
 		panic("Unknown node type")
@@ -318,7 +318,7 @@ func isLeaf[T any](node Node[T]) bool {
 	return node.isLeaf()
 }
 
-func findChild[T any](n Node[T], c byte) (Node[T], int) {
+func findChild[T any](n Node[T], c byte) (*Node[T], int) {
 	switch n.getArtNodeType() {
 	case node4:
 		keys := n.getKeys()
@@ -398,12 +398,12 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 		if itr == pos {
 			continue
 		}
-		n.setChild(slow, *children[itr])
+		n.setChild(slow, children[itr])
 		slow += 1
 	}
 	for ; itr < len(n.getChildren()); itr++ {
 		if n.getChild(itr) != nil {
-			t.trackChannel(n.getChild(itr))
+			t.trackChannel(*n.getChild(itr))
 		}
 		n.setChild(itr, nil)
 	}
@@ -411,7 +411,7 @@ func (t *Txn[T]) removeChild4(n Node[T], c byte) Node[T] {
 	n.setNumChildren(n.getNumChildren() - 1)
 
 	if n.getNumChildren() == 1 && n.getNodeLeaf() == nil {
-		nodeToReturn := t.writeNode(n.getChild(0), false)
+		nodeToReturn := t.writeNode(*n.getChild(0), false)
 		// Is not leaf
 		if n.getArtNodeType() != leafType {
 			// Concatenate the prefixes
@@ -449,12 +449,12 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		if itr == pos {
 			continue
 		}
-		n.setChild(slow, *children[itr])
+		n.setChild(slow, children[itr])
 		slow += 1
 	}
 	for ; itr < len(n.getChildren()); itr++ {
 		if n.getChild(itr) != nil {
-			t.trackChannel(n.getChild(itr))
+			t.trackChannel(*n.getChild(itr))
 		}
 		n.setChild(itr, nil)
 	}
@@ -467,11 +467,11 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.getKeys()[:4])
 		for indx, ch := range n.getChildren()[:4] {
-			n4.setChild(indx, *ch)
+			n4.setChild(indx, ch)
 		}
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+			nL := t.writeNode(*n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(&nL)
 		}
 		newNode.setNodeLeaf(n.getNodeLeaf())
 		return newNode
@@ -482,7 +482,7 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 	pos := n.getKeyAtIdx(int(c))
 	n.setKeyAtIdx(int(c), 0)
-	t.trackChannel(n.getChild(int(pos - 1)))
+	t.trackChannel(*n.getChild(int(pos - 1)))
 	n.setChild(int(pos-1), nil)
 	n.setNumChildren(n.getNumChildren() - 1)
 
@@ -491,8 +491,8 @@ func (t *Txn[T]) removeChild48(n Node[T], c uint8) Node[T] {
 		t.trackChannel(n)
 		t.copyHeader(newNode, n)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+			nL := t.writeNode(*n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(&nL)
 		}
 		child := 0
 		for i := 0; i < 256; i++ {
@@ -519,8 +519,8 @@ func (t *Txn[T]) removeChild256(n Node[T], c uint8) Node[T] {
 		t.copyHeader(newNode, n)
 		t.trackChannel(n)
 		if n.getNodeLeaf() != nil {
-			nL := t.writeNode(n.getNodeLeaf(), true)
-			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
+			nL := t.writeNode(*n.getNodeLeaf(), true)
+			newNode.setNodeLeaf(&nL)
 		}
 		pos := 0
 		for i := 0; i < 256; i++ {

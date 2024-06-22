@@ -17,7 +17,7 @@ type Node16[T any] struct {
 	keys         [16]byte
 	children     [16]*Node[T]
 	mutateCh     atomic.Pointer[chan struct{}]
-	leaf         *NodeLeaf[T]
+	leaf         *Node[T]
 	refCount     int64
 	lazyRefCount int64
 }
@@ -86,14 +86,14 @@ func (n *Node16[T]) matchPrefix(prefix []byte) bool {
 	return bytes.HasPrefix(n.partial, prefix)
 }
 
-func (n *Node16[T]) getChild(index int) Node[T] {
+func (n *Node16[T]) getChild(index int) *Node[T] {
 	if n.children[index] == nil {
 		return nil
 	}
-	return *n.children[index]
+	return n.children[index]
 }
 
-func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
+func (n *Node16[T]) clone(keepWatch, deep bool) *Node[T] {
 	n.processRefCount()
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
@@ -106,7 +106,7 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 	newPartial := make([]byte, maxPrefixLen)
 	if deep {
 		if n.getNodeLeaf() != nil {
-			newNode.setNodeLeaf(n.getNodeLeaf().clone(true, true).(*NodeLeaf[T]))
+			newNode.setNodeLeaf((*n.getNodeLeaf()).clone(true, true))
 		}
 	} else {
 		newNode.setNodeLeaf(n.getNodeLeaf())
@@ -131,10 +131,11 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 			if cpy[i] == nil {
 				continue
 			}
-			newNode.setChild(i, *cpy[i])
+			newNode.setChild(i, cpy[i])
 		}
 	}
-	return newNode
+	nodeT := Node[T](newNode)
+	return &nodeT
 }
 
 func (n *Node16[T]) getKeyLen() uint32 {
@@ -145,8 +146,8 @@ func (n *Node16[T]) setKeyLen(keyLen uint32) {
 
 }
 
-func (n *Node16[T]) setChild(index int, child Node[T]) {
-	n.children[index] = &child
+func (n *Node16[T]) setChild(index int, child *Node[T]) {
+	n.children[index] = child
 }
 func (n *Node16[T]) getKey() []byte {
 	//no op
@@ -223,11 +224,11 @@ func (n *Node16[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
 }
 
-func (n *Node16[T]) getNodeLeaf() *NodeLeaf[T] {
+func (n *Node16[T]) getNodeLeaf() *Node[T] {
 	return n.leaf
 }
 
-func (n *Node16[T]) setNodeLeaf(nl *NodeLeaf[T]) {
+func (n *Node16[T]) setNodeLeaf(nl *Node[T]) {
 	n.leaf = nl
 }
 
@@ -247,7 +248,7 @@ func (n *Node16[T]) processRefCount() {
 	}
 	n.refCount += n.lazyRefCount
 	if n.getNodeLeaf() != nil {
-		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
+		(*n.getNodeLeaf()).incrementLazyRefCount(n.lazyRefCount)
 	}
 	for _, child := range n.children {
 		if child != nil && *child != nil {

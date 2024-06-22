@@ -116,11 +116,11 @@ func (n *NodeLeaf[T]) matchPrefix(prefix []byte) bool {
 	return bytes.HasPrefix(n.key, prefix)
 }
 
-func (n *NodeLeaf[T]) getChild(index int) Node[T] {
+func (n *NodeLeaf[T]) getChild(index int) *Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
+func (n *NodeLeaf[T]) clone(keepWatch, deep bool) *Node[T] {
 	n.processRefCount()
 	newNode := &NodeLeaf[T]{
 		key:      make([]byte, len(n.getKey())),
@@ -132,10 +132,11 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	}
 	newNode.setId(n.getId())
 	copy(newNode.key[:], n.key[:])
-	return newNode
+	nodeT := Node[T](newNode)
+	return &nodeT
 }
 
-func (n *NodeLeaf[T]) setChild(int, Node[T]) {
+func (n *NodeLeaf[T]) setChild(int, *Node[T]) {
 	return
 }
 
@@ -191,11 +192,11 @@ func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
 }
 
-func (n *NodeLeaf[T]) getNodeLeaf() *NodeLeaf[T] {
+func (n *NodeLeaf[T]) getNodeLeaf() *Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) setNodeLeaf(nl *NodeLeaf[T]) {
+func (n *NodeLeaf[T]) setNodeLeaf(nl *Node[T]) {
 	// no op
 }
 
