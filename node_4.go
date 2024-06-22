@@ -118,7 +118,7 @@ func (n *Node4[T]) clone(keepWatch, deep bool) *Node[T] {
 		cpy := make([]*Node[T], len(n.children))
 		copy(cpy, n.children[:])
 		for i := 0; i < 4; i++ {
-			if cpy[i] == nil {
+			if cpy[i] == nil || *cpy[i] == nil {
 				continue
 			}
 			newNode.setChild(i, (*cpy[i]).clone(keepWatch, true))
