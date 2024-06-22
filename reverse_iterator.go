@@ -224,7 +224,9 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				continue
 			}
 			for itr := 0; itr < int(n4.numChildren); itr++ {
-				ri.i.stack = append(ri.i.stack, n4.children[itr])
+				if n4.children[itr] != nil {
+					ri.i.stack = append(ri.i.stack, *n4.children[itr])
+				}
 			}
 			if n4.leaf != nil && hasPrefix(getKey(n4.leaf.key), ri.i.path) {
 				return getKey(n4.leaf.key), n4.leaf.value, true
@@ -241,7 +243,9 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				continue
 			}
 			for itr := 0; itr < int(n16.numChildren); itr++ {
-				ri.i.stack = append(ri.i.stack, n16.children[itr])
+				if n16.children[itr] != nil {
+					ri.i.stack = append(ri.i.stack, *n16.children[itr])
+				}
 			}
 			if n16.leaf != nil && hasPrefix(getKey(n16.leaf.key), ri.i.path) {
 				return getKey(n16.leaf.key), n16.leaf.value, true
@@ -266,7 +270,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				ri.i.stack = append(ri.i.stack, nodeCh)
+				ri.i.stack = append(ri.i.stack, *nodeCh)
 			}
 			if n48.leaf != nil && hasPrefix(getKey(n48.leaf.key), ri.i.path) {
 				return getKey(n48.leaf.key), n48.leaf.value, true
@@ -287,7 +291,7 @@ func (ri *ReverseIterator[T]) Previous() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				ri.i.stack = append(ri.i.stack, nodeCh)
+				ri.i.stack = append(ri.i.stack, *nodeCh)
 			}
 			if n256.leaf != nil && hasPrefix(getKey(n256.leaf.key), ri.i.path) {
 				return getKey(n256.leaf.key), n256.leaf.value, true

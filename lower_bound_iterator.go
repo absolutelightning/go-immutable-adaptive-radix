@@ -45,7 +45,9 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 			n4 := node.(*Node4[T])
 			n4L := n4.leaf
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
-				i.stack = append(i.stack, n4.children[itr])
+				if n4.children[itr] != nil {
+					i.stack = append(i.stack, *n4.children[itr])
+				}
 			}
 			if n4L != nil {
 				return getKey(n4L.key), n4L.value, true
@@ -54,7 +56,9 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 			n16 := node.(*Node16[T])
 			n16L := n16.leaf
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
-				i.stack = append(i.stack, n16.children[itr])
+				if n16.children[itr] != nil {
+					i.stack = append(i.stack, *n16.children[itr])
+				}
 			}
 			if n16L != nil {
 				return getKey(n16.leaf.key), n16.leaf.value, true
@@ -71,7 +75,7 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				i.stack = append(i.stack, nodeCh)
+				i.stack = append(i.stack, *nodeCh)
 			}
 			if n48L != nil {
 				return getKey(n48L.key), n48L.value, true
@@ -84,7 +88,7 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				i.stack = append(i.stack, nodeCh)
+				i.stack = append(i.stack, *nodeCh)
 			}
 			if n256L != nil {
 				return getKey(n256L.key), n256L.value, true
@@ -278,6 +282,9 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 			} else {
 				for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
 					nCh := node.getChild(itr)
+					if nCh == nil {
+						continue
+					}
 					nChL := nCh.getNodeLeaf()
 					if nChL == nil {
 						i.stack = append(i.stack, node.getChild(itr))

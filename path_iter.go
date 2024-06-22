@@ -41,7 +41,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := (n4.children[itr]).(Node[T])
+				child := (*n4.children[itr]).(Node[T])
 				newStack := make([]Node[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
@@ -57,7 +57,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := (nodeCh).(Node[T])
+				child := (*nodeCh).(Node[T])
 				newStack := make([]Node[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
@@ -77,7 +77,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := (nodeCh).(Node[T])
+				child := (*nodeCh).(Node[T])
 				newStack := make([]Node[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
@@ -93,7 +93,7 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				child := (n256.children[itr]).(Node[T])
+				child := (*n256.children[itr]).(Node[T])
 				newStack := make([]Node[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
 				newStack[0] = child

@@ -68,7 +68,10 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 		// Shift to make room
 		length := int(n.getNumChildren()) - idx
 		copy(n.getKeys()[idx+1:], n.getKeys()[idx:idx+length])
-		copy(n.getChildren()[idx+1:], n.getChildren()[idx:idx+length])
+		oldChildren := n.getChildren()[idx : idx+length]
+		for itr := 0; itr < len(oldChildren); itr++ {
+			n.setChild(itr+idx+1, oldChildren[itr])
+		}
 
 		// Insert element
 		n.setKeyAtIdx(idx, c)
@@ -82,7 +85,10 @@ func (t *Txn[T]) addChild4(n Node[T], c byte, child Node[T]) Node[T] {
 			nL := t.writeNode(n.getNodeLeaf(), true)
 			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
 		}
-		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
+		oldChildren := n.getChildren()[:n.getNumChildren()]
+		for itr := 0; itr < len(oldChildren); itr++ {
+			newNode.setChild(itr, oldChildren[itr])
+		}
 		copy(newNode.getKeys()[:], n.getKeys()[:n.getNumChildren()])
 		t.copyHeader(newNode, n)
 		return t.addChild16(newNode, c, child)
@@ -98,8 +104,10 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 		// Set the child
 		length := int(n.getNumChildren()) - idx
 		copy(n.getKeys()[idx+1:], n.getKeys()[idx:idx+length])
-		copy(n.getChildren()[idx+1:], n.getChildren()[idx:idx+length])
-
+		oldChildren := n.getChildren()[idx : idx+length]
+		for itr := 0; itr < len(oldChildren); itr++ {
+			n.setChild(itr+idx+1, oldChildren[itr])
+		}
 		// Insert element
 		n.setKeyAtIdx(idx, c)
 		n.setChild(idx, child)
@@ -112,7 +120,9 @@ func (t *Txn[T]) addChild16(n Node[T], c byte, child Node[T]) Node[T] {
 			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))
 		}
 		// Copy the child pointers and populate the key map
-		copy(newNode.getChildren()[:], n.getChildren()[:n.getNumChildren()])
+		for idx := 0; idx < int(n.getNumChildren()); idx++ {
+			newNode.setChild(idx, n.getChild(idx))
+		}
 		for i := 0; i < int(n.getNumChildren()); i++ {
 			newNode.setKeyAtIdx(int(n.getKeyAtIdx(i)), byte(i+1))
 		}
@@ -450,7 +460,9 @@ func (t *Txn[T]) removeChild16(n Node[T], c byte) Node[T] {
 		n4 := newNode.(*Node4[T])
 		t.copyHeader(newNode, n)
 		copy(n4.keys[:], n.getKeys()[:4])
-		copy(n4.children[:], n.getChildren()[:4])
+		for indx, ch := range n.getChildren()[:4] {
+			n4.setChild(indx, ch)
+		}
 		if n.getNodeLeaf() != nil {
 			nL := t.writeNode(n.getNodeLeaf(), true)
 			newNode.setNodeLeaf(nL.(*NodeLeaf[T]))

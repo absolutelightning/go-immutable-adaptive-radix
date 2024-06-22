@@ -12,7 +12,7 @@ type Node256[T any] struct {
 	partialLen   uint32
 	numChildren  uint8
 	partial      []byte
-	children     [256]Node[T]
+	children     [256]*Node[T]
 	mutateCh     atomic.Pointer[chan struct{}]
 	leaf         *NodeLeaf[T]
 	lazyRefCount int64
@@ -95,7 +95,10 @@ func (n *Node256[T]) getChild(index int) Node[T] {
 	if index < 0 || index >= 256 {
 		return nil
 	}
-	return n.children[index]
+	if n.children[index] == nil {
+		return nil
+	}
+	return *n.children[index]
 }
 
 func (n *Node256[T]) clone(keepWatch, deep bool) Node[T] {
@@ -120,26 +123,29 @@ func (n *Node256[T]) clone(keepWatch, deep bool) Node[T] {
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	if deep {
-		cpy := make([]Node[T], len(n.children))
+		cpy := make([]*Node[T], len(n.children))
 		copy(cpy, n.children[:])
 		for i := 0; i < 256; i++ {
 			if cpy[i] == nil {
 				continue
 			}
-			newNode.setChild(i, cpy[i].clone(keepWatch, true))
+			newNode.setChild(i, (*cpy[i]).clone(keepWatch, true))
 		}
 	} else {
-		cpy := make([]Node[T], len(n.children))
+		cpy := make([]*Node[T], len(n.children))
 		copy(cpy, n.children[:])
 		for i := 0; i < 256; i++ {
-			newNode.setChild(i, cpy[i])
+			if cpy[i] == nil {
+				continue
+			}
+			newNode.setChild(i, *cpy[i])
 		}
 	}
 	return newNode
 }
 
 func (n *Node256[T]) setChild(index int, child Node[T]) {
-	n.children[index] = child
+	n.children[index] = &child
 }
 
 func (n *Node256[T]) getKey() []byte {
@@ -161,7 +167,15 @@ func (n *Node256[T]) setKeyAtIdx(idx int, key byte) {
 }
 
 func (n *Node256[T]) getChildren() []Node[T] {
-	return n.children[:]
+	ch := make([]Node[T], 0)
+	for _, child := range n.children {
+		if child == nil {
+			ch = append(ch, nil)
+			continue
+		}
+		ch = append(ch, *child)
+	}
+	return ch
 }
 
 func (n *Node256[T]) getKeys() []byte {
@@ -241,8 +255,8 @@ func (n *Node256[T]) processRefCount() {
 		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
 	}
 	for _, child := range n.children {
-		if child != nil {
-			child.incrementLazyRefCount(n.lazyRefCount)
+		if child != nil && *child != nil {
+			(*child).incrementLazyRefCount(n.lazyRefCount)
 		}
 	}
 	atomic.StoreInt64(&n.lazyRefCount, 0)
