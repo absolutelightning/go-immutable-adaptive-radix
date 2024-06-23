@@ -524,6 +524,10 @@ func (t *Txn[T]) deletePrefix(node Node[T], key []byte, depth int) (Node[T], int
 	}
 	node.setNumChildren(uint8(numCh))
 
+	if numCh == 0 && node.getNodeLeaf() == nil {
+		return nil, numDel
+	}
+
 	return node, numDel
 }
 
