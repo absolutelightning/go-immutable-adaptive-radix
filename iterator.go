@@ -42,10 +42,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, *n4.children[itr])
 			}
-			nodeLeaf := n4.getNodeLeaf()
+			nodeLeaf := n4.leaf
 			if nodeLeaf != nil {
-				nodeLeafKey := nodeLeaf.getKey()
-				if hasPrefix(nodeLeafKey, i.path) {
+				nL := nodeLeaf.(*NodeLeaf[T])
+				nodeLeafKey := nL.key
+				if len(nodeLeafKey) > 0 && hasPrefix(nodeLeafKey, i.path) {
 					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
 				}
 			}
@@ -54,10 +55,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
 				i.stack = append(i.stack, *n16.children[itr])
 			}
-			nodeLeaf := n16.getNodeLeaf()
+			nodeLeaf := n16.leaf
 			if nodeLeaf != nil {
-				nodeLeafKey := nodeLeaf.getKey()
-				if hasPrefix(nodeLeafKey, i.path) {
+				nL := nodeLeaf.(*NodeLeaf[T])
+				nodeLeafKey := nL.key
+				if len(nodeLeafKey) > 0 && hasPrefix(nodeLeafKey, i.path) {
 					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
 				}
 			}
@@ -74,10 +76,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, *nodeCh)
 			}
-			nodeLeaf := n48.getNodeLeaf()
+			nodeLeaf := n48.leaf
 			if nodeLeaf != nil {
-				nodeLeafKey := nodeLeaf.getKey()
-				if hasPrefix(nodeLeafKey, i.path) {
+				nL := nodeLeaf.(*NodeLeaf[T])
+				nodeLeafKey := nL.key
+				if len(nodeLeafKey) > 0 && hasPrefix(nodeLeafKey, i.path) {
 					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
 				}
 			}
@@ -90,10 +93,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				}
 				i.stack = append(i.stack, *nodeCh)
 			}
-			nodeLeaf := n256.getNodeLeaf()
+			nodeLeaf := n256.leaf
 			if nodeLeaf != nil {
-				nodeLeafKey := nodeLeaf.getKey()
-				if hasPrefix(nodeLeafKey, i.path) {
+				nL := nodeLeaf.(*NodeLeaf[T])
+				nodeLeafKey := nL.key
+				if len(nodeLeafKey) > 0 && hasPrefix(nodeLeafKey, i.path) {
 					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
 				}
 			}
@@ -127,7 +131,9 @@ func (i *Iterator[T]) SeekPrefix(prefix []byte) Node[T] {
 	i.node = node
 
 	for {
+		// Check if the node matches the prefix
 
+		// Determine the child index to proceed based on the next byte of the prefix
 		if !node.isLeaf() && node.getPartialLen() > 0 {
 			// If the node has a prefix, compare it with the prefix
 			mismatchIdx := prefixMismatch[T](node, prefix, len(prefix), depth)
