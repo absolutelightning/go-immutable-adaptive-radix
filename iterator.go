@@ -43,8 +43,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, *n4.children[itr])
 			}
 			nodeLeaf := n4.getNodeLeaf()
-			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
-				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
+			if nodeLeaf != nil {
+				nodeLeafKey := nodeLeaf.getKey()
+				if hasPrefix(nodeLeafKey, i.path) {
+					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
+				}
 			}
 		case *Node16[T]:
 			n16 := node.(*Node16[T])
@@ -52,8 +55,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, *n16.children[itr])
 			}
 			nodeLeaf := n16.getNodeLeaf()
-			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
-				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
+			if nodeLeaf != nil {
+				nodeLeafKey := nodeLeaf.getKey()
+				if hasPrefix(nodeLeafKey, i.path) {
+					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
+				}
 			}
 		case *Node48[T]:
 			n48 := node.(*Node48[T])
@@ -69,8 +75,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, *nodeCh)
 			}
 			nodeLeaf := n48.getNodeLeaf()
-			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
-				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
+			if nodeLeaf != nil {
+				nodeLeafKey := nodeLeaf.getKey()
+				if hasPrefix(nodeLeafKey, i.path) {
+					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
+				}
 			}
 		case *Node256[T]:
 			n256 := node.(*Node256[T])
@@ -82,8 +91,11 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 				i.stack = append(i.stack, *nodeCh)
 			}
 			nodeLeaf := n256.getNodeLeaf()
-			if nodeLeaf != nil && hasPrefix(nodeLeaf.getKey(), i.path) {
-				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
+			if nodeLeaf != nil {
+				nodeLeafKey := nodeLeaf.getKey()
+				if hasPrefix(nodeLeafKey, i.path) {
+					return getKey(nodeLeafKey), nodeLeaf.getValue(), true
+				}
 			}
 		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])
