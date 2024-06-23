@@ -187,14 +187,14 @@ func (n *Node48[T]) getKeys() []byte {
 
 func (n *Node48[T]) getMutateCh() chan struct{} {
 	ch := n.mutateCh.Load()
-	if ch != nil {
+	if ch != nil && *ch != nil {
 		return *ch
 	}
 
 	// No chan yet, create one
 	newCh := make(chan struct{})
 
-	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
+	swapped := n.mutateCh.CompareAndSwap(ch, &newCh)
 	if swapped {
 		return newCh
 	}

@@ -321,7 +321,7 @@ func TestReverseIterator_SeekLowerBound(t *testing.T) {
 				t.Fatal("failed adding keys")
 			}
 			// Get and seek iterator
-			root := r.root
+			root := *r.root
 			iter := root.ReverseIterator()
 			iter.SeekReverseLowerBound([]byte(test.search))
 
@@ -396,7 +396,7 @@ func TestReverseIterator_SeekPrefixWatch(t *testing.T) {
 	ch := it.SeekPrefixWatch(key)
 
 	// Change prefix
-	tx := r.Txn(false)
+	tx := r.Txn()
 	tx.TrackMutate(true)
 	tx.Insert(key, "value")
 	tx.Commit()

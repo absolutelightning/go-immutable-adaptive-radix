@@ -1000,7 +1000,7 @@ func TestIterateLowerBound(t *testing.T) {
 				//t.Fatal("failed adding keys")
 			}
 			// Get and seek iterator
-			root := r.root
+			root := *r.root
 			iter := root.LowerBoundIterator()
 			iter.SeekLowerBound([]byte(test.search))
 

@@ -22,9 +22,8 @@ const (
 type nodeType int
 
 type RadixTree[T any] struct {
-	root      Node[T]
-	size      uint64
-	maxNodeId uint64
+	root *Node[T]
+	size uint64
 }
 
 // WalkFn is used when walking the tree. Takes a
@@ -33,31 +32,29 @@ type RadixTree[T any] struct {
 type WalkFn[T any] func(k []byte, v T) bool
 
 func NewRadixTree[T any]() *RadixTree[T] {
-	rt := &RadixTree[T]{size: 0, maxNodeId: 0}
+	rt := &RadixTree[T]{size: 0}
 	leaf := Node[T](&NodeLeaf[T]{
-		id: rt.maxNodeId + 1,
+		id: 1,
 	})
-	rt.root = &Node4[T]{
+	root := Node[T](&Node4[T]{
 		leaf: leaf,
-	}
-	rt.root.setId(rt.maxNodeId)
-	rt.maxNodeId++
+		id:   0,
+	})
+	rt.root = &root
 	return rt
 }
 
 func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
 	if deep {
 		nt := &RadixTree[T]{
-			root:      t.root.clone(true, true),
-			size:      t.size,
-			maxNodeId: t.maxNodeId,
+			root: t.root,
+			size: t.size,
 		}
 		return nt
 	}
 	nt := &RadixTree[T]{
-		root:      t.root.clone(true, false),
-		size:      t.size,
-		maxNodeId: t.maxNodeId,
+		root: t.root,
+		size: t.size,
 	}
 	return nt
 }
@@ -68,11 +65,11 @@ func (t *RadixTree[T]) Len() int {
 }
 
 func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
-	return t.root.PathIterator(path)
+	return (*t.root).PathIterator(path)
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	old, ok := txn.Insert(key, value)
 	return txn.Commit(), old, ok
 }
@@ -82,7 +79,7 @@ func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 }
 
 func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	old, ok := txn.Delete(key)
 	return txn.Commit(), old, ok
 }
@@ -103,7 +100,7 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 	var last Node[T]
 	depth := 0
 
-	n := t.root
+	n := *t.root
 	last = nil
 	if n.getNodeLeaf() != nil {
 		last = n.getNodeLeaf()
@@ -152,16 +149,16 @@ func (t *RadixTree[T]) LongestPrefix(k []byte) ([]byte, T, bool) {
 }
 
 func (t *RadixTree[T]) Minimum() Node[T] {
-	return minimum[T](t.root)
+	return minimum[T](*t.root)
 }
 
 func (t *RadixTree[T]) Maximum() Node[T] {
-	return maximum[T](t.root)
+	return maximum[T](*t.root)
 }
 
 func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 	var zero T
-	n := t.root
+	n := *t.root
 
 	if n == nil {
 		return zero, false
@@ -250,7 +247,7 @@ func (t *RadixTree[T]) iterativeSearch(key []byte) (T, bool) {
 
 func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan struct{}) {
 	var zero T
-	n := t.root
+	n := *t.root
 
 	if n == nil {
 		return zero, false, nil
@@ -338,7 +335,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	ok := txn.DeletePrefix(key)
 	return txn.Commit(), ok
 }
@@ -351,16 +348,16 @@ func (t *RadixTree[T]) findChild(n Node[T], c byte) (*Node[T], int) {
 // Root returns the root node of the tree which can be used for richer
 // query operations.
 func (t *RadixTree[T]) Root() Node[T] {
-	return t.root
+	return *t.root
 }
 
 // Walk is used to walk the tree
 func (t *RadixTree[T]) Walk(fn WalkFn[T]) {
-	recursiveWalk(t.root, fn)
+	recursiveWalk(*t.root, fn)
 }
 
 func (t *RadixTree[T]) DFS(fn DfsFn[T]) {
-	t.DFSNode(t.root, fn)
+	t.DFSNode(*t.root, fn)
 }
 
 func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
@@ -386,7 +383,7 @@ func (t *RadixTree[T]) DFSPrintTreeUtil(node Node[T], depth int) {
 }
 
 func (t *RadixTree[T]) DFSPrintTree() {
-	t.DFSPrintTreeUtil(t.root, 0)
+	t.DFSPrintTreeUtil(*t.root, 0)
 }
 
 // recursiveWalk is used to do a pre-order walk of a node
