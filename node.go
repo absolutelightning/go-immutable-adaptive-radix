@@ -15,11 +15,11 @@ type Node[T any] interface {
 	setPartial([]byte)
 	isLeaf() bool
 	matchPrefix([]byte) bool
-	getChild(int) Node[T]
+	getChild(int) *Node[T]
 	incrementLazyRefCount(delta int64)
 	getRefCount() int64
 	processRefCount()
-	setChild(int, Node[T])
+	setChild(int, *Node[T])
 	clone(bool, bool) Node[T]
 	setMutateCh(chan struct{})
 	getKey() []byte
@@ -30,12 +30,12 @@ type Node[T any] interface {
 	setKeyLen(uint32)
 	getKeyAtIdx(int) byte
 	setKeyAtIdx(int, byte)
-	getChildren() []Node[T]
+	getChildren() []*Node[T]
 	getKeys() []byte
 	getMutateCh() chan struct{}
 	getLowerBoundCh(byte) int
-	getNodeLeaf() *NodeLeaf[T]
-	setNodeLeaf(*NodeLeaf[T])
+	getNodeLeaf() Node[T]
+	setNodeLeaf(Node[T])
 
 	Iterator() *Iterator[T]
 	LowerBoundIterator() *LowerBoundIterator[T]

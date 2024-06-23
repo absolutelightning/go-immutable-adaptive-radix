@@ -43,25 +43,28 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 		switch node.(type) {
 		case *Node4[T]:
 			n4 := node.(*Node4[T])
-			n4L := n4.leaf
 			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
-				i.stack = append(i.stack, n4.children[itr])
+				if n4.children[itr] != nil {
+					i.stack = append(i.stack, *n4.children[itr])
+				}
 			}
-			if n4L != nil {
-				return getKey(n4L.key), n4L.value, true
+			nodeLeaf := n4.getNodeLeaf()
+			if nodeLeaf != nil {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *Node16[T]:
 			n16 := node.(*Node16[T])
-			n16L := n16.leaf
 			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
-				i.stack = append(i.stack, n16.children[itr])
+				if n16.children[itr] != nil {
+					i.stack = append(i.stack, *n16.children[itr])
+				}
 			}
-			if n16L != nil {
-				return getKey(n16.leaf.key), n16.leaf.value, true
+			nodeLeaf := n16.getNodeLeaf()
+			if nodeLeaf != nil {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *Node48[T]:
 			n48 := node.(*Node48[T])
-			n48L := n48.leaf
 			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
 				if idx == 0 {
@@ -71,23 +74,24 @@ func (i *LowerBoundIterator[T]) Next() ([]byte, T, bool) {
 				if nodeCh == nil {
 					continue
 				}
-				i.stack = append(i.stack, nodeCh)
+				i.stack = append(i.stack, *nodeCh)
 			}
-			if n48L != nil {
-				return getKey(n48L.key), n48L.value, true
+			nodeLeaf := n48.getNodeLeaf()
+			if nodeLeaf != nil {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *Node256[T]:
 			n256 := node.(*Node256[T])
-			n256L := n256.leaf
 			for itr := 255; itr >= 0; itr-- {
 				nodeCh := n256.children[itr]
 				if nodeCh == nil {
 					continue
 				}
-				i.stack = append(i.stack, nodeCh)
+				i.stack = append(i.stack, *nodeCh)
 			}
-			if n256L != nil {
-				return getKey(n256L.key), n256L.value, true
+			nodeLeaf := n256.getNodeLeaf()
+			if nodeLeaf != nil {
+				return getKey(nodeLeaf.getKey()), nodeLeaf.getValue(), true
 			}
 		case *NodeLeaf[T]:
 			leafCh := node.(*NodeLeaf[T])
@@ -108,12 +112,12 @@ func (i *LowerBoundIterator[T]) recurseMin(n Node[T]) Node[T] {
 		// we recurse)
 		var allCh []Node[T]
 		for itr := nCh - 1; itr >= 1; itr-- {
-			allCh = append(allCh, n.getChild(int(itr)))
+			allCh = append(allCh, *n.getChild(int(itr)))
 		}
 		i.stack = append(allCh, i.stack...)
 	}
 	if nCh > 0 {
-		return i.recurseMin(n.getChild(0))
+		return i.recurseMin(*n.getChild(0))
 	}
 	// Shouldn't be possible
 	return nil
@@ -140,7 +144,7 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 			)
 			return
 		}
-		if bytes.Compare(nL.key, i.path) >= 0 {
+		if bytes.Compare(nL.getKey(), i.path) >= 0 {
 			i.stack = append(
 				i.stack,
 				n,
@@ -191,7 +195,7 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 			// leaf under this subtree.
 			nL := node.getNodeLeaf()
 			if nL != nil {
-				if bytes.Compare(nL.key, i.path) >= 0 {
+				if bytes.Compare(nL.getKey(), i.path) >= 0 {
 					findMin(node)
 				}
 			} else {
@@ -218,7 +222,7 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 			return
 		}
 
-		if node.isLeaf() && node.getNodeLeaf() != nil && bytes.Compare(node.getNodeLeaf().getKey(), prefix) >= 0 {
+		if node.isLeaf() && node.getNodeLeaf() != nil && bytes.Compare((node.getNodeLeaf()).getKey(), prefix) >= 0 {
 			found(node)
 			if parent != nil && parent.getNodeLeaf() != nil {
 				if bytes.Compare(parent.getNodeLeaf().getKey(), i.path) >= 0 {
@@ -278,17 +282,20 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 			} else {
 				for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
 					nCh := node.getChild(itr)
-					nChL := nCh.getNodeLeaf()
+					if nCh == nil {
+						continue
+					}
+					nChL := (*nCh).getNodeLeaf()
 					if nChL == nil {
-						i.stack = append(i.stack, node.getChild(itr))
+						i.stack = append(i.stack, *node.getChild(itr))
 					} else {
-						if bytes.Compare(nChL.key, i.path) >= 0 {
-							i.stack = append(i.stack, node.getChild(itr))
+						if bytes.Compare(nChL.getKey(), i.path) >= 0 {
+							i.stack = append(i.stack, *node.getChild(itr))
 						}
 					}
 				}
 			}
-			if parent.getNodeLeaf() != nil && bytes.Compare(parent.getNodeLeaf().getKey(), i.path) >= 0 {
+			if parent != nil && parent.getNodeLeaf() != nil && bytes.Compare((parent.getNodeLeaf()).getKey(), i.path) >= 0 {
 				i.stack = append(i.stack, parent.getNodeLeaf())
 			}
 			node = nil
@@ -308,12 +315,12 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 				for itr := int(node.getNumChildren()) - 1; itr >= 0; itr-- {
 					if node.getChild(itr) != nil {
 						nCh := node.getChild(itr)
-						nChL := nCh.getNodeLeaf()
+						nChL := (*nCh).getNodeLeaf()
 						if nChL == nil {
-							i.stack = append(i.stack, node.getChild(itr))
+							i.stack = append(i.stack, *node.getChild(itr))
 						} else {
-							if bytes.Compare(nChL.key, i.path) >= 0 {
-								i.stack = append(i.stack, node.getChild(itr))
+							if bytes.Compare(nChL.getKey(), i.path) >= 0 {
+								i.stack = append(i.stack, *node.getChild(itr))
 							}
 						}
 					}
@@ -328,12 +335,12 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 		for itr := int(node.getNumChildren()) - 1; itr >= idx+1; itr-- {
 			if node.getChild(itr) != nil {
 				nCh := node.getChild(itr)
-				nChL := nCh.getNodeLeaf()
+				nChL := (*nCh).getNodeLeaf()
 				if nChL == nil {
-					i.stack = append(i.stack, node.getChild(itr))
+					i.stack = append(i.stack, *node.getChild(itr))
 				} else {
-					if bytes.Compare(nChL.key, i.path) >= 0 {
-						i.stack = append(i.stack, node.getChild(itr))
+					if bytes.Compare(nChL.getKey(), i.path) >= 0 {
+						i.stack = append(i.stack, *node.getChild(itr))
 					}
 				}
 			}
@@ -349,7 +356,7 @@ func (i *LowerBoundIterator[T]) SeekLowerBound(prefixKey []byte) {
 
 		parent = node
 		// Move to the next level in the tree
-		node = node.getChild(idx)
+		node = *node.getChild(idx)
 
 		depth++
 

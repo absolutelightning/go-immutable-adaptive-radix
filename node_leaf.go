@@ -116,7 +116,7 @@ func (n *NodeLeaf[T]) matchPrefix(prefix []byte) bool {
 	return bytes.HasPrefix(n.key, prefix)
 }
 
-func (n *NodeLeaf[T]) getChild(index int) Node[T] {
+func (n *NodeLeaf[T]) getChild(index int) *Node[T] {
 	return nil
 }
 
@@ -135,7 +135,7 @@ func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
 	return newNode
 }
 
-func (n *NodeLeaf[T]) setChild(int, Node[T]) {
+func (n *NodeLeaf[T]) setChild(int, *Node[T]) {
 	return
 }
 
@@ -147,7 +147,7 @@ func (n *NodeLeaf[T]) getKeyAtIdx(idx int) byte {
 func (n *NodeLeaf[T]) setKeyAtIdx(idx int, key byte) {
 }
 
-func (n *NodeLeaf[T]) getChildren() []Node[T] {
+func (n *NodeLeaf[T]) getChildren() []*Node[T] {
 	return nil
 }
 
@@ -156,18 +156,15 @@ func (n *NodeLeaf[T]) getKeys() []byte {
 }
 
 func (n *NodeLeaf[T]) getMutateCh() chan struct{} {
-	// This must be lock free but we should ensure that concurrent callers will
-	// end up with the same chan
-	// Fast path if there is already a chan
 	ch := n.mutateCh.Load()
-	if ch != nil {
+	if ch != nil && *ch != nil {
 		return *ch
 	}
 
 	// No chan yet, create one
 	newCh := make(chan struct{})
 
-	swapped := n.mutateCh.CompareAndSwap(nil, &newCh)
+	swapped := n.mutateCh.CompareAndSwap(ch, &newCh)
 	if swapped {
 		return newCh
 	}
@@ -191,11 +188,11 @@ func (n *NodeLeaf[T]) setMutateCh(ch chan struct{}) {
 	n.mutateCh.Store(&ch)
 }
 
-func (n *NodeLeaf[T]) getNodeLeaf() *NodeLeaf[T] {
+func (n *NodeLeaf[T]) getNodeLeaf() Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) setNodeLeaf(nl *NodeLeaf[T]) {
+func (n *NodeLeaf[T]) setNodeLeaf(nl Node[T]) {
 	// no op
 }
 

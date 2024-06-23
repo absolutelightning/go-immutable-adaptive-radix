@@ -14,13 +14,14 @@ import (
 	"sort"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func TestRadix_HugeTxn(t *testing.T) {
 	r := NewRadixTree[int]()
 
 	// Insert way more nodes than the cache can fit
-	txn1 := r.Txn(false)
+	txn1 := r.Txn()
 	var expect []string
 	for i := 0; i < defaultModifiedCache*100; i++ {
 		gen, err := uuid.GenerateUUID()
@@ -54,7 +55,7 @@ func TestRadix_HugeTxn(t *testing.T) {
 
 func TestInsert_UpdateFeedback(t *testing.T) {
 	r := NewRadixTree[any]()
-	txn1 := r.Txn(false)
+	txn1 := r.Txn()
 
 	for i := 0; i < 10; i++ {
 		var old interface{}
@@ -70,6 +71,17 @@ func TestInsert_UpdateFeedback(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestCheckMem(t *testing.T) {
+	node := &Node256[int]{}
+	fmt.Printf("Size of id: %d bytes\n", unsafe.Sizeof(node.id))
+	fmt.Printf("Size of partialLen: %d bytes\n", unsafe.Sizeof(node.partialLen))
+	fmt.Printf("Size of numChildren: %d bytes\n", unsafe.Sizeof(node.numChildren))
+	fmt.Printf("Size of partial: %d bytes\n", unsafe.Sizeof(node.partial))
+	fmt.Printf("Size of children: %d bytes\n", unsafe.Sizeof(node.children))
+	fmt.Printf("Size of mutateCh: %d bytes\n", unsafe.Sizeof(node.mutateCh))
+	fmt.Printf("Size of leaf: %d bytes\n", unsafe.Sizeof(node.leaf))
 }
 
 func TestARTree_InsertAndSearchWords(t *testing.T) {
@@ -106,8 +118,8 @@ func TestARTree_InsertAndSearchWords(t *testing.T) {
 
 	artLeafMin := art.Minimum()
 	artLeafMax := art.Maximum()
-	require.Equal(t, artLeafMin.key, getTreeKey([]byte("A")))
-	require.Equal(t, artLeafMax.key, getTreeKey([]byte("zythum")))
+	require.Equal(t, (artLeafMin).getKey(), getTreeKey([]byte("A")))
+	require.Equal(t, (artLeafMax).getKey(), getTreeKey([]byte("zythum")))
 }
 
 func TestARTree_InsertVeryLongKey(t *testing.T) {
@@ -202,647 +214,16 @@ func TestDebug(t *testing.T) {
 	r := NewRadixTree[any]()
 
 	keys := []string{
-		"sneakiness",
-		"sneaking",
-		"sneakingly",
-		"sneakingness",
-		"sneakish",
-		"sneakishly",
-		"sneakishness",
-		"Zwinglianist", "zwitter", "zwitterion", "zwitterionic", "zyga",
-		"zygadenine", "Zygadenus", "Zygaena", "zygaenid", "Zygaenidae", "zygal", "zygantra", "zygantrum", "zygapophyseal",
-		"zygapophysis", "zygion", "zygite", "Zygnema", "Zygnemaceae",
-		"A",
-		"a",
-		"aa",
-		"aal",
-		"aalii",
-		"aam",
-		"Aani",
-		"aardvark",
-		"aardwolf",
-		"Aaron",
-		"Aaronic",
-		"Aaronical",
-		"Aaronite",
-		"Aaronitic",
-		"Ab",
-		"aba",
-		"Ababdeh",
-		"Ababua",
-		"abac",
-		"abaca",
-		"abacate",
-		"abacay",
-		"abacinate",
-		"abacination",
-		"abaciscus",
-		"abacist",
-		"aback",
-		"abactinal",
-		"abactinally",
-		"abaction",
-		"abactor",
-		"abaculus",
-		"abacus",
-		"Abadite",
-		"abaff",
-		"abaft",
-		"abaisance",
-		"abaiser",
-		"abaissed",
-		"abalienate",
-		"abalienation",
-		"abalone",
-		"Abama",
-		"abampere",
-		"abandon",
-		"abiston",
-		"Abitibi",
-		"abiuret",
-		"abject",
-		"abjectedness",
-		"abjection",
-		"abjective",
-		"abjectly",
-		"abjectness",
-		"abjoint",
-		"abjudge",
-		"abjudicate",
-		"abjudication",
-		"abjunction",
-		"abjunctive",
-		"abjuration",
-		"abjuratory",
-		"abjure",
-		"abjurement",
-		"abjurer",
-		"abkar",
-		"abkari",
-		"Abkhas",
-		"Abkhasian",
-		"ablach",
-		"ablactate",
-		"ablactation",
-		"ablare",
-		"ablastemic",
-		"ablastous",
-		"ablate",
-		"ablation",
-		"ablatitious",
-		"ablatival",
-		"ablative",
-		"ablator",
-		"ablaut",
-		"ablaze",
-		"able",
-		"ableeze",
-		"ablegate",
-		"ableness",
-		"ablepharia",
-		"ablepharon",
-		"ablepharous",
-		"Ablepharus",
-		"ablepsia",
-		"ableptical",
-		"ableptically",
-		"abler",
-		"ablest",
-		"ablewhackets",
-		"ablins",
-		"abloom",
-		"ablow",
-		"ablude",
-		"abluent",
-		"ablush",
 		"ablution",
-		"ablutionary",
-		"abluvion",
-		"ably",
-		"abmho",
-		"Abnaki",
-		"abnegate",
-		"abnegation",
-		"abnegative",
-		"abnegator",
-		"Abner",
-		"abnerval",
-		"abnet",
-		"abneural",
-		"abnormal",
-		"abnormalism",
-		"abnormalist",
-		"abnormality",
-		"abnormalize",
-		"abnormally",
-		"abnormalness",
-		"abnormity",
-		"abnormous",
-		"abnumerable",
-		"Abo",
-		"aboard",
-		"Abobra",
-		"abode",
-		"abodement",
-		"abody",
-		"Miastor",
-		"miaul",
-		"miauler",
-		"mib",
-		"mica",
-		"micaceous",
-		"micacious",
-		"micacite",
-		"Micah",
-		"micasization",
-		"micasize",
-		"micate",
-		"mication",
-		"Micawberish",
-		"Micawberism",
-		"mice",
-		"micellar",
-		"micelle",
-		"Michabo",
-		"Michabou",
-		"Michael",
-		"Michaelites",
-		"Michaelmas",
-		"Michaelmastide",
-		"miche",
-		"Micheal",
-		"Michel",
-		"Michelangelesque",
-		"Michelangelism",
-		"Michelia",
-		"Michelle",
-		"micher",
-		"Michiel",
-		"Michigamea",
-		"Michigan",
-		"michigan",
-		"Michigander",
-		"Michiganite",
-		"miching",
-		"Michoacan",
-		"Michoacano",
-		"micht",
-		"Mick",
-		"mick",
-		"Mickey",
-		"mickle",
-		"Micky",
-		"Micmac",
-		"mico",
-		"miconcave",
-		"Miconia",
-		"micramock",
-		"Micrampelis",
-		"micranatomy",
-		"micrander",
-		"micrandrous",
-		"micraner",
-		"micranthropos",
-		"Micraster",
-		"micrencephalia",
-		"micrencephalic",
-		"micrencephalous",
-		"micrencephalus",
-		"micrencephaly",
-		"micrergate",
-		"micresthete",
-		"micrify",
-		"micro",
-		"microammeter",
-		"microampere",
-		"microanalysis",
-		"microanalyst",
-		"microanalytical",
-		"microangstrom",
-		"microapparatus",
-		"microbal",
-		"microbalance",
-		"microbar",
-		"microbarograph",
-		"microbattery",
-		"microbe",
-		"microbeless",
-		"microbeproof",
-		"microbial",
-		"microbian",
-		"microbic",
-		"microbicidal",
-		"microbicide",
-		"microbiologic",
-		"microbiological",
-		"microbiologically",
-		"microbiologist",
-		"microbiology",
-		"microbion",
-		"microbiosis",
-		"microbiota",
-		"microbiotic",
-		"microbious",
-		"microbism",
-		"microbium",
-		"microblast",
-		"microblepharia",
-		"microblepharism",
-		"microblephary",
-		"microbrachia",
-		"microbrachius",
-		"microburet",
-		"microburette",
-		"microburner",
-		"microcaltrop",
-		"microcardia",
-		"microcardius",
-		"microcarpous",
-		"Microcebus",
-		"microcellular",
-		"microcentrosome",
-		"microcentrum",
-		"microcephal",
-		"microcephalia",
-		"microcephalic",
-		"microcephalism",
-		"microcephalous",
-		"microcephalus",
-		"microcephaly",
-		"microceratous",
-		"microchaeta",
-		"microcharacter",
-		"microcheilia",
-		"microcheiria",
-		"microchemic",
-		"microchemical",
-		"microchemically",
-		"zoogony",
-		"zoograft",
-		"zoografting",
-		"zoographer",
-		"zoographic",
-		"zoographical",
-		"zoographically",
-		"zoographist",
-		"zoography",
-		"zooid",
-		"zooidal",
-		"zooidiophilous",
-		"zooks",
-		"zoolater",
-		"zoolatria",
-		"zoolatrous",
-		"zoolatry",
-		"zoolite",
-		"zoolith",
-		"zoolithic",
-		"zoolitic",
-		"zoologer",
-		"zoologic",
-		"zoological",
-		"zoologically",
-		"zoologicoarchaeologist",
-		"zoologicobotanical",
-		"zoologist",
-		"zoologize",
-		"zoology",
-		"zoom",
-		"zoomagnetic",
-		"zoomagnetism",
-		"zoomancy",
-		"zoomania",
-		"zoomantic",
-		"zoomantist",
-		"Zoomastigina",
-		"Zoomastigoda",
-		"zoomechanical",
-		"zoomechanics",
-		"zoomelanin",
-		"zoometric",
-		"zoometry",
-		"zoomimetic",
-		"zoomimic",
-		"zoomorph",
-		"zoomorphic",
-		"zoomorphism",
-		"zoomorphize",
-		"zoomorphy",
-		"zoon",
-		"zoonal",
-		"zoonerythrin",
-		"zoonic",
-		"zoonist",
-		"zoonite",
-		"zoonitic",
-		"zoonomia",
-		"zoonomic",
-		"zoonomical",
-		"zoonomist",
-		"zoonomy",
-		"zoonosis",
-		"zoonosologist",
-		"zoonosology",
-		"zoonotic",
-		"zoons",
-		"zoonule",
-		"zoopaleontology",
-		"zoopantheon",
-		"zooparasite",
-		"zooparasitic",
-		"zoopathological",
-		"zoopathologist",
-		"zoopathology",
-		"zoopathy",
-		"zooperal",
-		"zooperist",
-		"zoopery",
-		"Zoophaga",
-		"zoophagan",
-		"Zoophagineae",
-		"zoophagous",
-		"zoopharmacological",
-		"zoopharmacy",
-		"zoophile",
-		"zoophilia",
-		"zoophilic",
-		"zoophilism",
-		"zoophilist",
-		"zoophilite",
-		"zoophilitic",
-		"zoophilous",
-		"zoophily",
-		"zoophobia",
-		"zoophobous",
-		"zoophoric",
-		"zoophorus",
-		"zoophysical",
-		"zoophysics",
-		"zoophysiology",
-		"Zoophyta",
-		"zoophytal",
-		"zoophyte",
-		"zoophytic",
-		"zoophytical",
-		"zoophytish",
-		"zoophytography",
-		"zoophytoid",
-		"zoophytological",
-		"zoophytologist",
-		"zoophytology",
-		"zooplankton",
-		"zooplanktonic",
-		"zooplastic",
-		"zooplasty",
-		"zoopraxiscope",
-		"zoopsia",
-		"zoopsychological",
-		"zoopsychologist",
-		"zoopsychology",
-		"zooscopic",
-		"zooscopy",
-		"zoosis",
-		"zoosmosis",
-		"zoosperm",
-		"zoospermatic",
-		"zoospermia",
-		"zoospermium",
-		"zoosphere",
-		"zoosporange",
-		"zoosporangia",
-		"zoosporangial",
-		"zoosporangiophore",
-		"zoosporangium",
-		"zoospore",
-		"zoosporic",
-		"zoosporiferous",
-		"zoosporocyst",
-		"zoosporous",
-		"zootaxy",
-		"zootechnic",
-		"zootechnics",
-		"zootechny",
-		"zooter",
-		"zoothecia",
-		"zoothecial",
 		"zoothecium",
-		"zootheism",
-		"zootheist",
-		"zootheistic",
-		"zootherapy",
-		"zoothome",
-		"zootic",
-		"Zootoca",
-		"zootomic",
-		"zootomical",
-		"zootomically",
-		"zootomist",
-		"zootomy",
-		"zoototemism",
-		"zootoxin",
-		"zootrophic",
-		"zootrophy",
-		"zootype",
-		"zootypic",
-		"zooxanthella",
-		"zooxanthellae",
-		"zooxanthin",
-		"zoozoo",
-		"zopilote",
-		"Zoquean",
-		"Zoraptera",
-		"zorgite",
-		"zorilla",
-		"Zorillinae",
-		"zorillo",
-		"Zoroastrian",
-		"Zoroastrianism",
-		"Zoroastrism",
-		"Zorotypus",
-		"zorrillo",
-		"Zosma",
-		"zoster",
-		"Zostera",
-		"Zosteraceae",
-		"zosteriform",
-		"Zosteropinae",
-		"Zosterops",
-		"Zouave",
-		"zounds",
-		"Zoysia",
-		"Zubeneschamali",
-		"zuccarino",
-		"zucchetto",
-		"zucchini",
-		"zugtierlast",
-		"zugtierlaster",
-		"zuisin",
-		"Zuleika",
-		"Zulhijjah",
-		"Zulinde",
-		"Zulkadah",
-		"Zuludom",
-		"Zuluize",
-		"zumatic",
-		"zumbooruk",
-		"Zunian",
-		"zunyite",
-		"zupanate",
-		"Zutugil",
-		"zuurveldt",
-		"zwanziger",
-		"Zwieback",
-		"zwieback",
-		"Zwinglian",
-		"Zwinglianism",
-		"Zwinglianist",
-		"zwitter",
-		"zwitterion",
-		"zwitterionic",
-		"zyga",
-		"zygadenine",
-		"Zygadenus",
-		"Zygaena",
-		"zygaenid",
-		"Zygaenidae",
-		"zygal",
-		"zygantra",
-		"zygantrum",
-		"zygapophyseal",
-		"zygapophysis",
-		"zygion",
-		"zygite",
-		"Zygnema",
-		"Zygnemaceae",
-		"Zygnemales",
-		"Zygnemataceae",
-		"zygnemataceous",
-		"Zygnematales",
-		"zygobranch",
-		"Zygobranchia",
-		"Zygobranchiata",
-		"zygobranchiate",
-		"Zygocactus",
-		"zygodactyl",
-		"Zygodactylae",
-		"Zygodactyli",
-		"zygodactylic",
-		"zygodactylism",
-		"zygodactylous",
-		"zygodont",
-		"zygolabialis",
-		"zygoma",
-		"zygomata",
-		"zygomatic",
-		"zygomaticoauricular",
-		"zygomaticoauricularis",
-		"zygomaticofacial",
-		"zygomaticofrontal",
-		"zygomaticomaxillary",
-		"zygomaticoorbital",
-		"zygomaticosphenoid",
-		"zygomaticotemporal",
-		"zygomaticum",
-		"zygomaticus",
-		"zygomaxillare",
-		"zygomaxillary",
-		"zygomorphic",
-		"zygomorphism",
-		"zygomorphous",
-		"zygomycete",
-		"Zygomycetes",
-		"zygomycetous",
-		"zygoneure",
-		"zygophore",
-		"zygophoric",
 		"Zygophyceae",
-		"zygophyceous",
-		"Zygophyllaceae",
-		"zygophyllaceous",
-		"Zygophyllum",
-		"zygophyte",
-		"zygopleural",
-		"Zygoptera",
-		"Zygopteraceae",
-		"zygopteran",
-		"zygopterid",
-		"Zygopterides",
-		"Zygopteris",
-		"zygopteron",
-		"zygopterous",
-		"Zygosaccharomyces",
-		"zygose",
-		"zygosis",
-		"zygosperm",
-		"zygosphenal",
-		"zygosphene",
-		"zygosphere",
-		"zygosporange",
-		"zygosporangium",
-		"zygospore",
-		"zygosporic",
-		"zygosporophore",
-		"zygostyle",
-		"zygotactic",
-		"zygotaxis",
-		"zygote",
-		"zygotene",
-		"zygotic",
-		"zygotoblast",
-		"zygotoid",
-		"zygotomere",
-		"zygous",
-		"zygozoospore",
-		"zymase",
-		"zymic",
-		"zymin",
-		"zymite",
-		"zymogen",
-		"zymogene",
-		"zymogenesis",
-		"zymogenic",
-		"zymogenous",
-		"zymoid",
-		"zymologic",
-		"zymological",
-		"zymologist",
-		"zymology",
-		"zymolyis",
-		"zymolysis",
-		"zymolytic",
-		"zymome",
-		"zymometer",
-		"zymomin",
-		"zymophore",
-		"zymophoric",
-		"zymophosphate",
-		"zymophyte",
-		"zymoplastic",
-		"zymoscope",
-		"zymosimeter",
-		"zymosis",
-		"zymosterol",
-		"zymosthenic",
-		"zymotechnic",
-		"zymotechnical",
-		"zymotechnics",
-		"zymotechny",
-		"zymotic",
-		"zymotically",
-		"zymotize",
-		"zymotoxic",
-		"zymurgy",
-		"Zyrenian",
-		"Zyrian",
-		"Zyryan",
-		"zythem",
-		"Zythia",
-		"zythum",
-		"Zyzomys",
-		"Zyzzogeton",
 	}
 	for _, k := range keys {
 		r, _, _ = r.Insert([]byte(k), nil)
+	}
+	for _, k := range keys {
+		_, f := r.Get([]byte(k))
+		require.True(t, f)
 	}
 
 }
@@ -1149,7 +530,7 @@ func TestTrackMutate_DeletePrefix(t *testing.T) {
 	}
 
 	// Verify that deleting prefixes triggers the right set of watches
-	txn := r.Txn(false)
+	txn := r.Txn()
 	txn.TrackMutate(true)
 	ok := txn.DeletePrefix([]byte("foo"))
 
@@ -1258,7 +639,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		otherWatch := iter.SeekPrefixWatch([]byte("foo/b"))
 
 		// Write to a sub-child should trigger the leaf!
-		txn := r.Txn(false)
+		txn := r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobarbaz"), nil)
 		switch i {
@@ -1315,7 +696,7 @@ func TestTrackMutate_SeekPrefixWatch(t *testing.T) {
 		missingWatch = iter.SeekPrefixWatch([]byte("foobarbaz"))
 
 		// Delete to a sub-child should trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Delete([]byte("foobarbaz"))
 		switch i {
@@ -1403,7 +784,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 			t.Fatalf("bad")
 		}
 		// Write to a sub-child should not trigger the leaf!
-		txn := r.Txn(false)
+		txn := r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobarbaz"), nil)
 		switch i {
@@ -1454,7 +835,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		// Write to a exactly leaf should trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Insert([]byte("foobar"), nil)
 		switch i {
@@ -1511,7 +892,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		// Delete to a sub-child should not trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Delete([]byte("foobarbaz"))
 		switch i {
@@ -1561,7 +942,7 @@ func TestTrackMutate_GetWatch(t *testing.T) {
 		}
 
 		// Write to a exactly leaf should trigger the leaf!
-		txn = r.Txn(false)
+		txn = r.Txn()
 		txn.TrackMutate(true)
 		txn.Delete([]byte("foobar"))
 		switch i {
@@ -1663,7 +1044,7 @@ func TestTrackMutate_HugeTxn(t *testing.T) {
 	}
 
 	// Start the transaction.
-	txn := r.Txn(false)
+	txn := r.Txn()
 	txn.TrackMutate(true)
 
 	// Add new nodes on both sides of the tree and delete enough nodes to
@@ -1736,7 +1117,7 @@ func TestLenTxn(t *testing.T) {
 		t.Fatalf("not starting with empty tree")
 	}
 
-	txn := r.Txn(false)
+	txn := r.Txn()
 	keys := []string{
 		"foo/bar/baz",
 		"foo/baz/bar",
@@ -1753,7 +1134,7 @@ func TestLenTxn(t *testing.T) {
 		t.Fatalf("bad: expected %d, got %d", len(keys), r.Len())
 	}
 
-	txn = r.Txn(false)
+	txn = r.Txn()
 	for _, k := range keys {
 		txn.Delete([]byte(k))
 	}
@@ -1934,7 +1315,8 @@ func BenchmarkSeekPrefixWatchART(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
 		r, _, _ = r.Insert([]byte(uuid1), n)
-		iter := r.root.Iterator()
+		root := *r.root
+		iter := root.Iterator()
 		iter.SeekPrefixWatch([]byte(""))
 		count := 0
 		for {
@@ -1957,7 +1339,8 @@ func BenchmarkSeekLowerBound(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
 		r, _, _ = r.Insert([]byte(uuid1), n)
-		iter := r.root.LowerBoundIterator()
+		root := *r.root
+		iter := root.LowerBoundIterator()
 		iter.SeekLowerBound([]byte(""))
 		count := 0
 		for {
@@ -1980,7 +1363,8 @@ func BenchmarkSeekReverseLowerBound(b *testing.B) {
 	for n := 0; n < b.N; n++ {
 		uuid1, _ := uuid.GenerateUUID()
 		r, _, _ = r.Insert([]byte(uuid1), n)
-		iter := r.root.ReverseIterator()
+		root := *r.root
+		iter := root.ReverseIterator()
 		iter.SeekReverseLowerBound([]byte(""))
 		count := 0
 		for {
