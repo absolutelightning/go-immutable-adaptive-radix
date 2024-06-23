@@ -139,7 +139,7 @@ func (i *Iterator[T]) SeekPrefix(prefix []byte) Node[T] {
 			}
 			depth += int(node.getPartialLen())
 		}
-	
+
 		if depth >= len(prefix) {
 			// If the prefix is exhausted, break the loop
 			i.node = node
