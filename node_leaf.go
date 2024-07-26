@@ -120,7 +120,7 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 	return nil
 }
 
-func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
+func (n *NodeLeaf[T]) clone(keepWatch bool) Node[T] {
 	n.processRefCount()
 	newNode := &NodeLeaf[T]{
 		key:      make([]byte, len(n.getKey())),

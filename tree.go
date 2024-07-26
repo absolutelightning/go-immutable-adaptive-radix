@@ -46,17 +46,9 @@ func NewRadixTree[T any]() *RadixTree[T] {
 	return rt
 }
 
-func (t *RadixTree[T]) Clone(deep bool) *RadixTree[T] {
-	if deep {
-		nt := &RadixTree[T]{
-			root:      t.root.clone(true, true),
-			size:      t.size,
-			maxNodeId: t.maxNodeId,
-		}
-		return nt
-	}
+func (t *RadixTree[T]) Clone() *RadixTree[T] {
 	nt := &RadixTree[T]{
-		root:      t.root.clone(true, false),
+		root:      t.root.clone(true),
 		size:      t.size,
 		maxNodeId: t.maxNodeId,
 	}
@@ -73,7 +65,7 @@ func (t *RadixTree[T]) GetPathIterator(path []byte) *PathIterator[T] {
 }
 
 func (t *RadixTree[T]) Insert(key []byte, value T) (*RadixTree[T], T, bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	old, ok := txn.Insert(key, value)
 	return txn.Commit(), old, ok
 }
@@ -83,7 +75,7 @@ func (t *RadixTree[T]) Get(key []byte) (T, bool) {
 }
 
 func (t *RadixTree[T]) Delete(key []byte) (*RadixTree[T], T, bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	old, ok := txn.Delete(key)
 	return txn.Commit(), old, ok
 }
@@ -338,7 +330,7 @@ func (t *RadixTree[T]) iterativeSearchWithWatch(key []byte) (T, bool, <-chan str
 }
 
 func (t *RadixTree[T]) DeletePrefix(key []byte) (*RadixTree[T], bool) {
-	txn := t.Txn(false)
+	txn := t.Txn()
 	ok := txn.DeletePrefix(key)
 	return txn.Commit(), ok
 }
