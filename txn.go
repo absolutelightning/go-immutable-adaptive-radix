@@ -31,9 +31,6 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 	if n.getId() > t.oldMaxNodeId {
 		return n
 	}
-	if n.getRefCount() <= 1 {
-		return n
-	}
 	nc := n.clone(!trackCh, false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
@@ -47,8 +44,6 @@ func (t *RadixTree[T]) Txn(clone bool) *Txn[T] {
 		t.size,
 		t.maxNodeId,
 	}
-	newTree.root.incrementLazyRefCount(1)
-	newTree.root.processRefCount()
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
@@ -59,10 +54,10 @@ func (t *RadixTree[T]) Txn(clone bool) *Txn[T] {
 
 // Clone makes an independent copy of the transaction. The new transaction
 // does not track any nodes and has TrackMutate turned off. The cloned transaction will contain any uncommitted writes in the original transaction but further mutations to either will be independent and result in different radix trees on Commit. A cloned transaction may be passed to another goroutine and mutated there independently however each transaction may only be mutated in a single thread.
-func (t *Txn[T]) Clone(deep bool) *Txn[T] {
+func (t *Txn[T]) Clone() *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 	newTree := &RadixTree[T]{
-		t.tree.root.clone(true, deep),
+		t.tree.root.clone(true, false),
 		t.size,
 		t.tree.maxNodeId,
 	}
@@ -101,8 +96,6 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T, bool) {
 	var zero T
-
-	node.processRefCount()
 
 	if t.tree.size == 0 {
 		node = t.writeNode(node, true)
@@ -300,8 +293,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil, false
 	}
 
-	node.processRefCount()
-
 	if node.isLeaf() {
 		t.trackChannel(node)
 		if leafMatches(node.getKey(), key) == 0 {
@@ -399,8 +390,6 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
-	t.tree.root.incrementLazyRefCount(-1)
-	t.tree.root.processRefCount()
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 		t.tree.maxNodeId,
@@ -557,33 +546,19 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 			refCount: 1,
 		}
 	case node4:
-		n = &Node4[T]{
-			refCount: 1,
-		}
+		n = &Node4[T]{}
 	case node8:
-		n = &Node8[T]{
-			refCount: 1,
-		}
+		n = &Node8[T]{}
 	case node16:
-		n = &Node16[T]{
-			refCount: 1,
-		}
+		n = &Node16[T]{}
 	case node32:
-		n = &Node32[T]{
-			refCount: 1,
-		}
+		n = &Node32[T]{}
 	case node64:
-		n = &Node64[T]{
-			refCount: 1,
-		}
+		n = &Node64[T]{}
 	case node128:
-		n = &Node128[T]{
-			refCount: 1,
-		}
+		n = &Node128[T]{}
 	case node256:
-		n = &Node256[T]{
-			refCount: 1,
-		}
+		n = &Node256[T]{}
 	default:
 		panic("Unknown node type")
 	}

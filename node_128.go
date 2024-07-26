@@ -9,16 +9,14 @@ import (
 )
 
 type Node128[T any] struct {
-	id           uint64
-	partialLen   uint32
-	numChildren  uint8
-	partial      []byte
-	keys         [256]byte
-	children     [128]Node[T]
-	mutateCh     atomic.Pointer[chan struct{}]
-	leaf         *NodeLeaf[T]
-	lazyRefCount int64
-	refCount     int64
+	id          uint64
+	partialLen  uint32
+	numChildren uint8
+	partial     []byte
+	keys        [256]byte
+	children    [128]Node[T]
+	mutateCh    atomic.Pointer[chan struct{}]
+	leaf        *NodeLeaf[T]
 }
 
 func (n *Node128[T]) getId() uint64 {
@@ -99,11 +97,9 @@ func (n *Node128[T]) getChild(index int) Node[T] {
 }
 
 func (n *Node128[T]) clone(keepWatch, deep bool) Node[T] {
-	n.processRefCount()
 	newNode := &Node128[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
-		refCount:    n.getRefCount(),
 	}
 	newNode.setId(n.getId())
 	newPartial := make([]byte, maxPrefixLen)
@@ -234,29 +230,4 @@ func (n *Node128[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 	return &LowerBoundIterator[T]{
 		node: nodeT,
 	}
-}
-
-func (n *Node128[T]) incrementLazyRefCount(inc int64) {
-	atomic.AddInt64(&n.lazyRefCount, inc)
-}
-
-func (n *Node128[T]) processRefCount() {
-	if n.lazyRefCount == 0 {
-		return
-	}
-	n.refCount += n.lazyRefCount
-	if n.getNodeLeaf() != nil {
-		n.getNodeLeaf().incrementLazyRefCount(n.lazyRefCount)
-	}
-	for _, child := range n.children {
-		if child != nil {
-			child.incrementLazyRefCount(n.lazyRefCount)
-		}
-	}
-	atomic.StoreInt64(&n.lazyRefCount, 0)
-}
-
-func (n *Node128[T]) getRefCount() int64 {
-	n.processRefCount()
-	return n.refCount
 }
