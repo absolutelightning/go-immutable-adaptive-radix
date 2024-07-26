@@ -187,7 +187,6 @@ func TestARTree_InsertAndSearchAndDeleteWords(t *testing.T) {
 	var val int
 	lineNumber = 1
 	for _, line := range lines {
-		fmt.Println(line)
 		lineNumberFetched, f := art.Get([]byte(line))
 		require.True(t, f)
 		art, val, _ = art.Delete([]byte(line))
