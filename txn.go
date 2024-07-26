@@ -560,12 +560,24 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 		n = &Node4[T]{
 			refCount: 1,
 		}
+	case node8:
+		n = &Node8[T]{
+			refCount: 1,
+		}
 	case node16:
 		n = &Node16[T]{
 			refCount: 1,
 		}
-	case node48:
-		n = &Node48[T]{
+	case node32:
+		n = &Node32[T]{
+			refCount: 1,
+		}
+	case node64:
+		n = &Node64[T]{
+			refCount: 1,
+		}
+	case node128:
+		n = &Node128[T]{
 			refCount: 1,
 		}
 	case node256:

@@ -14,8 +14,11 @@ const maxPrefixLen = 10
 const (
 	leafType nodeType = iota
 	node4
+	node8
 	node16
-	node48
+	node32
+	node64
+	node128
 	node256
 )
 

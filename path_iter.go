@@ -34,40 +34,23 @@ func (i *PathIterator[T]) Next() ([]byte, T, bool) {
 				return getKey(leafCh.key), leafCh.value, true
 			}
 			continue
-		case node4:
-			n4 := currentNode.(*Node4[T])
-			for itr := int(n4.getNumChildren()) - 1; itr >= 0; itr-- {
-				nodeCh := n4.children[itr]
+		case node4, node16, node32, node64:
+			for itr := int(currentNode.getNumChildren()) - 1; itr >= 0; itr-- {
+				nodeCh := currentNode.getChild(itr)
 				if nodeCh == nil {
 					continue
 				}
-				child := (n4.children[itr]).(Node[T])
+				child := (currentNode.getChild(itr)).(Node[T])
 				newStack := make([]Node[T], len(i.stack)+1)
 				copy(newStack[1:], i.stack)
 				newStack[0] = child
 				i.stack = newStack
 			}
-			if n4.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n4.getNodeLeaf()}, i.stack...)
+			if currentNode.getNodeLeaf() != nil {
+				i.stack = append([]Node[T]{currentNode.getNodeLeaf()}, i.stack...)
 			}
-		case node16:
-			n16 := currentNode.(*Node16[T])
-			for itr := int(n16.getNumChildren()) - 1; itr >= 0; itr-- {
-				nodeCh := n16.children[itr]
-				if nodeCh == nil {
-					continue
-				}
-				child := (nodeCh).(Node[T])
-				newStack := make([]Node[T], len(i.stack)+1)
-				copy(newStack[1:], i.stack)
-				newStack[0] = child
-				i.stack = newStack
-			}
-			if n16.getNodeLeaf() != nil {
-				i.stack = append([]Node[T]{n16.getNodeLeaf()}, i.stack...)
-			}
-		case node48:
-			n48 := currentNode.(*Node48[T])
+		case node128:
+			n48 := currentNode.(*Node128[T])
 			for itr := 255; itr >= 0; itr-- {
 				idx := n48.keys[itr]
 				if idx == 0 {
