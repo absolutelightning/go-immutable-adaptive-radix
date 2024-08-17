@@ -9,12 +9,10 @@ import (
 )
 
 type NodeLeaf[T any] struct {
-	id           uint64
-	value        T
-	key          []byte
-	mutateCh     atomic.Pointer[chan struct{}]
-	lazyRefCount int64
-	refCount     int64
+	id       uint64
+	value    T
+	key      []byte
+	mutateCh atomic.Pointer[chan struct{}]
 }
 
 func (n *NodeLeaf[T]) getId() uint64 {
@@ -121,11 +119,9 @@ func (n *NodeLeaf[T]) getChild(index int) Node[T] {
 }
 
 func (n *NodeLeaf[T]) clone(keepWatch, deep bool) Node[T] {
-	n.processRefCount()
 	newNode := &NodeLeaf[T]{
-		key:      make([]byte, len(n.getKey())),
-		value:    n.getValue(),
-		refCount: n.getRefCount(),
+		key:   make([]byte, len(n.getKey())),
+		value: n.getValue(),
 	}
 	if keepWatch {
 		newNode.setMutateCh(n.getMutateCh())
@@ -203,18 +199,4 @@ func (n *NodeLeaf[T]) LowerBoundIterator() *LowerBoundIterator[T] {
 	return &LowerBoundIterator[T]{
 		node: n,
 	}
-}
-
-func (n *NodeLeaf[T]) incrementLazyRefCount(inc int64) {
-	atomic.AddInt64(&n.lazyRefCount, inc)
-}
-
-func (n *NodeLeaf[T]) processRefCount() {
-	n.refCount += n.lazyRefCount
-	atomic.StoreInt64(&n.lazyRefCount, 0)
-}
-
-func (n *NodeLeaf[T]) getRefCount() int64 {
-	n.processRefCount()
-	return n.refCount
 }

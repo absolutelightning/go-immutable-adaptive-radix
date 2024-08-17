@@ -31,9 +31,6 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 	if n.getId() > t.oldMaxNodeId {
 		return n
 	}
-	if n.getRefCount() <= 1 {
-		return n
-	}
 	nc := n.clone(!trackCh, false)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
@@ -47,8 +44,6 @@ func (t *RadixTree[T]) Txn(clone bool) *Txn[T] {
 		t.size,
 		t.maxNodeId,
 	}
-	newTree.root.incrementLazyRefCount(1)
-	newTree.root.processRefCount()
 	txn := &Txn[T]{
 		size:         t.size,
 		tree:         newTree,
@@ -101,8 +96,6 @@ func (t *Txn[T]) Insert(key []byte, value T) (T, bool) {
 
 func (t *Txn[T]) recursiveInsert(node Node[T], key []byte, value T, depth int, old *int) (Node[T], T, bool) {
 	var zero T
-
-	node.processRefCount()
 
 	if t.tree.size == 0 {
 		node = t.writeNode(node, true)
@@ -300,8 +293,6 @@ func (t *Txn[T]) recursiveDelete(node Node[T], key []byte, depth int) (Node[T], 
 		return nil, nil, false
 	}
 
-	node.processRefCount()
-
 	if node.isLeaf() {
 		t.trackChannel(node)
 		if leafMatches(node.getKey(), key) == 0 {
@@ -399,8 +390,6 @@ func (t *Txn[T]) Commit() *RadixTree[T] {
 // CommitOnly is used to finalize the transaction and return a new tree, but
 // does not issue any notifications until Notify is called.
 func (t *Txn[T]) CommitOnly() *RadixTree[T] {
-	t.tree.root.incrementLazyRefCount(-1)
-	t.tree.root.processRefCount()
 	nt := &RadixTree[T]{t.tree.root,
 		t.size,
 		t.tree.maxNodeId,
@@ -553,25 +542,15 @@ func (t *Txn[T]) allocNode(ntype nodeType) Node[T] {
 	var n Node[T]
 	switch ntype {
 	case leafType:
-		n = &NodeLeaf[T]{
-			refCount: 1,
-		}
+		n = &NodeLeaf[T]{}
 	case node4:
-		n = &Node4[T]{
-			refCount: 1,
-		}
+		n = &Node4[T]{}
 	case node16:
-		n = &Node16[T]{
-			refCount: 1,
-		}
+		n = &Node16[T]{}
 	case node48:
-		n = &Node48[T]{
-			refCount: 1,
-		}
+		n = &Node48[T]{}
 	case node256:
-		n = &Node256[T]{
-			refCount: 1,
-		}
+		n = &Node256[T]{}
 	default:
 		panic("Unknown node type")
 	}
