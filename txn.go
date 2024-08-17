@@ -31,16 +31,16 @@ func (t *Txn[T]) writeNode(n Node[T], trackCh bool) Node[T] {
 	if n.getId() > t.oldMaxNodeId {
 		return n
 	}
-	nc := n.clone(!trackCh, false)
+	nc := n.clone(!trackCh)
 	t.tree.maxNodeId++
 	nc.setId(t.tree.maxNodeId)
 	return nc
 }
 
 // Txn starts a new transaction that can be used to mutate the tree
-func (t *RadixTree[T]) Txn(clone bool) *Txn[T] {
+func (t *RadixTree[T]) Txn() *Txn[T] {
 	newTree := &RadixTree[T]{
-		t.root.clone(true, clone),
+		t.root.clone(true),
 		t.size,
 		t.maxNodeId,
 	}
@@ -57,7 +57,7 @@ func (t *RadixTree[T]) Txn(clone bool) *Txn[T] {
 func (t *Txn[T]) Clone(deep bool) *Txn[T] {
 	// reset the writable node cache to avoid leaking future writes into the clone
 	newTree := &RadixTree[T]{
-		t.tree.root.clone(true, deep),
+		t.tree.root.clone(true),
 		t.size,
 		t.tree.maxNodeId,
 	}

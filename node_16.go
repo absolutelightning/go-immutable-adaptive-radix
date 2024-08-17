@@ -88,7 +88,7 @@ func (n *Node16[T]) getChild(index int) Node[T] {
 	return n.children[index]
 }
 
-func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
+func (n *Node16[T]) clone(keepWatch bool) Node[T] {
 	newNode := &Node16[T]{
 		partialLen:  n.getPartialLen(),
 		numChildren: n.getNumChildren(),
@@ -97,32 +97,15 @@ func (n *Node16[T]) clone(keepWatch, deep bool) Node[T] {
 		newNode.setMutateCh(n.getMutateCh())
 	}
 	newPartial := make([]byte, maxPrefixLen)
-	if deep {
-		if n.getNodeLeaf() != nil {
-			newNode.setNodeLeaf(n.getNodeLeaf().clone(true, true).(*NodeLeaf[T]))
-		}
-	} else {
-		newNode.setNodeLeaf(n.getNodeLeaf())
-	}
+	newNode.setNodeLeaf(n.getNodeLeaf())
 	copy(newPartial, n.partial)
 	newNode.setPartial(newPartial)
 	newNode.setId(n.getId())
 	copy(newNode.keys[:], n.keys[:])
-	if deep {
-		cpy := make([]Node[T], len(n.children))
-		copy(cpy, n.children[:])
-		for i := 0; i < 16; i++ {
-			if cpy[i] == nil {
-				continue
-			}
-			newNode.setChild(i, cpy[i].clone(keepWatch, true))
-		}
-	} else {
-		cpy := make([]Node[T], len(n.children))
-		copy(cpy, n.children[:])
-		for i := 0; i < 16; i++ {
-			newNode.setChild(i, cpy[i])
-		}
+	cpy := make([]Node[T], len(n.children))
+	copy(cpy, n.children[:])
+	for i := 0; i < 16; i++ {
+		newNode.setChild(i, cpy[i])
 	}
 	return newNode
 }
