@@ -1,4 +1,4 @@
-go-immutable-adaptive-radix [![Run CI Tests](https://github.com/hashicorp/go-immutable-adaptive-radix/actions/workflows/ci.yaml/badge.svg)](https://github.com/hashicorp/go-immutable-adaptive-radix/actions/workflows/ci.yaml)
+go-immutable-adaptive-radix [![Run CI Tests](https://github.com/absolutelightning/go-immutable-adaptive-radix/actions/workflows/ci.yaml/badge.svg)](https://github.com/absolutelightning/go-immutable-adaptive-radix/actions/workflows/ci.yaml)
 =========
 
 Provides the `adaptive` package that implements an immutable adaptive [radix tree](http://en.wikipedia.org/wiki/Radix_tree).
