@@ -1,1 +1,5 @@
 .idea/
+
+# Go test binaries and profiling output
+*.test
+*.prof

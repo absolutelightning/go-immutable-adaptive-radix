@@ -7,25 +7,56 @@ package adaptive
 // hashicorp/go-immutable-radix/v2 (iradix), a persistent binary radix tree.
 //
 // Both libraries are immutable/persistent and generic, so the comparison is
-// apples-to-apples on the same fixed key sets. Keys are loaded once, outside the
-// timed region, so we measure only tree operations (not key generation).
+// apples-to-apples on the same fixed key sets. Each tree is built INSIDE its own
+// sub-benchmark and a GC is forced before the timer starts, so only the tree
+// under test is live during timing — this keeps the numbers low-variance.
+//
+// Datasets deliberately span a range of node fanouts, because that is where ART
+// and iradix differ most: iradix binary-searches its sorted edges at every node
+// (O(log fanout)), while ART indexes children directly (Node48/Node256) or with
+// a branchless SWAR compare (Node16). The gap therefore widens as fanout grows.
+//
+//	uuid   - 36-char hex, alphabet of 16  -> Node16-heavy (low fanout)
+//	words  - natural language             -> mixed, mostly low fanout
+//	seq    - sequential uint64 big-endian -> dense Node256 in the low bytes
+//	rand8  - random 8-byte keys           -> dense Node48/Node256 near the root
 //
 // Run:
 //
 //	go test -bench 'Compare' -benchmem -run '^$'
 //
-// Narrow to one dataset/operation:
+// Narrow to one operation/dataset, e.g. the high-fanout Get comparison:
 //
-//	go test -bench 'Compare/uuid/Get' -benchmem -run '^$'
+//	go test -bench 'CompareGet/.*/seq' -benchmem -run '^$'
 
 import (
 	"bufio"
+	"encoding/binary"
 	"math/rand"
 	"os"
+	"runtime"
 	"testing"
 
 	iradix "github.com/hashicorp/go-immutable-radix/v2"
 )
+
+const benchN = 100_000
+
+type dataset struct {
+	name string
+	keys [][]byte
+}
+
+// datasets returns the key sets used across the comparative benchmarks and the
+// differential correctness test, capped at n keys each.
+func datasets(tb testing.TB, n int) []dataset {
+	return []dataset{
+		{"uuid", loadKeys(tb, "test-text/uuid.txt", n)},
+		{"words", loadKeys(tb, "test-text/words.txt", n)},
+		{"seq", seqKeys(n)},
+		{"rand8", randKeys(n, 8)},
+	}
+}
 
 // loadKeys reads up to max lines from a file under test-text/ and returns them
 // as byte slices. It skips the benchmark (rather than failing) if the corpus is
@@ -59,15 +90,38 @@ func loadKeys(tb testing.TB, path string, max int) [][]byte {
 	return keys
 }
 
-// benchDatasets returns the named key sets used across the comparative
-// benchmarks. Loaded lazily per benchmark so a missing corpus only skips the
-// benchmarks that need it.
-func benchDatasets(tb testing.TB) map[string][][]byte {
-	const n = 100_000
-	return map[string][][]byte{
-		"uuid":  loadKeys(tb, "test-text/uuid.txt", n),
-		"words": loadKeys(tb, "test-text/words.txt", n),
+// seqKeys returns n sequential big-endian uint64 keys. The shared high-order
+// zero bytes compress away, leaving fully populated (256-way) nodes in the low
+// bytes — the case where ART's direct child indexing most outruns a binary
+// search over edges.
+func seqKeys(n int) [][]byte {
+	keys := make([][]byte, n)
+	for i := range keys {
+		b := make([]byte, 8)
+		binary.BigEndian.PutUint64(b, uint64(i))
+		keys[i] = b
 	}
+	return keys
+}
+
+// randKeys returns n distinct random keys of the given width (deterministic
+// seed for reproducibility).
+func randKeys(n, width int) [][]byte {
+	r := rand.New(rand.NewSource(42))
+	seen := make(map[string]struct{}, n)
+	keys := make([][]byte, 0, n)
+	for len(keys) < n {
+		b := make([]byte, width)
+		for j := range b {
+			b[j] = byte(r.Intn(256))
+		}
+		if _, ok := seen[string(b)]; ok {
+			continue
+		}
+		seen[string(b)] = struct{}{}
+		keys = append(keys, b)
+	}
+	return keys
 }
 
 // distinctCount reports the number of unique keys in the set.
@@ -79,7 +133,7 @@ func distinctCount(keys [][]byte) int {
 	return len(seen)
 }
 
-// ---- ART builders ----
+// ---- builders ----
 
 func buildART(keys [][]byte) *RadixTree[int] {
 	t := NewRadixTree[int]()
@@ -102,16 +156,20 @@ func buildIradix(keys [][]byte) *iradix.Tree[int] {
 // ---- Bulk build (insert all keys into a fresh tree) ----
 
 func BenchmarkCompareInsert(b *testing.B) {
-	for name, keys := range benchDatasets(b) {
-		keys := keys
-		b.Run("ART/"+name, func(b *testing.B) {
+	for _, ds := range datasets(b, benchN) {
+		keys := ds.keys
+		b.Run("ART/"+ds.name, func(b *testing.B) {
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_ = buildART(keys)
 			}
 		})
-		b.Run("iradix/"+name, func(b *testing.B) {
+		b.Run("iradix/"+ds.name, func(b *testing.B) {
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_ = buildIradix(keys)
 			}
@@ -122,29 +180,30 @@ func BenchmarkCompareInsert(b *testing.B) {
 // ---- Point lookups on a prebuilt tree ----
 
 func BenchmarkCompareGet(b *testing.B) {
-	for name, keys := range benchDatasets(b) {
-		keys := keys
+	for _, ds := range datasets(b, benchN) {
+		keys := ds.keys
 		// Fixed pseudo-random lookup order, identical for both trees.
 		order := rand.New(rand.NewSource(1)).Perm(len(keys))
 
-		art := buildART(keys)
-		b.Run("ART/"+name, func(b *testing.B) {
+		b.Run("ART/"+ds.name, func(b *testing.B) {
+			art := buildART(keys)
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				k := keys[order[i%len(order)]]
-				if _, ok := art.Get(k); !ok {
-					b.Fatalf("ART missing key %q", k)
+				if _, ok := art.Get(keys[order[i%len(order)]]); !ok {
+					b.Fatal("ART missing key")
 				}
 			}
 		})
-
-		ir := buildIradix(keys)
-		b.Run("iradix/"+name, func(b *testing.B) {
+		b.Run("iradix/"+ds.name, func(b *testing.B) {
+			ir := buildIradix(keys)
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				k := keys[order[i%len(order)]]
-				if _, ok := ir.Get(k); !ok {
-					b.Fatalf("iradix missing key %q", k)
+				if _, ok := ir.Get(keys[order[i%len(order)]]); !ok {
+					b.Fatal("iradix missing key")
 				}
 			}
 		})
@@ -154,25 +213,26 @@ func BenchmarkCompareGet(b *testing.B) {
 // ---- Single-key insert into an existing tree (persistent update path) ----
 
 func BenchmarkCompareUpdate(b *testing.B) {
-	for name, keys := range benchDatasets(b) {
-		keys := keys
+	for _, ds := range datasets(b, benchN) {
+		keys := ds.keys
 		order := rand.New(rand.NewSource(2)).Perm(len(keys))
 
-		art := buildART(keys)
-		b.Run("ART/"+name, func(b *testing.B) {
+		b.Run("ART/"+ds.name, func(b *testing.B) {
+			art := buildART(keys)
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				k := keys[order[i%len(order)]]
-				art, _, _ = art.Insert(k, i)
+				art, _, _ = art.Insert(keys[order[i%len(order)]], i)
 			}
 		})
-
-		ir := buildIradix(keys)
-		b.Run("iradix/"+name, func(b *testing.B) {
+		b.Run("iradix/"+ds.name, func(b *testing.B) {
+			ir := buildIradix(keys)
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				k := keys[order[i%len(order)]]
-				ir, _, _ = ir.Insert(k, i)
+				ir, _, _ = ir.Insert(keys[order[i%len(order)]], i)
 			}
 		})
 	}
@@ -181,16 +241,15 @@ func BenchmarkCompareUpdate(b *testing.B) {
 // ---- Ordered iteration over the whole tree ----
 
 func BenchmarkCompareIterate(b *testing.B) {
-	for name, keys := range benchDatasets(b) {
-		keys := keys
-
-		// Distinct keys only: the corpus may contain duplicates, and both
-		// trees collapse those, so the iteration count is the tree size.
+	for _, ds := range datasets(b, benchN) {
+		keys := ds.keys
 		want := distinctCount(keys)
 
-		art := buildART(keys)
-		b.Run("ART/"+name, func(b *testing.B) {
+		b.Run("ART/"+ds.name, func(b *testing.B) {
+			art := buildART(keys)
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				it := art.Root().Iterator()
 				it.SeekPrefixWatch([]byte("")) // seed the stack with the root
@@ -203,10 +262,11 @@ func BenchmarkCompareIterate(b *testing.B) {
 				}
 			}
 		})
-
-		ir := buildIradix(keys)
-		b.Run("iradix/"+name, func(b *testing.B) {
+		b.Run("iradix/"+ds.name, func(b *testing.B) {
+			ir := buildIradix(keys)
+			runtime.GC()
 			b.ReportAllocs()
+			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				it := ir.Root().Iterator()
 				count := 0

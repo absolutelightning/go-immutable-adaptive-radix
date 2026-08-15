@@ -303,37 +303,34 @@ func isLeaf[T any](node Node[T]) bool {
 }
 
 func findChild[T any](n Node[T], c byte) (Node[T], int) {
-	switch n.getArtNodeType() {
-	case node4:
-		keys := n.getKeys()
-		nCh := int(n.getNumChildren())
-		idx := sort.Search(nCh, func(i int) bool {
-			return keys[i] > c
-		})
-		if idx >= 1 && keys[idx-1] == c {
-			return n.getChild(idx - 1), idx - 1
+	// Type-switch to the concrete node once and read fields directly. Going
+	// through the Node[T] interface accessors (getArtNodeType/getKeys/
+	// getNumChildren/getChild) costs one virtual call each and dominated the
+	// lookup hot path; a single type assertion plus direct field access is far
+	// cheaper and inlines.
+	switch m := n.(type) {
+	case *Node4[T]:
+		// <=4 sorted keys: a linear scan beats a binary search plus closure.
+		for i := 0; i < int(m.numChildren); i++ {
+			if m.keys[i] == c {
+				return m.children[i], i
+			}
 		}
-	case node16:
-		keys := n.getKeys()
-		// Compare the key to all 16 stored keys
-		nCh := int(n.getNumChildren())
-		idx := sort.Search(nCh, func(i int) bool {
-			return keys[i] > c
-		})
-		if idx >= 1 && keys[idx-1] == c {
-			return n.getChild(idx - 1), idx - 1
+	case *Node16[T]:
+		// Branchless SWAR search: constant-time regardless of fill, which beats
+		// a linear scan on dense nodes (e.g. hex keys fill all 16 slots).
+		if i := node16FindIdx(&m.keys, m.numChildren, c); i >= 0 {
+			return m.children[i], i
 		}
-	case node48:
-		i := n.getKeyAtIdx(int(c))
-		if i != 0 {
-			return n.getChild(int(i - 1)), int(i - 1)
+	case *Node48[T]:
+		if i := m.keys[c]; i != 0 {
+			return m.children[i-1], int(i - 1)
 		}
-	case node256:
-		ch := n.getChild(int(c))
-		if ch != nil {
+	case *Node256[T]:
+		if ch := m.children[c]; ch != nil {
 			return ch, int(c)
 		}
-	case leafType:
+	case *NodeLeaf[T]:
 		// no-op
 		return nil, 0
 	default:
