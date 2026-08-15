@@ -36,62 +36,48 @@ func (i *Iterator[T]) Next() ([]byte, T, bool) {
 			return nil, zero, false
 		}
 
-		switch node.(type) {
+		// Bind the concrete node in the switch so each case skips a second type
+		// assertion. Children are pushed in reverse so they pop in key order.
+		switch n := node.(type) {
 		case *Node4[T]:
-			n4 := node.(*Node4[T])
-			n4L := n4.leaf
-			for itr := int(n4.numChildren) - 1; itr >= 0; itr-- {
-				i.stack = append(i.stack, n4.children[itr])
+			for itr := int(n.numChildren) - 1; itr >= 0; itr-- {
+				i.stack = append(i.stack, n.children[itr])
 			}
-			if n4L != nil && hasPrefix(n4L.key, i.path) {
-				return getKey(n4L.key), n4L.value, true
+			if n.leaf != nil && hasPrefix(n.leaf.key, i.path) {
+				return getKey(n.leaf.key), n.leaf.value, true
 			}
 		case *Node16[T]:
-			n16 := node.(*Node16[T])
-			n16L := n16.leaf
-			for itr := int(n16.numChildren) - 1; itr >= 0; itr-- {
-				i.stack = append(i.stack, n16.children[itr])
+			for itr := int(n.numChildren) - 1; itr >= 0; itr-- {
+				i.stack = append(i.stack, n.children[itr])
 			}
-			if n16L != nil && hasPrefix(n16L.key, i.path) {
-				return getKey(n16L.key), n16L.value, true
+			if n.leaf != nil && hasPrefix(n.leaf.key, i.path) {
+				return getKey(n.leaf.key), n.leaf.value, true
 			}
 		case *Node48[T]:
-			n48 := node.(*Node48[T])
-			n48L := n48.leaf
 			for itr := 255; itr >= 0; itr-- {
-				idx := n48.keys[itr]
+				idx := n.keys[itr]
 				if idx == 0 {
 					continue
 				}
-				nodeCh := n48.children[idx-1]
-				if nodeCh == nil {
-					continue
+				if nodeCh := n.children[idx-1]; nodeCh != nil {
+					i.stack = append(i.stack, nodeCh)
 				}
-				i.stack = append(i.stack, nodeCh)
 			}
-			if n48L != nil && hasPrefix(n48L.key, i.path) {
-				return getKey(n48L.key), n48L.value, true
+			if n.leaf != nil && hasPrefix(n.leaf.key, i.path) {
+				return getKey(n.leaf.key), n.leaf.value, true
 			}
 		case *Node256[T]:
-			n256 := node.(*Node256[T])
-			n256L := n256.leaf
 			for itr := 255; itr >= 0; itr-- {
-				nodeCh := n256.children[itr]
-				if nodeCh == nil {
-					continue
+				if nodeCh := n.children[itr]; nodeCh != nil {
+					i.stack = append(i.stack, nodeCh)
 				}
-				i.stack = append(i.stack, nodeCh)
 			}
-			if n256L != nil && hasPrefix(n256L.key, i.path) {
-				return getKey(n256L.key), n256L.value, true
+			if n.leaf != nil && hasPrefix(n.leaf.key, i.path) {
+				return getKey(n.leaf.key), n.leaf.value, true
 			}
 		case *NodeLeaf[T]:
-			leafCh := node.(*NodeLeaf[T])
-			if !leafCh.matchPrefix([]byte(i.Path())) {
-				continue
-			}
-			if hasPrefix(leafCh.key, i.path) {
-				return getKey(leafCh.key), leafCh.value, true
+			if hasPrefix(n.key, i.path) {
+				return getKey(n.key), n.value, true
 			}
 		}
 	}

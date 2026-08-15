@@ -28,6 +28,44 @@ func leafMatches(nodeKey []byte, key []byte) int {
 	return bytes.Compare(nodeKey, key)
 }
 
+// Stored keys carry a trailing '$' sentinel (see getTreeKey). The three helpers
+// below let the read path operate on the caller's raw key with that sentinel
+// applied *virtually*, so a lookup never has to allocate a key+'$' copy. They
+// are exactly equivalent to running the non-terminated helpers on append(key,
+// '$'): terminatedByteAt(key, i) == (key+'$')[i] for i in [0, len(key)].
+
+// terminatedByteAt returns the i-th byte of key under the implicit '$'
+// terminator: key[i] for i < len(key), and '$' at i == len(key). i must be
+// <= len(key).
+func terminatedByteAt(key []byte, i int) byte {
+	if i < len(key) {
+		return key[i]
+	}
+	return '$'
+}
+
+// leafMatchesTerminated reports whether storedKey (which carries the trailing
+// '$') equals key with an implicit '$' appended — i.e. bytes.Equal(storedKey,
+// append(key, '$')).
+func leafMatchesTerminated(storedKey, key []byte) bool {
+	return len(storedKey) == len(key)+1 &&
+		storedKey[len(key)] == '$' &&
+		bytes.Equal(storedKey[:len(key)], key)
+}
+
+// checkPrefixTerminated is checkPrefix evaluated over key with an implicit
+// trailing '$'.
+func checkPrefixTerminated(partial []byte, partialLen int, key []byte, depth int) int {
+	maxCmp := min(min(partialLen, maxPrefixLen), len(key)+1-depth)
+	var idx int
+	for idx = 0; idx < maxCmp; idx++ {
+		if partial[idx] != terminatedByteAt(key, depth+idx) {
+			return idx
+		}
+	}
+	return idx
+}
+
 // longestCommonPrefix finds the length of the longest common prefix between two leaf nodes.
 func longestCommonPrefix[T any](l1, l2 Node[T], depth int) int {
 	maxCmp := len(l2.getKey()) - depth
@@ -303,37 +341,34 @@ func isLeaf[T any](node Node[T]) bool {
 }
 
 func findChild[T any](n Node[T], c byte) (Node[T], int) {
-	switch n.getArtNodeType() {
-	case node4:
-		keys := n.getKeys()
-		nCh := int(n.getNumChildren())
-		idx := sort.Search(nCh, func(i int) bool {
-			return keys[i] > c
-		})
-		if idx >= 1 && keys[idx-1] == c {
-			return n.getChild(idx - 1), idx - 1
+	// Type-switch to the concrete node once and read fields directly. Going
+	// through the Node[T] interface accessors (getArtNodeType/getKeys/
+	// getNumChildren/getChild) costs one virtual call each and dominated the
+	// lookup hot path; a single type assertion plus direct field access is far
+	// cheaper and inlines.
+	switch m := n.(type) {
+	case *Node4[T]:
+		// <=4 sorted keys: a linear scan beats a binary search plus closure.
+		for i := 0; i < int(m.numChildren); i++ {
+			if m.keys[i] == c {
+				return m.children[i], i
+			}
 		}
-	case node16:
-		keys := n.getKeys()
-		// Compare the key to all 16 stored keys
-		nCh := int(n.getNumChildren())
-		idx := sort.Search(nCh, func(i int) bool {
-			return keys[i] > c
-		})
-		if idx >= 1 && keys[idx-1] == c {
-			return n.getChild(idx - 1), idx - 1
+	case *Node16[T]:
+		// Branchless SWAR search: constant-time regardless of fill, which beats
+		// a linear scan on dense nodes (e.g. hex keys fill all 16 slots).
+		if i := node16FindIdx(&m.keys, m.numChildren, c); i >= 0 {
+			return m.children[i], i
 		}
-	case node48:
-		i := n.getKeyAtIdx(int(c))
-		if i != 0 {
-			return n.getChild(int(i - 1)), int(i - 1)
+	case *Node48[T]:
+		if i := m.keys[c]; i != 0 {
+			return m.children[i-1], int(i - 1)
 		}
-	case node256:
-		ch := n.getChild(int(c))
-		if ch != nil {
+	case *Node256[T]:
+		if ch := m.children[c]; ch != nil {
 			return ch, int(c)
 		}
-	case leafType:
+	case *NodeLeaf[T]:
 		// no-op
 		return nil, 0
 	default:
