@@ -28,6 +28,44 @@ func leafMatches(nodeKey []byte, key []byte) int {
 	return bytes.Compare(nodeKey, key)
 }
 
+// Stored keys carry a trailing '$' sentinel (see getTreeKey). The three helpers
+// below let the read path operate on the caller's raw key with that sentinel
+// applied *virtually*, so a lookup never has to allocate a key+'$' copy. They
+// are exactly equivalent to running the non-terminated helpers on append(key,
+// '$'): terminatedByteAt(key, i) == (key+'$')[i] for i in [0, len(key)].
+
+// terminatedByteAt returns the i-th byte of key under the implicit '$'
+// terminator: key[i] for i < len(key), and '$' at i == len(key). i must be
+// <= len(key).
+func terminatedByteAt(key []byte, i int) byte {
+	if i < len(key) {
+		return key[i]
+	}
+	return '$'
+}
+
+// leafMatchesTerminated reports whether storedKey (which carries the trailing
+// '$') equals key with an implicit '$' appended — i.e. bytes.Equal(storedKey,
+// append(key, '$')).
+func leafMatchesTerminated(storedKey, key []byte) bool {
+	return len(storedKey) == len(key)+1 &&
+		storedKey[len(key)] == '$' &&
+		bytes.Equal(storedKey[:len(key)], key)
+}
+
+// checkPrefixTerminated is checkPrefix evaluated over key with an implicit
+// trailing '$'.
+func checkPrefixTerminated(partial []byte, partialLen int, key []byte, depth int) int {
+	maxCmp := min(min(partialLen, maxPrefixLen), len(key)+1-depth)
+	var idx int
+	for idx = 0; idx < maxCmp; idx++ {
+		if partial[idx] != terminatedByteAt(key, depth+idx) {
+			return idx
+		}
+	}
+	return idx
+}
+
 // longestCommonPrefix finds the length of the longest common prefix between two leaf nodes.
 func longestCommonPrefix[T any](l1, l2 Node[T], depth int) int {
 	maxCmp := len(l2.getKey()) - depth

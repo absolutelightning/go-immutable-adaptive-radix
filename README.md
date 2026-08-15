@@ -89,32 +89,35 @@ Library : hashicorp/go-immutable-radix/v2 v2.1.0
 
 | Operation | dataset | ART | iradix |
 |-----------|---------|-----|--------|
-| Get       | uuid    | **277 ns**  | 300 ns |
-| Get       | words   | **295 ns**  | 374 ns |
-| Get       | seq     | **120 ns**  | 144 ns |
-| Get       | rand8   | **160 ns**  | 205 ns |
-| Insert    | uuid    | **30.9 ms** | 60.6 ms |
-| Insert    | words   | **23.4 ms** | 36.4 ms |
-| Insert    | seq     | **13.0 ms** | 14.3 ms |
-| Insert    | rand8   | **21.8 ms** | 41.8 ms |
-| Update    | uuid    | **1420 ns** | 1810 ns |
-| Update    | words   | 2391 ns     | **2350 ns** |
-| Update    | seq     | 3043 ns     | **2800 ns** |
-| Update    | rand8   | 3643 ns     | **2787 ns** |
-| Iterate   | uuid    | **2.91 ms** | 3.09 ms |
-| Iterate   | words   | **1.28 ms** | 1.48 ms |
-| Iterate   | seq     | 0.43 ms     | **0.33 ms** |
-| Iterate   | rand8   | 2.32 ms     | **1.62 ms** |
+| Get       | uuid    | 245 ns      | **222 ns** |
+| Get       | words   | **208 ns**  | 226 ns |
+| Get       | seq     | **71 ns**   | 116 ns |
+| Get       | rand8   | **101 ns**  | 155 ns |
+| Insert    | uuid    | **25.4 ms** | 48.9 ms |
+| Insert    | words   | **21.6 ms** | 32.4 ms |
+| Insert    | seq     | **11.1 ms** | 12.2 ms |
+| Insert    | rand8   | **18.1 ms** | 35.8 ms |
+| Update    | uuid    | **1229 ns** | 1543 ns |
+| Update    | words   | 2091 ns     | **2026 ns** |
+| Update    | seq     | 2540 ns     | **2399 ns** |
+| Update    | rand8   | 3431 ns     | **2420 ns** |
+| Iterate   | uuid    | 1.79 ms     | **1.27 ms** |
+| Iterate   | words   | **0.96 ms** | 0.95 ms |
+| Iterate   | seq     | 0.33 ms     | **0.26 ms** |
+| Iterate   | rand8   | 1.57 ms     | **0.91 ms** |
 
 Takeaways:
 
-* **Get** — ART is faster on every distribution, and the gap widens with fanout
-  (up to ~22% on dense keys), where its direct child indexing beats a per-node
-  binary search. Lookups are allocation-free.
+* **Get** — allocation-free, and faster than iradix on `words` and dramatically
+  faster on the high-fanout `seq`/`rand8` sets (~35–40%), where ART indexes
+  children directly instead of binary-searching edges. On low-fanout `uuid` (deep
+  16-way tree) iradix's longer per-node prefixes mean fewer nodes to walk, so it
+  edges ahead by ~10%.
 * **Insert** — ART is faster everywhere (up to ~2×). Being persistent, an insert
   copies every node on the root-to-leaf path; ART allocates about half as many
   objects per copied node (no eager mutation channel, children stored inline
   rather than in a separately-allocated slice).
 * **Update / Iterate** — ART wins on low-fanout (realistic) keys but loses on
-  synthetic dense (Node256) trees, where the inline 256-entry child arrays are
-  costly to clone (Update) and to scan slot-by-slot (Iterate).
+  synthetic dense (Node256) trees. The inline 256-entry child arrays that make
+  Get and Insert cheap are the flip side here: costly to clone on Update, and to
+  scan slot-by-slot (plus a wide frontier stack) on Iterate.

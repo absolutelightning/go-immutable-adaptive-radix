@@ -72,6 +72,36 @@ func TestGetMatchesOracleAndIradix(t *testing.T) {
 	}
 }
 
+// TestGetWatchAbsentAndPresent exercises the GetWatch path, including lookups
+// that terminate at a non-matching leaf — the case the old implementation could
+// nil-deref on. Every present key must be found; absent keys must return a
+// non-nil watch channel and not panic.
+func TestGetWatchAbsentAndPresent(t *testing.T) {
+	keys := []string{"a", "ab", "abc", "abcd", "b", "hello", "help", "world"}
+	r := NewRadixTree[int]()
+	for i, k := range keys {
+		r, _, _ = r.Insert([]byte(k), i)
+	}
+	for i, k := range keys {
+		w, v, ok := r.GetWatch([]byte(k))
+		if !ok || v != i {
+			t.Fatalf("GetWatch(%q)=(%d,%v), want (%d,true)", k, v, ok, i)
+		}
+		if w == nil {
+			t.Fatalf("GetWatch(%q) returned nil watch for present key", k)
+		}
+	}
+	for _, k := range []string{"", "a b", "abcde", "abx", "he", "helpe", "z", "worl"} {
+		w, _, ok := r.GetWatch([]byte(k))
+		if ok {
+			t.Fatalf("GetWatch(%q) unexpectedly present", k)
+		}
+		if w == nil {
+			t.Fatalf("GetWatch(%q) returned nil watch for absent key", k)
+		}
+	}
+}
+
 // TestGetPrefixKeys exercises the specific case the sentinel/node-leaf machinery
 // exists for: keys that are strict prefixes of other keys must each resolve to
 // their own value, and a prefix that was never inserted must be absent.
